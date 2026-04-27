@@ -11,7 +11,7 @@ ok()    { echo -e "${GREEN}[✓]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 fail()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 
-REPO="https://github.com/aboahamd/cafe-pos.git"
+REPO="https://github.com/nobodycp/cafe-pos.git"
 DIR="cafe-pos"
 PORT="${PORT:-8000}"
 

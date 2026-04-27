@@ -9,7 +9,7 @@
 ## التثبيت بأمر واحد
 
 ```bash
-git clone https://github.com/aboahamd/cafe-pos.git && cd cafe-pos && bash install.sh
+git clone https://github.com/nobodycp/cafe-pos.git && cd cafe-pos && bash install.sh
 ```
 
 ### المتطلبات
