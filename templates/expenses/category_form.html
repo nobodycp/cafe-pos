@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{% if edit %}تعديل تصنيف{% else %}إضافة تصنيف{% endif %}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{% if edit %}تعديل تصنيف{% else %}إضافة تصنيف{% endif %}</h1>
+  <a href="{% url 'expenses:categories' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    العودة للتصنيفات
+  </a>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">الرمز</label>
+      {{ form.code }}
+      {% if form.code.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.code.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (عربي)</label>
+      {{ form.name_ar }}
+      {% if form.name_ar.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (إنجليزي)</label>
+      {{ form.name_en }}
+      {% if form.name_en.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
+  </form>
+</div>
+{% endblock %}

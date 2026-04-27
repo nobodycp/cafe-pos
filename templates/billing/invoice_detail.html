@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}فاتورة {{ invoice.invoice_number }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">
+    فاتورة {{ invoice.invoice_number }}
+    {% if invoice.is_cancelled %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger align-middle ms-2">ملغاة</span>{% endif %}
+  </h1>
+  <div class="flex gap-2 no-print">
+    <button onclick="window.print()" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">طباعة</button>
+    {% if not invoice.is_cancelled %}
+    <a href="{% url 'billing:sale_return' invoice.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-danger text-white font-bold text-sm hover:bg-red-700 active:scale-[0.98] transition-all duration-200">مرتجع</a>
+    {% endif %}
+    <a href="{% url 'billing:invoice_list' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-primary text-primary font-bold text-sm hover:bg-primary-soft active:scale-[0.98] transition-all duration-200">كل الفواتير</a>
+  </div>
+</div>
+
+<!-- Invoice Printable Area -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6" id="invoice-printable">
+  <!-- Header -->
+  <div class="text-center mb-5">
+    <h2 class="text-xl font-extrabold text-gray-800 dark:text-white">{{ CAFE_NAME_AR }}</h2>
+    <p class="text-muted text-sm mt-1">فاتورة بيع رقم: {{ invoice.invoice_number }}</p>
+    <p class="text-muted text-xs mt-0.5">{{ invoice.created_at|date:"Y-m-d H:i" }}</p>
+  </div>
+
+  <!-- Meta Info -->
+  <div class="flex gap-6 flex-wrap mb-5 text-sm">
+    {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
+    <div><span class="text-muted">الطاولة:</span> <strong>{{ invoice.order.table_session.dining_table.name_ar }}</strong></div>
+    {% endif %}
+    {% if invoice.customer %}
+    <div><span class="text-muted">العميل:</span> <strong>{{ invoice.customer.name_ar }}</strong></div>
+    {% endif %}
+    <div><span class="text-muted">الوردية:</span> {{ invoice.work_session }}</div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="overflow-x-auto mb-5">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
+          <th class="text-center p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
+          <th class="text-center p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">السعر</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المجموع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ line.product.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-center">{{ line.quantity|floatformat:"0" }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-center">{{ line.unit_price|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ line.line_subtotal|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals -->
+  <div class="max-w-sm ms-auto">
+    <div class="flex justify-between py-1.5 text-sm">
+      <span>المجموع قبل الخصم</span>
+      <span>{{ invoice.subtotal|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% if invoice.discount_total > 0 %}
+    <div class="flex justify-between py-1.5 text-sm text-danger">
+      <span>الخصم</span>
+      <span>-{{ invoice.discount_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endif %}
+    {% if invoice.service_charge_total > 0 %}
+    <div class="flex justify-between py-1.5 text-sm text-muted">
+      <span>خدمة</span>
+      <span>{{ invoice.service_charge_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endif %}
+    {% if invoice.tax_total > 0 %}
+    <div class="flex justify-between py-1.5 text-sm text-muted">
+      <span>ضريبة</span>
+      <span>{{ invoice.tax_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endif %}
+    <div class="flex justify-between py-2 text-xl font-extrabold border-t-2 border-gray-800 dark:border-gray-200 mt-1">
+      <span>الإجمالي</span>
+      <span>{{ invoice.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+  </div>
+
+  <!-- Payment Methods -->
+  <div class="mt-5 border-t border-gray-200 dark:border-gray-700 pt-4">
+    <h3 class="text-sm font-bold mb-3">طرق الدفع</h3>
+    {% for pay in payments %}
+    <div class="flex justify-between py-1.5 text-sm">
+      <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if pay.method == 'cash' %}bg-success/10 text-success{% elif pay.method == 'bank' %}bg-info/10 text-info{% else %}bg-danger/10 text-danger{% endif %}">{{ pay.get_method_display }}</span>
+      <span class="font-semibold">{{ pay.amount|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <p class="text-center text-muted text-xs mt-5">شكراً لزيارتكم</p>
+</div>
+
+{% if invoice.customer %}
+<div class="no-print mt-4">
+  <a href="{% url 'billing:customer_invoices' invoice.customer.pk %}" class="text-primary font-semibold hover:underline">&larr; فواتير العميل: {{ invoice.customer.name_ar }}</a>
+</div>
+{% endif %}
+
+<style>
+@media print {
+  .side-nav, .page-header .no-print, .no-print { display: none !important; }
+  body, .app-shell { background: #fff !important; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+  main { padding: 0 !important; margin: 0 !important; }
+}
+</style>
+{% endblock %}

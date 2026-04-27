@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ title }}</h1>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالعربي</label>
+        {{ form.name_ar }}
+        {% if form.name_ar.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.name_ar.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالإنجليزي</label>
+        {{ form.name_en }}
+        {% if form.name_en.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.name_en.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الهاتف</label>
+        {{ form.phone }}
+        {% if form.phone.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.phone.errors.0 }}</p>{% endif %}
+      </div>
+      {% if is_new %}
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">رصيد افتتاحي</label>
+        {{ form.opening_balance }}
+        <small class="block text-xs text-muted mt-1">مبلغ مسبق على العميل (اختياري)</small>
+        {% if form.opening_balance.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.opening_balance.errors.0 }}</p>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 mt-5">حفظ</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  {% if customer %}
+    <a href="{% url 'contacts:customer_detail' customer.pk %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
+  {% else %}
+    <a href="{% url 'contacts:customers' %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
+  {% endif %}
+</p>
+{% endblock %}

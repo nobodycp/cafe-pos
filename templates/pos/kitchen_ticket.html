@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>مطبخ — طلب #{{ order.pk }}</title>
+<style>
+  body {
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    font-size: 16px;
+    padding: 10mm;
+    direction: rtl;
+    margin: 0;
+    color: #1e293b;
+    background: #fff;
+  }
+  h1 {
+    font-size: 1.4rem;
+    text-align: center;
+    margin: 0 0 4px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .meta {
+    text-align: center;
+    color: #64748b;
+    margin-bottom: 16px;
+    font-size: .9rem;
+    padding-bottom: 12px;
+    border-bottom: 2px dashed #cbd5e1;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 10px 6px;
+    text-align: right;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  th {
+    font-weight: 700;
+    font-size: .9rem;
+    border-bottom: 2px solid #334155;
+    color: #334155;
+  }
+  td {
+    font-size: .95rem;
+  }
+  .note {
+    color: #d63031;
+    font-size: .85rem;
+    font-weight: 600;
+  }
+  .mods {
+    color: #64748b;
+    font-size: .85rem;
+    margin-top: 2px;
+  }
+  .no-print {
+    text-align: center;
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .no-print button {
+    padding: 10px 30px;
+    font-size: 1rem;
+    cursor: pointer;
+    border: 2px solid #6c5ce7;
+    border-radius: 10px;
+    background: #6c5ce7;
+    color: #fff;
+    font-family: 'Cairo', sans-serif;
+    font-weight: 700;
+    transition: background .2s;
+  }
+  .no-print button:hover {
+    background: #5649c0;
+  }
+  .no-print a {
+    font-size: 1rem;
+    color: #6c5ce7;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .no-print a:hover {
+    text-decoration: underline;
+  }
+  @media print {
+    .no-print { display: none; }
+    body { padding: 2mm; font-size: 14px; }
+    th { border-bottom-color: #000; }
+    td { border-bottom-color: #ccc; }
+  }
+</style>
+</head>
+<body>
+<h1>مطبخ / بار — دفعة {{ batch_no }}</h1>
+<div class="meta">
+  طلب #{{ order.pk }}
+  {% if order.table %} — طاولة: {{ order.table.name_ar }}{% endif %}
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>الصنف</th>
+      <th>الكمية</th>
+      <th>ملاحظات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ln in lines %}
+    <tr>
+      <td>
+        {{ ln.product.name_ar }}
+        {% if ln.modifiers_json %}<div class="mods">{% for m in ln.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+      </td>
+      <td>{{ ln.quantity|floatformat:"0" }}</td>
+      <td>{% if ln.line_note %}<span class="note">{{ ln.line_note }}</span>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px">لا توجد أصناف في هذه الدفعة</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="no-print">
+  <button onclick="window.print()">طباعة</button>
+  <a href="{% url 'pos:main' %}">عودة للكاشير</a>
+</div>
+
+<script>window.onload=function(){window.print()}</script>
+</body>
+</html>

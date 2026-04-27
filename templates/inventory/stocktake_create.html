@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}جرد جديد{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">بدء جرد جديد</h1>
+</div>
+
+{# ── Create Form ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-xl">
+  <p class="text-muted text-sm mb-5">
+    سيتم إنشاء جرد يحتوي على جميع الأصناف المتتبعة بالمخزون مع كمياتها الحالية في النظام.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-5">
+      <label for="note" class="block text-sm font-semibold text-muted mb-1.5">ملاحظات (اختياري)</label>
+      <textarea id="note" name="note" rows="3"
+                class="w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 resize-y"
+                placeholder="مثلاً: جرد نهاية الشهر"></textarea>
+    </div>
+    <div class="flex gap-3 items-center">
+      <button type="submit" class="h-11 px-6 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors cursor-pointer">بدء الجرد</button>
+      <a href="{% url 'inventory:stocktake_list' %}" class="text-sm font-semibold text-muted hover:text-gray-700 dark:hover:text-gray-300 transition-colors">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

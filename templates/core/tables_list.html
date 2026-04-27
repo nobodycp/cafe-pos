@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}إدارة الطاولات{% endblock %}
+{% block content %}
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">إدارة الطاولات</h1>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'core:table_create' %}"
+       class="inline-flex items-center gap-2 h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      إضافة طاولة
+    </a>
+    <a href="{% url 'core:settings' %}"
+       class="inline-flex items-center gap-2 h-11 px-5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-all duration-200">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      العودة للإعدادات
+    </a>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم (عربي)</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم (إنجليزي)</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الترتيب</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for t in tables %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 font-semibold text-gray-800 dark:text-gray-200">{{ t.name_ar }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ t.name_en }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ t.sort_order }}</td>
+          <td class="p-3">
+            {% if t.is_active %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-success/10 text-success">
+              <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+              نشط
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-danger/10 text-danger">
+              <span class="w-1.5 h-1.5 rounded-full bg-danger"></span>
+              معطّل
+            </span>
+            {% endif %}
+          </td>
+          <td class="p-3">
+            <div class="flex gap-2 flex-wrap">
+              <a href="{% url 'core:table_edit' t.pk %}"
+                 class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                تعديل
+              </a>
+              <form method="post" action="{% url 'core:table_toggle' t.pk %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-bold transition-colors {% if t.is_active %}bg-danger/10 text-danger hover:bg-danger/20{% else %}bg-success/10 text-success hover:bg-success/20{% endif %}">
+                  {% if t.is_active %}
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  تعطيل
+                  {% else %}
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  تفعيل
+                  {% endif %}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-12">
+            <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <p class="font-semibold">لا توجد طاولات</p>
+            <p class="text-xs mt-1">اضغط "إضافة طاولة" لإنشاء أول طاولة</p>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

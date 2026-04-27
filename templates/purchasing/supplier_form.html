@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ title }}</h1>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالعربي</label>
+        {{ form.name_ar }}
+        {% if form.name_ar.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.name_ar.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالإنجليزي</label>
+        {{ form.name_en }}
+        {% if form.name_en.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.name_en.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الهاتف</label>
+        {{ form.phone }}
+        {% if form.phone.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.phone.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">البريد الإلكتروني</label>
+        {{ form.email }}
+        {% if form.email.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.email.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    {% if not supplier %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">رصيد افتتاحي (مبلغ مستحق للمورد)</label>
+        {{ form.opening_balance }}
+        {% if form.opening_balance.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.opening_balance.errors.0 }}</p>{% endif %}
+        <small class="block text-muted text-xs mt-1">إذا عليك مبلغ سابق للمورد، أدخله هنا</small>
+      </div>
+      <div class="flex items-center gap-2.5 pt-6">
+        {{ form.also_customer }}
+        <label for="{{ form.also_customer.id_for_label }}" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">إنشاء حساب عميل مرتبط (المورد يشتري منا أيضاً)</label>
+      </div>
+    </div>
+    {% endif %}
+    <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  {% if supplier %}
+    <a href="{% url 'purchasing:supplier_detail' supplier.pk %}" class="text-primary font-semibold hover:underline text-sm">&larr; رجوع</a>
+  {% else %}
+    <a href="{% url 'purchasing:suppliers' %}" class="text-primary font-semibold hover:underline text-sm">&larr; رجوع</a>
+  {% endif %}
+</p>
+{% endblock %}

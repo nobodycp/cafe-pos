@@ -1,0 +1,15 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+.env
+staticfiles/
+.DS_Store
+*.mo~
+*.log
+.cursor/
+agent-transcripts/
+*.plan.md

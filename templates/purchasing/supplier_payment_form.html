@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}تسجيل سداد - {{ supplier.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">تسجيل سداد - {{ supplier.name_ar }}</h1>
+</div>
+
+{% if supplier.linked_customer and supplier.linked_customer.balance > 0 %}
+<div class="bg-warning/10 border border-warning rounded-xl p-4 mb-5 text-sm">
+  <strong class="text-yellow-700 dark:text-warning">تنبيه:</strong>
+  هذا المورد عميل مرتبط ({{ supplier.linked_customer.name_ar }}) — رصيده كعميل <strong>{{ supplier.linked_customer.balance|floatformat:2 }}</strong> (آجل).
+  <br>
+  رصيد المورد: <strong>{{ supplier.balance|floatformat:2 }}</strong> — الصافي المستحق: <strong>{{ net_balance|floatformat:2 }}</strong>
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ</label>
+        {{ form.amount }}
+        {% if form.amount.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.amount.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">طريقة الدفع</label>
+        {{ form.method }}
+        {% if form.method.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.method.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 gap-5 mt-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظة</label>
+        {{ form.note }}
+        {% if form.note.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.note.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  <a href="{% url 'purchasing:supplier_detail' supplier.pk %}" class="text-primary font-semibold hover:underline text-sm">&larr; رجوع</a>
+</p>
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}كرت الصنف — {{ product.name_ar }}{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white m-0">{{ product.name_ar }}</h1>
+      <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold
+        {% if product.product_type == 'manufactured' %}bg-info/15 text-info
+        {% elif product.product_type == 'ready' %}bg-success/15 text-success
+        {% elif product.product_type == 'service' %}bg-warning/20 text-yellow-700 dark:text-warning
+        {% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">
+        {{ product.get_product_type_display }}
+      </span>
+    </div>
+    {% if product.name_en %}<p class="text-sm text-muted mt-0.5">{{ product.name_en }}</p>{% endif %}
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <button onclick="window.print();"
+            class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk inline-flex items-center gap-1.5 cursor-pointer border-none no-print">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      طباعة
+    </button>
+    <a href="{% url 'catalog:product_list' %}"
+       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] border border-gray-300 dark:border-gray-600 text-muted hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center gap-1.5 no-print">
+      <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+      المنتجات
+    </a>
+  </div>
+</div>
+
+{# ── Summary Cards ── #}
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 mb-5">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">الرصيد الحالي</span>
+    <span class="text-2xl font-extrabold {% if on_hand > 0 %}text-success{% else %}text-danger{% endif %}">{{ on_hand|floatformat:2|intcomma }}</span>
+    {% if product.unit %}<span class="block text-xs text-muted mt-0.5">{{ product.unit.name_ar }}</span>{% endif %}
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">متوسط التكلفة</span>
+    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ avg_cost|floatformat:2|intcomma }}</span>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">القيمة</span>
+    <span class="text-2xl font-extrabold text-primary">{{ stock_value|floatformat:2|intcomma }}</span>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">سعر البيع</span>
+    <span class="text-2xl font-extrabold text-primary">{{ product.selling_price|floatformat:2|intcomma }}</span>
+  </div>
+  {% if last_purchase_cost != None %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">آخر سعر شراء</span>
+    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ last_purchase_cost|floatformat:2|intcomma }}</span>
+  </div>
+  {% endif %}
+  {% if bom_cost != None %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">تكلفة التصنيع</span>
+    <span class="text-2xl font-extrabold text-danger">{{ bom_cost|floatformat:2|intcomma }}</span>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Sales Summary ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4">ملخص المبيعات</h3>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="text-center">
+      <span class="block text-xs font-semibold text-muted mb-1">كمية مباعة</span>
+      <span class="text-xl font-extrabold text-gray-800 dark:text-white">{{ sales_stats.total_qty|default_if_none:0|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="text-center">
+      <span class="block text-xs font-semibold text-muted mb-1">إيراد</span>
+      <span class="text-xl font-extrabold text-primary">{{ sales_stats.total_revenue|default_if_none:0|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="text-center">
+      <span class="block text-xs font-semibold text-muted mb-1">ربح</span>
+      <span class="text-xl font-extrabold text-success">{{ sales_stats.total_profit|default_if_none:0|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="text-center">
+      <span class="block text-xs font-semibold text-muted mb-1">عدد الفواتير</span>
+      <span class="text-xl font-extrabold text-gray-800 dark:text-white">{{ sales_stats.sale_count|default_if_none:0|intcomma }}</span>
+    </div>
+  </div>
+</div>
+
+{# ── Date Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5 no-print">
+  <form method="get" class="flex gap-3 items-end flex-wrap">
+    <div>
+      <label class="block text-sm font-semibold text-muted mb-1.5">من تاريخ</label>
+      <input type="date" name="from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none min-w-[150px]">
+    </div>
+    <div>
+      <label class="block text-sm font-semibold text-muted mb-1.5">إلى تاريخ</label>
+      <input type="date" name="to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none min-w-[150px]">
+    </div>
+    <button type="submit"
+            class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk">
+      تصفية
+    </button>
+    {% if date_from or date_to %}
+      <a href="{% url 'catalog:product_card' product.pk %}"
+         class="h-11 inline-flex items-center text-sm font-semibold text-muted hover:text-danger transition-colors">
+        إلغاء الفلتر
+      </a>
+    {% endif %}
+  </form>
+</div>
+
+{# ── Stock Movements ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
+  <div class="px-5 pt-5 pb-3">
+    <h3 class="text-lg font-bold text-gray-800 dark:text-white">حركات المخزون</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-700">
+          <th class="text-start p-3 font-semibold text-muted">التاريخ</th>
+          <th class="text-start p-3 font-semibold text-muted">نوع الحركة</th>
+          <th class="text-start p-3 font-semibold text-muted">التغيير</th>
+          <th class="text-start p-3 font-semibold text-muted">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 whitespace-nowrap">{{ m.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold
+              {% if m.movement_type == 'purchase' %}bg-success/15 text-success
+              {% elif m.movement_type == 'sale' %}bg-info/15 text-info
+              {% elif m.movement_type == 'waste' %}bg-danger/15 text-danger
+              {% elif m.movement_type == 'manufacturing' %}bg-warning/20 text-yellow-700 dark:text-warning
+              {% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">
+              {{ m.get_movement_type_display }}
+            </span>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if m.quantity_delta > 0 %}+{% endif %}{{ m.quantity_delta|floatformat:2 }}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">{{ m.note|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted p-10">لا توجد حركات في الفترة المحددة</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Suppliers ── #}
+{% if suppliers_list %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
+  <div class="px-5 pt-5 pb-3">
+    <h3 class="text-lg font-bold text-gray-800 dark:text-white">الموردون</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-700">
+          <th class="text-start p-3 font-semibold text-muted">المورد</th>
+          <th class="text-start p-3 font-semibold text-muted">آخر تكلفة</th>
+          <th class="text-start p-3 font-semibold text-muted">آخر توريد</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suppliers_list %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-bold">{{ s.supplier.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_cost|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_date|date:"Y-m-d" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Used in Recipes ── #}
+{% if used_in_recipes %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
+  <div class="px-5 pt-5 pb-3">
+    <h3 class="text-lg font-bold text-gray-800 dark:text-white">يستخدم في وصفات</h3>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-700">
+          <th class="text-start p-3 font-semibold text-muted">المنتج المصنّع</th>
+          <th class="text-start p-3 font-semibold text-muted">الكمية لكل وحدة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rl in used_in_recipes %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'catalog:product_card' rl.manufactured_product.pk %}"
+               class="font-bold text-primary hover:text-primary-dk transition-colors">{{ rl.manufactured_product.name_ar }}</a>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ rl.quantity_per_unit|floatformat:4 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Back Link ── #}
+<div class="mt-4 no-print">
+  <a href="{% url 'catalog:product_list' %}" class="text-sm font-semibold text-primary hover:text-primary-dk transition-colors inline-flex items-center gap-1">
+    <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+    العودة لقائمة المنتجات
+  </a>
+</div>
+{% endblock %}

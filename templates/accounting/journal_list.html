@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}القيود اليومية{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">القيود اليومية</h1>
+</div>
+
+{# ── Quick Links ── #}
+<div class="flex flex-wrap gap-2 mb-6">
+  <a href="{% url 'accounting:chart' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">دليل الحسابات</a>
+  <a href="{% url 'accounting:trial_balance' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">ميزان المراجعة</a>
+  <a href="{% url 'accounting:pnl' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">الأرباح والخسائر</a>
+</div>
+
+{# ── Journal Entries Table ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم القيد</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الوصف</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المرجع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {% if e.is_reversed %}opacity-50{% endif %}">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700"><a href="{% url 'accounting:journal_detail' e.pk %}" class="text-primary hover:text-primary-dk font-semibold transition-colors">{{ e.entry_number }}</a></td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ e.date }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ e.description|truncatechars:80 }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-xs text-muted">{{ e.reference_type }} {{ e.reference_pk }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">
+            {% if e.is_reversed %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">معكوس</span>
+            {% else %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">فعال</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-8">لا توجد قيود</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

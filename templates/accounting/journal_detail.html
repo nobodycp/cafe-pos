@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}قيد {{ entry.entry_number }}{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">{{ entry.entry_number }}</h1>
+  <a href="{% url 'accounting:journal_list' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">&larr; القيود اليومية</a>
+</div>
+
+{# ── Reversed Warning ── #}
+{% if entry.is_reversed %}
+<div class="bg-danger/10 border border-danger rounded-xl p-5 mb-6">
+  <p class="text-danger font-bold">هذا القيد معكوس</p>
+</div>
+{% endif %}
+
+{# ── Entry Details ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <table class="w-full text-sm">
+    <tbody>
+      <tr>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold w-36">التاريخ</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ entry.date }}</td>
+      </tr>
+      <tr>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">الوصف</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ entry.description }}</td>
+      </tr>
+      {% if entry.reference_type %}
+      <tr>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">المرجع</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ entry.reference_type }} #{{ entry.reference_pk }}</td>
+      </tr>
+      {% endif %}
+      {% if entry.user %}
+      <tr>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">المستخدم</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ entry.user }}</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{# ── Journal Lines ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h2 class="text-lg font-bold mb-4">أسطر القيد</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحساب</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">البيان</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">مدين</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">دائن</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ln in lines %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ ln.account.code }} — {{ ln.account.name_ar }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ ln.description }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{% if ln.debit %}{{ ln.debit|floatformat:2|intcomma }}{% endif %}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{% if ln.credit %}{{ ln.credit|floatformat:2|intcomma }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

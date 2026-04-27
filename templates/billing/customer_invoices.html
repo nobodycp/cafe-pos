@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}فواتير العميل: {{ customer.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">فواتير العميل: {{ customer.name_ar }}</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'contacts:customer_detail' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">تفاصيل العميل</a>
+    <a href="{% url 'billing:invoice_list' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-primary text-primary font-bold text-sm hover:bg-primary-soft active:scale-[0.98] transition-all duration-200">كل الفواتير</a>
+  </div>
+</div>
+
+<!-- Summary Card -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <div class="flex gap-6 flex-wrap">
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">الرصيد الحالي</span>
+      <span class="text-xl font-extrabold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">عدد الفواتير</span>
+      <span class="text-xl font-extrabold">{{ invoices|length }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Table -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم الفاتورة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطاولة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإجمالي</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+          <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors{% if inv.is_cancelled %} opacity-50{% endif %}">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
+            <a href="{% url 'billing:invoice_detail' inv.pk %}" class="text-primary font-semibold hover:underline">{{ inv.invoice_number }}</a>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm">{{ inv.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-bold">{{ inv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            {% if inv.is_cancelled %}
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">ملغاة</span>
+            {% else %}
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">نشطة</span>
+            {% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'billing:invoice_detail' inv.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">عرض</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="p-8 text-center text-muted">لا توجد فواتير لهذا العميل</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

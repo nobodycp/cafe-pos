@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}التدفقات النقدية{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">تقرير التدفقات النقدية</h1>
+  <a href="{% url 'reports:dashboard' %}" class="h-11 px-5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold hover:border-primary inline-flex items-center transition-colors">التقارير</a>
+</div>
+
+{# ── Date Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <form method="get" class="flex gap-3 flex-wrap items-center">
+    <label class="text-sm font-semibold">من</label>
+    <input type="date" name="date_from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700 w-auto">
+    <label class="text-sm font-semibold">إلى</label>
+    <input type="date" name="date_to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700 w-auto">
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors cursor-pointer">عرض</button>
+  </form>
+</div>
+
+{# ── Inflows / Outflows ── #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  {# Inflows #}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-bold text-success mb-4">المقبوضات (الداخل)</h2>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">مبيعات كاش</span>
+      <span class="font-bold text-sm">{{ cash_sales|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">مبيعات تطبيق</span>
+      <span class="font-bold text-sm">{{ bank_sales|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">تحصيلات عملاء</span>
+      <span class="font-bold text-sm">{{ customer_payments|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 mt-1 border-t-2 border-success text-success font-extrabold text-lg">
+      <span>إجمالي المقبوضات</span>
+      <span>{{ total_inflows|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+  </div>
+
+  {# Outflows #}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-bold text-danger mb-4">المدفوعات (الخارج)</h2>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">مصروفات</span>
+      <span class="font-bold text-sm">{{ expenses_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">سدادات موردين</span>
+      <span class="font-bold text-sm">{{ supplier_payments|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">رواتب</span>
+      <span class="font-bold text-sm">{{ salary_payouts|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+      <span class="text-sm">سلف موظفين</span>
+      <span class="font-bold text-sm">{{ advances|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    <div class="flex justify-between py-3 mt-1 border-t-2 border-danger text-danger font-extrabold text-lg">
+      <span>إجمالي المدفوعات</span>
+      <span>{{ total_outflows|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+  </div>
+</div>
+
+{# ── Net Cash Flow ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+  <span class="block text-sm text-muted mb-2">صافي التدفق النقدي</span>
+  <span class="text-3xl font-extrabold {% if net_flow >= 0 %}text-success{% else %}text-danger{% endif %}">
+    {{ net_flow|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}
+  </span>
+</div>
+{% endblock %}

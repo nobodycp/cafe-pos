@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}مورد: {{ supplier.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ supplier.name_ar }}</h1>
+</div>
+
+<!-- Supplier Info Card -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <div class="flex gap-6 flex-wrap mb-5">
+    <div>
+      <span class="block text-xs font-semibold text-muted mb-1">رصيد المورد</span>
+      <span class="text-2xl font-extrabold text-primary">{{ supplier.balance|floatformat:2|intcomma }}</span>
+    </div>
+    {% if supplier.linked_customer %}
+    <div>
+      <span class="block text-xs font-semibold text-muted mb-1">رصيد العميل (آجل)</span>
+      <span class="text-lg font-bold text-danger">{{ supplier.linked_customer.balance|floatformat:2|intcomma }}</span>
+    </div>
+    <div>
+      <span class="block text-xs font-semibold text-muted mb-1">الصافي (نستحق دفعه)</span>
+      <span class="text-2xl font-extrabold {% if net_balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ net_balance|floatformat:2|intcomma }}</span>
+    </div>
+    {% endif %}
+    {% if supplier.phone %}
+    <div>
+      <span class="block text-xs font-semibold text-muted mb-1">الهاتف</span>
+      <span class="text-base">{{ supplier.phone }}</span>
+    </div>
+    {% endif %}
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'purchasing:supplier_edit' supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">تعديل</a>
+    <a href="{% url 'purchasing:supplier_payment' supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">تسجيل سداد</a>
+    <a href="{% url 'purchasing:purchase_create' supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">فاتورة شراء</a>
+    <a href="{% url 'purchasing:supplier_statement' supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
+    {% if supplier.linked_customer %}
+    <a href="{% url 'contacts:customer_detail' supplier.linked_customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200">حساب العميل: {{ supplier.linked_customer.name_ar }}</a>
+    {% else %}
+    <form method="post" action="{% url 'purchasing:supplier_link_customer' supplier.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200 cursor-pointer">إنشاء حساب عميل للمورد</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Purchase Invoices -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white">فواتير الشراء</h2>
+    <a href="{% url 'purchasing:purchase_list' %}?q={{ supplier.name_ar|urlencode }}" class="text-sm font-semibold text-primary hover:underline">&larr; عرض الكل</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرقم</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإجمالي</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in invoices %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
+              <a href="{% url 'purchasing:purchase_detail' i.pk %}" class="text-primary hover:underline">{{ i.invoice_number }}</a>
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ i.created_at|date:"Y-m-d H:i" }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ i.total|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if i.payment_status == 'paid' %}bg-success/10 text-success{% elif i.payment_status == 'partial' %}bg-warning/20 text-yellow-700 dark:text-warning{% else %}bg-danger/10 text-danger{% endif %}">{{ i.get_payment_status_display }}</span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="p-6 text-center text-muted">لا توجد فواتير</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Payments -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">سدادات</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطريقة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ p.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ p.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if p.method == 'cash' %}bg-success/10 text-success{% else %}bg-info/10 text-info{% endif %}">{{ p.get_method_display }}</span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="p-6 text-center text-muted">لا توجد سدادات</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Ledger -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">دفتر القيود</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">النوع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in ledger %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if e.entry_type == 'purchase' %}bg-info/10 text-info{% elif e.entry_type == 'payment' %}bg-success/10 text-success{% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">{{ e.get_entry_type_display }}</span>
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">{{ e.note }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="p-6 text-center text-muted">لا توجد قيود</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "pos/cashier_base.html" %}
+{% block title %}تخصيص — {{ product.name_ar }}{% endblock %}
+{% block nav_on_orders %}on{% endblock %}
+{% block cashier_body %}
+
+<div class="bg-primary-soft dark:bg-primary/10 border-b border-primary/20 px-5 py-2.5">
+  <a href="{% url 'pos:main' %}"
+     class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-dk dark:text-primary-light hover:text-primary transition-colors duration-200">
+    <svg class="w-4 h-4 rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    العودة للطلب
+  </a>
+</div>
+
+<div class="flex-1 overflow-y-auto">
+  <div class="max-w-xl mx-auto px-5 py-6">
+
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-extrabold text-gray-800 dark:text-gray-100">{{ product.name_ar }}</h2>
+      <span class="px-4 py-1.5 rounded-full bg-primary/10 text-primary font-bold text-lg">
+        {{ product.selling_price }} {{ POS_SETTINGS.currency_symbol }}
+      </span>
+    </div>
+
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+
+      <div class="flex items-center gap-3">
+        <label class="text-sm font-bold text-gray-700 dark:text-gray-300">الكمية</label>
+        <input type="number" name="qty" value="1" step="0.001" min="0.001"
+          class="w-28 h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                 px-3 text-center text-lg font-bold text-gray-800 dark:text-gray-100
+                 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all duration-200">
+      </div>
+
+      {% for g in groups %}
+      <fieldset class="border border-gray-200 dark:border-gray-700 rounded-xl p-4 bg-white dark:bg-gray-800">
+        <legend class="px-3 text-sm font-bold text-gray-700 dark:text-gray-300">
+          {{ g.name_ar }}{% if g.max_select > 1 %} <span class="text-muted font-normal">(حتى {{ g.max_select }})</span>{% endif %}
+        </legend>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+          {% for opt in g.options.all %}
+          <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer
+                        hover:bg-primary-soft dark:hover:bg-primary/10 transition-colors duration-200
+                        has-[:checked]:bg-primary/10 has-[:checked]:ring-2 has-[:checked]:ring-primary/30">
+            <input type="checkbox" name="modifier_option" value="{{ opt.pk }}"
+              class="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-primary
+                     focus:ring-primary/40 accent-primary transition-all duration-200">
+            <span class="text-sm text-gray-700 dark:text-gray-200">
+              {{ opt.name_ar }}{% if opt.price_delta %} <strong class="text-primary">(+{{ opt.price_delta }})</strong>{% endif %}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% empty %}
+      <p class="text-muted text-sm py-2">لا توجد خيارات إضافية لهذا الصنف.</p>
+      {% endfor %}
+
+      <div>
+        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">ملاحظة للسطر</label>
+        <input type="text" name="line_note" maxlength="255" placeholder="مثلاً: بدون سكر"
+          class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700
+                 px-3 text-sm text-gray-800 dark:text-gray-100 placeholder-muted
+                 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all duration-200">
+      </div>
+
+      <label class="flex items-center gap-2.5 cursor-pointer group">
+        <input type="checkbox" name="bump_kitchen" value="1"
+          class="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-primary
+                 focus:ring-primary/40 accent-primary transition-all duration-200">
+        <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-primary transition-colors duration-200">
+          دفعة مطبخ جديدة (إرسال للمطبخ)
+        </span>
+      </label>
+
+      <button type="submit"
+        class="w-full py-3 rounded-lg bg-primary text-white text-sm font-bold
+               hover:bg-primary-dk shadow-lg shadow-primary/20 transition-all duration-200 active:scale-[0.98]">
+        إضافة للسلة
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

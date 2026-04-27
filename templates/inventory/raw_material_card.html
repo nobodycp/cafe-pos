@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}كرت المادة الخام — {{ product.name_ar }}{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ product.name_ar }}</h1>
+      <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/20 text-yellow-700 dark:text-yellow-400">مادة خام</span>
+    </div>
+    {% if product.name_en %}<p class="text-muted text-sm mt-0.5">{{ product.name_en }}</p>{% endif %}
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <button onclick="window.print();"
+            class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm inline-flex items-center gap-2 hover:bg-primary-dk transition-colors cursor-pointer">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      طباعة
+    </button>
+    <a href="{% url 'inventory:raw_materials' %}"
+       class="h-11 px-5 rounded-lg bg-gray-500 text-white font-bold text-sm inline-flex items-center gap-2 hover:bg-gray-600 transition-colors">
+      &larr; المواد الخام
+    </a>
+  </div>
+</div>
+
+{# ── Summary Cards ── #}
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">الرصيد الحالي</span>
+    <span class="text-2xl font-extrabold {% if on_hand > 0 %}text-success{% else %}text-danger{% endif %}">{{ on_hand|floatformat:2|intcomma }}</span>
+    {% if product.unit %}<span class="block text-xs text-muted mt-0.5">{{ product.unit.name_ar }}</span>{% endif %}
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">متوسط التكلفة</span>
+    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ avg_cost|floatformat:2|intcomma }}</span>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">القيمة</span>
+    <span class="text-2xl font-extrabold text-primary">{{ stock_value|floatformat:2|intcomma }}</span>
+  </div>
+  {% if last_purchase_cost != None %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">آخر سعر شراء</span>
+    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ last_purchase_cost|floatformat:2|intcomma }}</span>
+  </div>
+  {% endif %}
+  {% if unit_cost %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <span class="block text-xs font-semibold text-muted mb-1">تكلفة الوحدة</span>
+    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ unit_cost|floatformat:2|intcomma }}</span>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Date Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <form method="get" class="flex items-end gap-3 flex-wrap">
+    <div>
+      <label class="block text-sm font-semibold text-muted mb-1.5">من تاريخ</label>
+      <input type="date" name="from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 min-w-[150px]">
+    </div>
+    <div>
+      <label class="block text-sm font-semibold text-muted mb-1.5">إلى تاريخ</label>
+      <input type="date" name="to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700 min-w-[150px]">
+    </div>
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">تصفية</button>
+    {% if date_from or date_to %}
+      <a href="{% url 'inventory:raw_material_card' product.pk %}" class="h-11 inline-flex items-center text-sm font-semibold text-muted hover:text-danger transition-colors">إلغاء الفلتر</a>
+    {% endif %}
+  </form>
+</div>
+
+{# ── Stock Movements ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+  <div class="p-5 pb-0">
+    <h3 class="text-lg font-extrabold text-gray-800 dark:text-white">حركات المخزون</h3>
+  </div>
+  <div class="overflow-x-auto p-5 pt-3">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">نوع الحركة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التغيير</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movements %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 whitespace-nowrap">{{ m.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if m.movement_type == 'purchase' %}bg-success/10 text-success{% elif m.movement_type == 'sale' %}bg-info/10 text-info{% elif m.movement_type == 'waste' %}bg-danger/10 text-danger{% elif m.movement_type == 'manufacturing' %}bg-warning/20 text-yellow-700{% else %}bg-warning/20 text-yellow-700{% endif %}">{{ m.get_movement_type_display }}</span>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">
+            {% if m.quantity_delta > 0 %}+{% endif %}{{ m.quantity_delta|floatformat:2 }}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-xs text-muted">{{ m.note|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="p-8 text-center text-muted">لا توجد حركات في الفترة المحددة</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Suppliers ── #}
+{% if suppliers_list %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+  <div class="p-5 pb-0">
+    <h3 class="text-lg font-extrabold text-gray-800 dark:text-white">الموردون</h3>
+  </div>
+  <div class="overflow-x-auto p-5 pt-3">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المورد</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">آخر تكلفة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">آخر توريد</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suppliers_list %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ s.supplier.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_cost|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_date|date:"Y-m-d" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Used in Recipes ── #}
+{% if used_in_recipes %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+  <div class="p-5 pb-0">
+    <h3 class="text-lg font-extrabold text-gray-800 dark:text-white">يستخدم في وصفات التصنيع</h3>
+  </div>
+  <div class="overflow-x-auto p-5 pt-3">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المنتج المصنّع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية لكل وحدة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rl in used_in_recipes %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'catalog:product_card' rl.manufactured_product.pk %}" class="font-semibold text-primary hover:text-primary-dk transition-colors">{{ rl.manufactured_product.name_ar }}</a>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ rl.quantity_per_unit|floatformat:4 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Min Stock Alert ── #}
+{% if product.min_stock_level and on_hand <= product.min_stock_level %}
+<div class="bg-danger/5 border border-danger/20 border-s-4 border-s-danger rounded-xl p-5 mb-6">
+  <div class="flex items-center gap-2">
+    <svg class="w-5 h-5 text-danger flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <p class="text-sm">
+      <strong class="text-danger">تنبيه: </strong>
+      الرصيد الحالي ({{ on_hand|floatformat:2 }}) أقل من أو يساوي الحد الأدنى ({{ product.min_stock_level|floatformat:2 }}).
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<p>
+  <a href="{% url 'inventory:raw_materials' %}" class="text-sm font-semibold text-primary hover:text-primary-dk transition-colors">&larr; العودة لقائمة المواد الخام</a>
+</p>
+{% endblock %}

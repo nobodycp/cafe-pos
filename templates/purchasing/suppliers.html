@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}الموردون{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">الموردون</h1>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'purchasing:commission_vendors' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-warning text-gray-800 font-bold text-sm hover:brightness-95 active:scale-[0.98] transition-all duration-200">بائعو النسبة</a>
+    <a href="{% url 'purchasing:purchase_new' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">فاتورة شراء</a>
+    <a href="{% url 'purchasing:supplier_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة مورد</a>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الهاتف</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رصيد المورد</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">مسحوبات</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصافي المستحق</th>
+        <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
+            <a href="{% url 'purchasing:supplier_detail' r.supplier.pk %}" class="hover:text-primary transition-colors">{{ r.supplier.name_ar }}</a>
+            {% if r.supplier.linked_customer %}
+            <span class="block text-xs text-success mt-0.5">عميل مرتبط</span>
+            {% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ r.supplier.phone }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ r.supplier.balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if r.customer_balance > 0 %}text-success{% endif %}">
+            {% if r.customer_balance > 0 %}{{ r.customer_balance|floatformat:2|intcomma }}{% else %}—{% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-extrabold {% if r.net_balance > 0 %}text-danger{% elif r.net_balance < 0 %}text-success{% endif %}">{{ r.net_balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'purchasing:supplier_detail' r.supplier.pk %}" class="text-primary font-semibold hover:underline text-sm">كشف</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6" class="p-8 text-center text-muted">لا يوجد موردون</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

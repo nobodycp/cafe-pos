@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}فاتورة شراء - {{ supplier.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">فاتورة شراء - {{ supplier.name_ar }}</h1>
+</div>
+
+{% if errors %}
+<div class="bg-danger/5 border-e-4 border-danger rounded-xl p-4 mb-5">
+  {% for err in errors %}
+    <p class="text-danger text-sm font-semibold">{{ err }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <form method="post" id="purchase-form">
+    {% csrf_token %}
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-3">أسطر الشراء</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="lines-table">
+        <thead>
+          <tr>
+            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المنتج</th>
+            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
+            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">تكلفة الوحدة</th>
+            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإجمالي</th>
+            <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+          </tr>
+        </thead>
+        <tbody id="lines-body">
+          {% for i in range10 %}
+          <tr class="purchase-line" data-idx="{{ i }}" {% if i > 0 %}style="display:none;"{% endif %}>
+            <td class="line-num p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <select name="product_{{ i }}" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors">
+                <option value="">-- اختر --</option>
+                {% for p in products %}
+                  <option value="{{ p.pk }}">{{ p.name_ar }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <input type="number" name="qty_{{ i }}" step="0.01" min="0" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors line-qty" data-idx="{{ i }}" placeholder="0">
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <input type="number" name="cost_{{ i }}" step="0.01" min="0" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors line-cost" data-idx="{{ i }}" placeholder="0.00">
+            </td>
+            <td class="line-total p-3 border-b border-gray-100 dark:border-gray-700 font-bold" data-idx="{{ i }}">—</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              {% if i > 0 %}
+              <button type="button" class="remove-line-btn text-danger font-bold text-lg cursor-pointer hover:text-danger/70 transition-colors bg-transparent border-0" data-idx="{{ i }}">✕</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="font-extrabold">
+            <td colspan="4" class="p-3 text-start">الإجمالي:</td>
+            <td id="grand-total" class="p-3 text-base text-primary">—</td>
+            <td class="p-3"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <button type="button" id="add-line-btn" class="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-success text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200 cursor-pointer mt-3">+ سطر جديد</button>
+
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mt-6 mb-3">الدفع</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">طريقة الدفع</label>
+        <select name="pay_method" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors">
+          <option value="">— اختر طريقة الدفع —</option>
+          <option value="cash">كاش</option>
+          <option value="bank">تطبيق</option>
+          <option value="credit">آجل</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ المدفوع</label>
+        <input type="number" name="pay_amount" step="0.01" min="0" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors" placeholder="0.00">
+        <small class="block text-muted text-xs mt-1">اتركه فارغاً أو 0 للشراء الآجل</small>
+      </div>
+    </div>
+    <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ الفاتورة</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  <a href="{% url 'purchasing:supplier_detail' supplier.pk %}" class="text-primary font-semibold hover:underline text-sm">&larr; رجوع</a>
+</p>
+
+<script>
+var visibleLines = 1;
+var allLines = document.querySelectorAll('.purchase-line');
+
+document.getElementById('add-line-btn').addEventListener('click', function() {
+  if (visibleLines < allLines.length) {
+    allLines[visibleLines].style.display = '';
+    visibleLines++;
+  }
+  if (visibleLines >= allLines.length) this.style.display = 'none';
+});
+
+document.querySelectorAll('.remove-line-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var row = this.closest('tr');
+    row.querySelectorAll('input').forEach(function(inp) { inp.value = ''; });
+    row.querySelectorAll('select').forEach(function(sel) { sel.value = ''; });
+    row.style.display = 'none';
+    row.querySelector('.line-total').textContent = '—';
+    recalcTotal();
+  });
+});
+
+document.querySelectorAll('.line-qty, .line-cost').forEach(function(inp) {
+  inp.addEventListener('input', function() {
+    var idx = this.dataset.idx;
+    var q = parseFloat(document.querySelector('.line-qty[data-idx="'+idx+'"]').value) || 0;
+    var c = parseFloat(document.querySelector('.line-cost[data-idx="'+idx+'"]').value) || 0;
+    var t = (q * c).toFixed(2);
+    document.querySelector('.line-total[data-idx="'+idx+'"]').textContent = (q > 0 && c > 0) ? t : '—';
+    recalcTotal();
+  });
+});
+
+function recalcTotal() {
+  var total = 0;
+  document.querySelectorAll('.line-total').forEach(function(el) {
+    var v = parseFloat(el.textContent);
+    if (!isNaN(v)) total += v;
+  });
+  document.getElementById('grand-total').textContent = total > 0 ? total.toFixed(2) : '—';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}تسجيل سلفة - {{ employee.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">تسجيل سلفة - {{ employee.name_ar }}</h1>
+  <a href="{% url 'payroll:employee_detail' employee.pk %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    رجوع
+  </a>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">مبلغ السلفة</label>
+      {{ form.amount }}
+      {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظة</label>
+      {{ form.note }}
+      {% if form.note.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.note.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
+  </form>
+</div>
+{% endblock %}

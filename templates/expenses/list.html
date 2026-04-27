@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}المصروفات{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">المصروفات</h1>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'expenses:create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">
+      <svg class="w-4 h-4 me-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      إضافة مصروف
+    </a>
+    <a href="{% url 'expenses:categories' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-bold text-sm hover:border-primary hover:text-primary transition-colors">
+      التصنيفات
+    </a>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التصنيف</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطريقة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expenses %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.expense_date }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.category.name_ar }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold {% if e.payment_method == 'cash' %}bg-success-light text-success{% else %}bg-info-light text-info{% endif %}">{{ e.get_payment_method_display }}</span>
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ e.notes|truncatechars:60 }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="p-8 text-center text-muted">لا توجد مصروفات</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

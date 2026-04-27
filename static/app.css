@@ -1,0 +1,282 @@
+/* ── Minimal custom CSS (Tailwind CDN handles the rest) ── */
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
+
+/* Prevent FOUC with Alpine.js */
+[x-cloak] { display: none !important; }
+
+/* Scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Thin scrollbar */
+.thin-scroll::-webkit-scrollbar { width: 4px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
+.dark .thin-scroll::-webkit-scrollbar-thumb { background: #4b5563; }
+
+/* ── Toast animations ── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(-50%) translateY(-16px); }
+}
+.toast-animate-in  { animation: toastIn .3s ease forwards; }
+.toast-animate-out { animation: toastOut .3s ease forwards; }
+
+/* ── Cart item pop ── */
+@keyframes pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: pop .25s ease; }
+
+/* ── Fade-in for content ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn .25s ease; }
+
+/* ── Print styles ── */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    font-family: monospace; font-size: 12px; color: #000;
+  }
+  .no-print { display: none !important; }
+}
+
+/* ── Kitchen ticket print ── */
+@media print {
+  .kitchen-print { visibility: visible; position: absolute; left: 0; top: 0; width: 100%; }
+  .kitchen-print * { visibility: visible; }
+}
+
+/* ══════════════════════════════════════════════════════════ */
+/* ══  GLOBAL FORM SYSTEM — WCAG AA Compliant              ══ */
+/* ══════════════════════════════════════════════════════════ */
+
+/* ── Shared input selector ── */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="password"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+select,
+textarea {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #111827;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.5;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+/* ── Hover ── */
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="email"]:hover,
+input[type="tel"]:hover,
+input[type="url"]:hover,
+input[type="search"]:hover,
+input[type="password"]:hover,
+input[type="date"]:hover,
+input[type="datetime-local"]:hover,
+input[type="time"]:hover,
+select:hover,
+textarea:hover {
+  border-color: #94a3b8;
+}
+
+/* ── Focus ── */
+input:focus, select:focus, textarea:focus {
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.18);
+  background-color: #fff;
+}
+
+/* ── Placeholder — visible but distinct from input text ── */
+input::placeholder, textarea::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+  opacity: 1;
+}
+
+/* ── Textarea ── */
+textarea {
+  height: auto;
+  min-height: 5rem;
+  resize: vertical;
+  padding: 0.625rem 0.875rem;
+}
+
+/* ── Select ── */
+select {
+  padding-inline-end: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 0.75rem center;
+  cursor: pointer;
+}
+[dir="ltr"] select {
+  background-position: right 0.75rem center;
+}
+
+/* ── Checkbox / Radio ── */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: #6c5ce7;
+  cursor: pointer;
+  border: 1.5px solid #9ca3af;
+}
+
+/* ── Disabled ── */
+input:disabled, select:disabled, textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+/* ── Error state ── */
+input.is-invalid, select.is-invalid, textarea.is-invalid,
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+input.is-invalid:focus, select.is-invalid:focus, textarea.is-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+/* ── Labels — always high-contrast ── */
+label, .form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151 !important;
+  margin-bottom: 0.375rem;
+  line-height: 1.4;
+}
+.dark label, .dark .form-label {
+  color: #e2e8f0 !important;
+}
+
+/* ── Helper/error text ── */
+.form-error, .errorlist li {
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+.form-help {
+  color: #6b7280;
+  font-size: 0.78rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Django errorlist reset ── */
+.errorlist {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+}
+
+/* ── Buttons — high contrast + states ── */
+button, .btn, [type="submit"] {
+  font-family: 'Cairo', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+button:focus-visible, .btn:focus-visible, [type="submit"]:focus-visible {
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.35);
+}
+button:active, .btn:active, [type="submit"]:active {
+  transform: scale(0.98);
+}
+
+/* ══════════════════════════════════════════ */
+/* ══  DARK MODE                           ══ */
+/* ══════════════════════════════════════════ */
+
+.dark input[type="text"],
+.dark input[type="number"],
+.dark input[type="email"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark input[type="search"],
+.dark input[type="password"],
+.dark input[type="date"],
+.dark input[type="datetime-local"],
+.dark input[type="time"],
+.dark select,
+.dark textarea {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.dark input[type="text"]:hover,
+.dark input[type="number"]:hover,
+.dark input[type="email"]:hover,
+.dark input[type="tel"]:hover,
+.dark input[type="url"]:hover,
+.dark input[type="search"]:hover,
+.dark input[type="password"]:hover,
+.dark input[type="date"]:hover,
+.dark input[type="datetime-local"]:hover,
+.dark input[type="time"]:hover,
+.dark select:hover,
+.dark textarea:hover {
+  border-color: #64748b;
+}
+
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  border-color: #6c5ce7;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.3);
+  background-color: #1e293b;
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: #64748b;
+}
+
+.dark input:disabled, .dark select:disabled, .dark textarea:disabled {
+  background-color: #0f172a;
+  border-color: #334155;
+  color: #475569;
+}
+
+.dark .form-help {
+  color: #94a3b8;
+}
+
+.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* ── Transition utilities not in Tailwind CDN ── */
+.transition-height { transition: height .2s ease-in-out; }

@@ -1,0 +1,203 @@
+{% extends "pos/cashier_base.html" %}
+{% block title %}خريطة الطاولات{% endblock %}
+{% block nav_on_tables %}on{% endblock %}
+{% block cashier_body %}
+
+<div class="bg-primary-soft dark:bg-primary/10 border-b border-primary/20 px-5 py-2.5 text-sm font-semibold text-primary-dk dark:text-primary-light flex items-center gap-2">
+  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+  وردية #{{ work_session.pk }} —
+  <a href="{% url 'pos:main' %}" class="underline hover:text-primary transition-colors duration-200">العودة للكاشير</a>
+</div>
+
+<div class="px-5 pt-4 pb-2 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h2 class="text-xl font-extrabold text-gray-800 dark:text-gray-100 mb-1.5">الطاولات</h2>
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-success inline-block"></span> فارغة</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-danger inline-block"></span> بها طلب</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-warning inline-block"></span> دفعة جزئية</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-info inline-block"></span> فارغة مفتوحة</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button type="button" id="floor-add-customer"
+      class="px-5 py-2 rounded-lg border-2 border-dashed border-success bg-transparent text-success font-bold text-sm
+             hover:bg-success hover:text-white transition-all duration-200 active:scale-95">
+      + عميل جديد
+    </button>
+    <button type="button" id="floor-add-table"
+      class="px-5 py-2 rounded-lg border-2 border-dashed border-primary bg-transparent text-primary font-bold text-sm
+             hover:bg-primary hover:text-white transition-all duration-200 active:scale-95">
+      + طاولة جديدة
+    </button>
+  </div>
+</div>
+
+<div class="overflow-y-auto flex-1 px-5 pb-5" style="max-height:calc(100vh - 220px)">
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+    {% for row in floor_rows %}
+    <div class="rounded-xl border-2 p-4 flex flex-col gap-2 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5
+      {% if row.status == 'free' %}border-success/40 bg-success/5 dark:bg-success/10
+      {% elif row.status == 'occupied' %}border-danger/40 bg-danger/5 dark:bg-danger/10
+      {% elif row.status == 'partial' %}border-warning/40 bg-warning/5 dark:bg-warning/10
+      {% elif row.status == 'open_empty' %}border-info/40 bg-info/5 dark:bg-info/10
+      {% else %}border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800{% endif %}">
+
+      <span class="text-sm font-extrabold text-gray-800 dark:text-gray-100 truncate">{{ row.table.name_ar }}</span>
+
+      {% if row.status != 'free' %}
+        <span class="text-lg font-bold
+          {% if row.status == 'occupied' %}text-danger{% elif row.status == 'partial' %}text-warning{% else %}text-info{% endif %}">
+          {{ row.grand }} {{ POS_SETTINGS.currency_symbol }}
+        </span>
+        {% if row.paid > 0 %}
+        <span class="text-xs font-semibold text-success">مدفوع {{ row.paid }}</span>
+        {% endif %}
+        {% if row.customer_label %}
+        <span class="text-xs text-muted truncate" title="{{ row.customer_label }}">{{ row.customer_label }}</span>
+        {% endif %}
+        <form method="post" action="{% url 'pos:table_open' %}" class="mt-auto">
+          {% csrf_token %}
+          <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+          {% if row.session and row.session.customer_id %}
+          <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
+          {% endif %}
+          <button type="submit"
+            class="w-full py-2 rounded-lg text-xs font-bold text-white transition-all duration-200 active:scale-95
+              {% if row.status == 'occupied' %}bg-danger hover:bg-red-700
+              {% elif row.status == 'partial' %}bg-warning text-gray-800 hover:bg-yellow-500
+              {% else %}bg-info hover:bg-blue-500{% endif %}">
+            فتح / استئناف
+          </button>
+        </form>
+      {% else %}
+        <form method="post" action="{% url 'pos:table_open' %}" id="open-{{ row.table.pk }}">
+          {% csrf_token %}
+          <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+          <input type="hidden" name="customer_id" value="" id="cust-{{ row.table.pk }}">
+          <input type="hidden" name="guest_label" value="" id="guest-{{ row.table.pk }}">
+        </form>
+        <input type="search" class="table-cust-search w-full px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600
+               bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100
+               placeholder-muted focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all duration-200"
+               data-table="{{ row.table.pk }}" placeholder="بحث عميل..." autocomplete="off">
+        <div class="search-hits text-xs max-h-14 overflow-auto" id="hits-{{ row.table.pk }}"></div>
+        <button type="button"
+          class="open-free-table w-full py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dk transition-all duration-200 active:scale-95 mt-auto"
+          data-table="{{ row.table.pk }}">
+          فتح طاولة
+        </button>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+
+<script>
+(function(){
+  document.querySelectorAll('.table-cust-search').forEach(function(inp){
+    var tid=inp.getAttribute('data-table');
+    var hits=document.getElementById('hits-'+tid);
+    var tmo;
+    inp.addEventListener('input',function(){
+      clearTimeout(tmo);
+      var q=inp.value.trim();
+      if(q.length<1){hits.innerHTML='';return}
+      tmo=setTimeout(function(){
+        fetch('{% url "pos:customers_search" %}?q='+encodeURIComponent(q))
+          .then(function(r){return r.json()})
+          .then(function(data){
+            hits.innerHTML='';
+            (data.results||[]).forEach(function(c){
+              var b=document.createElement('button');
+              b.type='button';
+              b.textContent=c.name_ar+(c.phone?' — '+c.phone:'');
+              b.className='block w-full text-right px-2 py-1.5 border-none bg-primary-soft dark:bg-primary/10 cursor-pointer my-0.5 rounded-lg font-sans text-xs hover:bg-primary/20 transition-colors duration-200';
+              b.onclick=function(){
+                document.getElementById('cust-'+tid).value=c.id;
+                document.getElementById('guest-'+tid).value='';
+                hits.innerHTML='<span class="text-success font-semibold">✓ '+c.name_ar+'</span>';
+              };
+              hits.appendChild(b);
+            });
+          });
+      },180);
+    });
+  });
+  function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+  function showFloorModal(title,bodyHtml,onConfirm){
+    var overlay=document.createElement('div');
+    overlay.className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/40';
+    overlay.innerHTML='<div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5">'
+      +'<h3 class="text-base font-bold mb-3 text-gray-800 dark:text-gray-100">'+title+'</h3>'
+      +'<div class="mb-4">'+bodyHtml+'</div>'
+      +'<div class="flex gap-2 justify-end">'
+      +'<button type="button" class="modal-cancel h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition">إلغاء</button>'
+      +'<button type="button" class="modal-ok h-9 px-4 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dk transition">تأكيد</button>'
+      +'</div></div>';
+    document.body.appendChild(overlay);
+    var firstInput=overlay.querySelector('input,textarea');
+    if(firstInput)setTimeout(function(){firstInput.focus()},50);
+    overlay.querySelector('.modal-cancel').addEventListener('click',function(){overlay.remove()});
+    overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+    overlay.querySelector('.modal-ok').addEventListener('click',function(){if(onConfirm)onConfirm();overlay.remove()});
+  }
+
+  var floorAddCust=document.getElementById('floor-add-customer');
+  if(floorAddCust){
+    floorAddCust.addEventListener('click',function(){
+      showFloorModal('إضافة عميل جديد',
+        '<input type="text" id="mc-name" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none mb-2" placeholder="اسم العميل">'
+        +'<input type="text" id="mc-phone" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none" placeholder="رقم الهاتف (اختياري)">',
+        function(){
+          var name=(document.getElementById('mc-name').value||'').trim();
+          if(!name)return;
+          var phone=(document.getElementById('mc-phone').value||'').trim();
+          var csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+          fetch('{% url "pos:customer_quick_create" %}',{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':csrf},
+            body:'name_ar='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)
+          }).then(function(r){return r.json()}).then(function(d){
+            if(d.ok)location.reload();
+          });
+        }
+      );
+    });
+  }
+
+  var floorAddBtn=document.getElementById('floor-add-table');
+  if(floorAddBtn){
+    floorAddBtn.addEventListener('click',function(){
+      showFloorModal('إضافة طاولة جديدة',
+        '<input type="text" id="mt-name" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none" placeholder="مثال: طاولة 8">',
+        function(){
+          var name=(document.getElementById('mt-name').value||'').trim();
+          if(!name)return;
+          var csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+          fetch('{% url "pos:table_quick_create" %}',{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':csrf},
+            body:'name_ar='+encodeURIComponent(name)
+          }).then(function(r){return r.json()}).then(function(d){
+            if(d.ok)location.reload();
+          });
+        }
+      );
+    });
+  }
+
+  document.querySelectorAll('.open-free-table').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var tid=btn.getAttribute('data-table');
+      var gl=document.querySelector('.table-cust-search[data-table="'+tid+'"]');
+      if(gl&&!document.getElementById('cust-'+tid).value){
+        document.getElementById('guest-'+tid).value=(gl.value||'').slice(0,160);
+      }
+      document.getElementById('open-'+tid).submit();
+    });
+  });
+})();
+</script>
+{% endblock %}

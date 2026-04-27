@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ title }}</h1>
+  {% if employee %}
+    <a href="{% url 'payroll:employee_detail' employee.pk %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+      <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      رجوع
+    </a>
+  {% else %}
+    <a href="{% url 'payroll:employees' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+      <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      رجوع
+    </a>
+  {% endif %}
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالعربي</label>
+        {{ form.name_ar }}
+        {% if form.name_ar.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم بالإنجليزي</label>
+        {{ form.name_en }}
+        {% if form.name_en.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">أجر اليوم</label>
+        {{ form.daily_wage }}
+        {% if form.daily_wage.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.daily_wage.errors.0 }}</p>{% endif %}
+      </div>
+      {% if form.is_active %}
+      <div class="flex items-end pb-2">
+        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
+          {{ form.is_active }}
+          <span>نشط</span>
+        </label>
+      </div>
+      {% endif %}
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
+  </form>
+</div>
+{% endblock %}

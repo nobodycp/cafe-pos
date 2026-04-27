@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}ملخص نهاية اليوم{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">ملخص نهاية اليوم</h1>
+  <p class="text-sm text-muted mt-1">وردية #{{ session.pk }} — فُتحت {{ session.created_at }}</p>
+</div>
+
+{# ── Open Orders Warning ── #}
+{% if open_orders %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-danger p-5 mb-5">
+  <div class="flex items-start gap-3 mb-4">
+    <div class="w-10 h-10 rounded-lg bg-danger/10 flex items-center justify-center flex-shrink-0">
+      <svg class="w-5 h-5 text-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </div>
+    <div>
+      <h3 class="text-base font-extrabold text-danger">طلبات مفتوحة ({{ open_orders|length }})</h3>
+      <p class="text-xs text-muted mt-0.5">يجب تسويتها قبل إغلاق الوردية</p>
+    </div>
+  </div>
+  <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم الطلب</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطاولة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">النوع</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for o in open_orders %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 font-bold text-primary">#{{ o.pk }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ o.table.name_ar|default:"—" }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ o.get_order_type_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Summary Cards ── #}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-5">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-xs font-bold text-muted uppercase mb-2">إجمالي المبيعات</div>
+    <div class="text-2xl font-extrabold text-success">{{ revenue|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-xs font-bold text-muted uppercase mb-2">عدد الفواتير</div>
+    <div class="text-2xl font-extrabold text-primary">{{ invoice_count }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-xs font-bold text-muted uppercase mb-2">إجمالي الربح</div>
+    <div class="text-2xl font-extrabold text-success">{{ profit|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-xs font-bold text-muted uppercase mb-2">إجمالي المصروفات</div>
+    <div class="text-2xl font-extrabold text-danger">{{ total_expenses|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-xs font-bold text-muted uppercase mb-2">صافي الربح</div>
+    <div class="text-2xl font-extrabold {% if net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">{{ net_profit|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+
+{# ── Payment Breakdown ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-4">تفصيل الدفع</h3>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div class="rounded-xl bg-success/10 p-4 text-center">
+      <div class="text-xs font-bold text-muted mb-1.5">كاش</div>
+      <div class="text-lg font-extrabold text-gray-800 dark:text-gray-100">{{ payments.cash|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="rounded-xl bg-info/10 p-4 text-center">
+      <div class="text-xs font-bold text-muted mb-1.5">تطبيق</div>
+      <div class="text-lg font-extrabold text-gray-800 dark:text-gray-100">{{ payments.bank|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="rounded-xl bg-warning/10 p-4 text-center">
+      <div class="text-xs font-bold text-muted mb-1.5">آجل</div>
+      <div class="text-lg font-extrabold text-gray-800 dark:text-gray-100">{{ payments.credit|floatformat:2|intcomma }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Cash Register ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+  <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-4">حساب الصندوق</h3>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        <tr>
+          <td class="py-3 px-3 font-bold text-gray-800 dark:text-gray-200">الصندوق الافتتاحي</td>
+          <td class="py-3 px-3 text-gray-600 dark:text-gray-400 font-semibold">{{ opening_cash|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+          <td class="py-3 px-3 font-bold text-gray-800 dark:text-gray-200">+ مبيعات كاش</td>
+          <td class="py-3 px-3 font-semibold text-success">{{ payments.cash|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+          <td class="py-3 px-3 font-bold text-gray-800 dark:text-gray-200">− مصروفات كاش</td>
+          <td class="py-3 px-3 font-semibold text-danger">{{ cash_expenses|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr class="bg-primary/5">
+          <td class="py-3.5 px-3 font-extrabold text-gray-800 dark:text-gray-100 text-base">الصندوق المتوقع</td>
+          <td class="py-3.5 px-3 font-extrabold text-primary text-base">{{ expected_cash|floatformat:2|intcomma }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Close Session ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-5">إغلاق الوردية</h3>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-4">
+      <label for="closing_cash" class="block text-sm font-semibold text-muted mb-1.5">الصندوق الختامي (الفعلي)</label>
+      <input type="number" step="0.01" id="closing_cash" name="closing_cash"
+             class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+             placeholder="{{ expected_cash|floatformat:2 }}">
+    </div>
+    <div class="mb-5">
+      <label for="notes" class="block text-sm font-semibold text-muted mb-1.5">ملاحظات</label>
+      <textarea id="notes" name="notes" rows="3"
+                class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                placeholder="ملاحظات إضافية..."></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button type="submit"
+              class="flex-1 h-12 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200"
+              onclick="return confirm('هل أنت متأكد من إغلاق الوردية؟')">
+        إغلاق الوردية
+      </button>
+      <a href="{% url 'pos:main' %}"
+         class="flex-1 h-12 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-200 hover:border-primary hover:text-primary transition-all duration-200 inline-flex items-center justify-center">
+        رجوع
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

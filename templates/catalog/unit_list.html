@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}وحدات القياس{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">وحدات القياس</h1>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'catalog:product_list' %}"
+       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] border border-primary text-primary hover:bg-primary-soft inline-flex items-center">
+      المنتجات
+    </a>
+    <a href="{% url 'catalog:unit_create' %}"
+       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk inline-flex items-center gap-1.5">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      وحدة جديدة
+    </a>
+  </div>
+</div>
+
+{# ── Units Table ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-50 dark:bg-gray-700">
+          <th class="text-start p-3 font-semibold text-muted">الرمز</th>
+          <th class="text-start p-3 font-semibold text-muted">الاسم (عربي)</th>
+          <th class="text-start p-3 font-semibold text-muted">الاسم (إنجليزي)</th>
+          <th class="text-start p-3 font-semibold text-muted">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in units %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary">{{ u.code }}</span>
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ u.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            {% if u.name_en %}{{ u.name_en }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'catalog:unit_edit' u.pk %}"
+               class="text-primary hover:text-primary-dk font-semibold text-sm transition-colors">تعديل</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted p-10">
+            <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+            لا توجد وحدات
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}تسوية مخزون{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">تسوية مخزون</h1>
+</div>
+
+{# ── Errors ── #}
+{% if errors %}
+<div class="bg-danger/5 border border-danger/20 border-s-4 border-s-danger rounded-xl p-5 mb-6">
+  {% for err in errors %}
+    <p class="text-danger text-sm font-semibold">{{ err }}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Adjustment Form ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">المنتج</label>
+      <select name="product_id" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700" required>
+        <option value="">— اختر منتج —</option>
+        {% for p in products %}
+          <option value="{{ p.pk }}">{{ p.name_ar }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">نوع التسوية</label>
+      <select name="adj_type" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700" id="adj-type">
+        <option value="add">إضافة للمخزون (مخزون ابتدائي / استلام)</option>
+        <option value="set">تعيين الكمية (جرد)</option>
+        <option value="waste">هالك / تلف (خصم)</option>
+      </select>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">الكمية</label>
+        <input type="number" name="quantity" step="0.01" min="0.01"
+               class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700"
+               required placeholder="0">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">تكلفة الوحدة <span class="text-xs text-muted">(للإضافة والتعيين)</span></label>
+        <input type="number" name="unit_cost" step="0.01" min="0"
+               class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700"
+               placeholder="0.00">
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظة</label>
+      <input type="text" name="note"
+             class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary dark:bg-gray-700"
+             placeholder="اختياري">
+    </div>
+
+    <button type="submit" class="w-full h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">تنفيذ التسوية</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  <a href="{% url 'inventory:home' %}" class="text-sm font-semibold text-primary hover:text-primary-dk transition-colors">&larr; رجوع للمخزون</a>
+</p>
+{% endblock %}

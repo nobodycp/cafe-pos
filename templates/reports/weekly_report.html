@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}التقرير الأسبوعي{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">التقرير الأسبوعي</h1>
+  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">← التقارير</a>
+</div>
+
+<p class="text-muted text-sm mb-6">آخر 4 أسابيع</p>
+
+<div class="space-y-4">
+{% for w in weeks %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+    <h3 class="text-lg font-bold">الأسبوع {{ w.iso_week }} — {{ w.iso_year }}</h3>
+    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-info/10 text-info">{{ w.start }} → {{ w.end }}</span>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+    <div class="bg-success/10 rounded-lg p-3 text-center">
+      <div class="text-xs text-muted font-semibold">المبيعات</div>
+      <div class="text-lg font-bold text-success mt-1">{{ w.sales|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="bg-success/10 rounded-lg p-3 text-center">
+      <div class="text-xs text-muted font-semibold">الربح الإجمالي</div>
+      <div class="text-lg font-bold text-success mt-1">{{ w.profit|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="bg-warning/10 rounded-lg p-3 text-center">
+      <div class="text-xs text-muted font-semibold">المصروفات</div>
+      <div class="text-lg font-bold text-danger mt-1">{{ w.expenses|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="{% if w.net >= 0 %}bg-success/10{% else %}bg-warning/10{% endif %} rounded-lg p-3 text-center">
+      <div class="text-xs text-muted font-semibold">صافي الربح</div>
+      <div class="text-lg font-bold {% if w.net >= 0 %}text-success{% else %}text-danger{% endif %} mt-1">{{ w.net|floatformat:2|intcomma }}</div>
+    </div>
+  </div>
+
+  <table class="w-full text-sm">
+    <tbody>
+      <tr>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">عدد الفواتير</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ w.invoice_count }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% empty %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center text-muted">
+  لا توجد بيانات.
+</div>
+{% endfor %}
+</div>
+{% endblock %}

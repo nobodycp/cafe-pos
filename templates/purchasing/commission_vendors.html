@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}بائعو النسبة (العمولة){% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">بائعو النسبة (العمولة)</h1>
+  <a href="{% url 'purchasing:suppliers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة الموردين</a>
+</div>
+
+{% if rows %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">البائع</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المنتجات</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجمالي المبيعات</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">نسبتك (عمولتك)</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">مستحق للبائع</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المسدد</th>
+        <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرصيد المتبقي</th>
+        <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
+          <a href="{% url 'purchasing:supplier_detail' r.vendor.pk %}" class="hover:text-primary transition-colors">{{ r.vendor.name_ar }}</a>
+        </td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm">
+          <div class="flex flex-wrap gap-1">
+            {% for name in r.products %}
+              <span class="inline-block bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded text-xs font-medium">{{ name }}</span>
+            {% endfor %}
+          </div>
+        </td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ r.total_sales|floatformat:2|intcomma }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold text-success">{{ r.total_commission|floatformat:2|intcomma }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ r.vendor_due_total|floatformat:2|intcomma }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold text-success">{{ r.paid|floatformat:2|intcomma }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-extrabold {% if r.remaining > 0 %}text-danger{% elif r.remaining == 0 %}text-success{% endif %}">{{ r.remaining|floatformat:2|intcomma }}</td>
+        <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+          <div class="flex gap-1.5">
+            <a href="{% url 'purchasing:supplier_statement' r.vendor.pk %}" class="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف</a>
+            <a href="{% url 'purchasing:supplier_payment' r.vendor.pk %}" class="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-success text-white font-bold text-xs hover:brightness-110 active:scale-[0.98] transition-all duration-200">سداد</a>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="font-extrabold text-base">
+        <td colspan="3" class="p-3">الإجمالي</td>
+        <td class="p-3">{{ grand_sales|floatformat:2|intcomma }}</td>
+        <td class="p-3 text-success">{{ grand_commission|floatformat:2|intcomma }}</td>
+        <td class="p-3">{{ grand_vendor_due|floatformat:2|intcomma }}</td>
+        <td class="p-3 text-success">{{ grand_paid|floatformat:2|intcomma }}</td>
+        <td colspan="2" class="p-3"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+{% else %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center text-muted">
+  <p class="text-base mb-2">لا يوجد بائعو نسبة حالياً</p>
+  <p class="text-sm">لإضافة بائع نسبة: أنشئ مورد ثم أضف منتج من نوع "عمولة" وربطه بالمورد</p>
+</div>
+{% endif %}
+{% endblock %}

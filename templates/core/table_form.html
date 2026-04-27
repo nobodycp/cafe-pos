@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{% if edit %}تعديل طاولة{% else %}إضافة طاولة{% endif %}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'core:tables_list' %}"
+     class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-primary hover:text-primary transition-all duration-200">
+    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">{% if edit %}تعديل طاولة{% else %}إضافة طاولة{% endif %}</h1>
+</div>
+
+<div class="max-w-xl">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (عربي)</label>
+        {{ form.name_ar }}
+        {% if form.name_ar.errors %}<p class="text-xs text-danger font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (إنجليزي)</label>
+        {{ form.name_en }}
+        {% if form.name_en.errors %}<p class="text-xs text-danger font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">الترتيب</label>
+        {{ form.sort_order }}
+        {% if form.sort_order.errors %}<p class="text-xs text-danger font-semibold mt-1">{{ form.sort_order.errors.0 }}</p>{% endif %}
+      </div>
+      <div class="mb-5">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ form.is_active }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">نشط</span>
+        </label>
+        {% if form.is_active.errors %}<p class="text-xs text-danger font-semibold mt-1">{{ form.is_active.errors.0 }}</p>{% endif %}
+      </div>
+      <button type="submit"
+              class="w-full h-11 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">
+        حفظ
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

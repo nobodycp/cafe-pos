@@ -1,0 +1,756 @@
+{% extends "pos/cashier_base.html" %}
+{% block title %}الكاشير — {{ cafe_name }}{% endblock %}
+{% block nav_on_orders %}bg-primary/10 text-primary{% endblock %}
+{% block cashier_body %}
+
+<style>
+.cat-panel{display:none}
+.cat-panel.is-visible{display:block}
+.pos-cat-btn.on{background-color:#6c5ce7;color:#fff;border-color:#6c5ce7}
+.pm-btn.on{background-color:#6c5ce7;color:#fff;border-color:#6c5ce7}
+#mixed-panel{display:none}
+#mixed-panel.show{display:grid}
+.ts-tile.st-free{border-color:#00b894}
+.ts-tile.st-busy{border-color:#fdcb6e;background:rgba(253,203,110,.06)}
+.ts-tile.st-mine,.ts-tile.st-active{border-color:#6c5ce7;background:#eef0ff}
+.dark .ts-tile.st-mine,.dark .ts-tile.st-active{background:rgba(108,92,231,.12)}
+.dark .ts-tile.st-busy{background:rgba(253,203,110,.08)}
+.cust-ac-hit{display:block;width:100%;padding:8px 12px;text-align:right;font-size:.85rem;border:none;background:none;cursor:pointer;font-family:inherit;color:inherit}
+.cust-ac-hit:hover{background:#eef0ff}
+.dark .cust-ac-hit:hover{background:rgba(108,92,231,.12)}
+.prod-ac-hit.ac-active{background:rgba(108,92,231,.1)}
+.dark .prod-ac-hit.ac-active{background:rgba(108,92,231,.2)}
+#product-search-hits::-webkit-scrollbar{width:4px}
+#product-search-hits::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+</style>
+
+{% if not work_session %}
+{# ─── No session ─── #}
+<div class="flex items-center justify-center flex-1">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md mx-4">
+    <h2 class="text-xl font-bold text-center mb-6">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
+    <form method="post" action="{% url 'core:session_open' %}">
+      {% csrf_token %}
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ LBL.opening_cash|default:"الصندوق الافتتاحي" }}</label>
+        <input type="number" name="opening_cash" value="0" step="0.01" min="0"
+               class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظات</label>
+        <input type="text" name="notes" placeholder="اختياري"
+               class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
+      </div>
+      <button class="w-full h-11 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm transition duration-200 mt-2" type="submit">{{ LBL.open_btn|default:"فتح الوردية" }}</button>
+    </form>
+  </div>
+</div>
+
+{% elif not current_order %}
+{# ─── No active order — new order screen ─── #}
+<div class="flex-1 overflow-y-auto px-4 py-6">
+  <div class="max-w-4xl mx-auto">
+
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <h2 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">طلب جديد</h2>
+      <a href="{% url 'pos:tables_floor' %}" class="inline-flex items-center h-11 px-6 bg-primary hover:bg-primary-dk text-white font-bold rounded-xl transition duration-200 no-underline text-sm">
+        <svg class="w-4 h-4 me-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        خريطة الطاولات
+      </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
+        <div class="w-12 h-12 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center">
+          <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </div>
+        <h3 class="text-base font-bold">صالة</h3>
+        <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-3">
+          {% csrf_token %}
+          <input type="hidden" name="order_type" value="dine_in">
+          <select name="table_id" required class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none transition duration-200">
+            <option value="">— اختر طاولة —</option>
+            {% for t in tables %}<option value="{{ t.pk }}">{{ t.name_ar }}</option>{% endfor %}
+          </select>
+          <button class="w-full h-11 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm transition duration-200" type="submit">بدء طلب صالة</button>
+        </form>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
+        <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
+          <svg class="w-6 h-6 text-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11V3H8v8M4 15h16l-2 6H6z"/></svg>
+        </div>
+        <h3 class="text-base font-bold">سفري</h3>
+        <form method="post" action="{% url 'pos:order_new' %}" class="w-full">
+          {% csrf_token %}
+          <input type="hidden" name="order_type" value="takeaway">
+          <button class="w-full h-11 rounded-lg bg-warning hover:brightness-110 text-gray-800 font-bold text-sm transition duration-200 mt-auto" type="submit">بدء طلب سفري</button>
+        </form>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
+        <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center">
+          <svg class="w-6 h-6 text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <h3 class="text-base font-bold">توصيل</h3>
+        <form method="post" action="{% url 'pos:order_new' %}" class="w-full">
+          {% csrf_token %}
+          <input type="hidden" name="order_type" value="delivery">
+          <button class="w-full h-11 rounded-lg bg-info hover:brightness-110 text-white font-bold text-sm transition duration-200 mt-auto" type="submit">بدء طلب توصيل</button>
+        </form>
+      </div>
+    </div>
+
+    {% if open_orders %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-danger animate-pulse"></span>
+          <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100">طلبات مفتوحة ({{ open_orders|length }})</h3>
+        </div>
+        <span class="text-xs text-muted">اضغط استئناف للعودة للطلب</span>
+      </div>
+      <div class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for o in open_orders %}
+        <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
+              {% if o.order_type == 'delivery' %}bg-info/20 text-info{% else %}bg-warning/20 text-warning{% endif %}">
+              {% if o.order_type == 'delivery' %}
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              {% else %}
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11V3H8v8M4 15h16l-2 6H6z"/></svg>
+              {% endif %}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-gray-800 dark:text-gray-100">#{{ o.pk }}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-semibold
+                  {% if o.order_type == 'delivery' %}bg-info/10 text-info{% else %}bg-warning/10 text-warning{% endif %}">
+                  {{ o.get_order_type_display }}
+                </span>
+                {% if o.is_held %}<span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-muted font-semibold">معلّق</span>{% endif %}
+              </div>
+              <div class="flex items-center gap-3 mt-0.5 text-xs text-muted">
+                {% if o.customer %}<span>{{ o.customer.name_ar }}</span>{% endif %}
+                <span>{{ o.line_count|default:0 }} صنف</span>
+                <span>{{ o.created_at|time:"H:i" }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-left">
+              <div class="text-sm font-bold {% if o.calc_balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ o.calc_grand }} {{ POS_SETTINGS.currency_symbol }}</div>
+              {% if o.calc_paid > 0 %}
+              <div class="text-[11px] text-success font-semibold">مدفوع {{ o.calc_paid }}</div>
+              {% endif %}
+            </div>
+            <form method="post" action="{% url 'pos:order_resume' o.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="h-9 px-4 rounded-lg bg-primary hover:bg-primary-dk text-white text-xs font-bold transition duration-200 active:scale-95">
+                استئناف
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% else %}
+{# ═══════════════════════════════════════════════ #}
+{# ═══  3-PANEL LAYOUT: Tables | Products | Cart  ═══ #}
+{# ═══════════════════════════════════════════════ #}
+<div class="flex flex-1 min-h-0">
+
+{# ─── Table mini-strip ─── #}
+<div class="w-[200px] shrink-0 bg-white dark:bg-gray-800 border-e border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-2 gap-2">
+  <div class="text-sm font-bold text-muted px-1 py-1.5">الطاولات</div>
+  {% for row in floor_rows %}
+  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-xl border-2 border-gray-200 dark:border-gray-600 p-2.5 hover:shadow-md transition-all duration-200">
+    {% csrf_token %}
+    <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+    {% if row.session and row.session.customer_id %}
+    <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
+    {% endif %}
+    <span class="t-name block text-sm font-bold truncate">{{ row.table.name_ar }}</span>
+    {% if row.status != 'free' %}
+    <span class="t-amt block text-xs font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
+    {% if row.customer_label %}<span class="t-cust block text-[11px] text-muted truncate mt-0.5">{{ row.customer_label }}</span>{% endif %}
+    {% endif %}
+    <button type="submit" class="t-link w-full h-8 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition duration-200 mt-2">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
+  </form>
+  {% endfor %}
+  <button type="button" class="h-10 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-sm font-semibold text-muted hover:border-primary hover:text-primary transition duration-200" id="strip-add-table">+ طاولة</button>
+  <div class="mt-auto pt-2">
+    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-xs font-semibold text-primary hover:underline">عرض الكل</a>
+  </div>
+</div>
+
+{# ─── CENTER: Products ─── #}
+<div class="pos-products flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 p-4">
+  <div class="relative mb-4" id="product-search-wrap">
+    <svg class="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="search" placeholder="بحث سريع... (اكتب للبحث)" autocomplete="off" id="pos-search-input"
+           class="w-full h-11 ps-10 pe-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
+    <div id="product-search-hits" class="absolute top-12 start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl max-h-[320px] overflow-y-auto shadow-xl" style="display:none"></div>
+  </div>
+
+  <div class="flex gap-2 mb-4 overflow-x-auto pb-1" role="tablist">
+    <button type="button" class="pos-cat-btn on px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap border border-gray-200 dark:border-gray-600 transition-all duration-200 shrink-0" data-tab="featured" role="tab">الأكثر مبيعاً</button>
+    {% for sec in product_sections %}
+    <button type="button" class="pos-cat-btn px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap border border-gray-200 dark:border-gray-600 text-muted hover:bg-primary-soft dark:hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 shrink-0" data-tab="cat-{{ sec.category.pk }}" role="tab">{{ sec.category.name_ar }} <span class="opacity-60 text-xs">({{ sec.count }})</span></button>
+    {% endfor %}
+  </div>
+
+  <div id="panel-featured" class="cat-panel is-visible flex-1 overflow-y-auto min-h-0">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+      {% for p in featured_rows %}
+      {% if p.modifier_group_count %}
+      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200 no-underline text-inherit">
+        <div class="relative w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}<span class="absolute -top-1.5 -start-1.5 bg-warning text-[10px] font-bold text-gray-800 px-1.5 py-0.5 rounded-full shadow-sm leading-none">تخصيص</span></div>
+        <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[10px] text-muted mt-0.5 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
+      </a>
+      {% else %}
+      <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
+        <input type="hidden" name="product_id" value="{{ p.pk }}">
+        <input type="hidden" name="qty" value="1">
+        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 cursor-pointer hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200">
+          <div class="w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}</div>
+          <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[10px] text-muted mt-0.5 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
+        </button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {% for sec in product_sections %}
+  <div id="panel-cat-{{ sec.category.pk }}" class="cat-panel flex-1 overflow-y-auto min-h-0">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+      {% for p in sec.product_rows %}
+      {% if p.modifier_group_count %}
+      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200 no-underline text-inherit">
+        <div class="relative w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}<span class="absolute -top-1.5 -start-1.5 bg-warning text-[10px] font-bold text-gray-800 px-1.5 py-0.5 rounded-full shadow-sm leading-none">تخصيص</span></div>
+        <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
+      </a>
+      {% else %}
+      <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
+        <input type="hidden" name="product_id" value="{{ p.pk }}">
+        <input type="hidden" name="qty" value="1">
+        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 cursor-pointer hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200">
+          <div class="w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}</div>
+          <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
+        </button>
+      </form>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ─── Cart ─── #}
+<div class="w-[340px] shrink-0 bg-white dark:bg-gray-800 border-s border-gray-200 dark:border-gray-700 flex flex-col" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+  {% include "pos/_cart_fragment.html" %}
+</div>
+
+</div>
+{% endif %}
+{% endblock %}
+
+{% block cashier_scripts %}
+<script>
+(function(){
+  var CART_URL='{% url "pos:cart_fragment" %}';
+  var CSRF='{{ csrf_token }}';
+  var SEARCH_URL='{% url "pos:customers_search" %}';
+  var PRODUCT_SEARCH_URL='{% url "pos:products_search" %}';
+  {% if current_order %}var ORDER_ADD_URL='{% url "pos:order_add" current_order.pk %}';
+  var CUSTOMIZE_BASE='{% url "pos:customize_product" current_order.pk 0 %}'.replace('/0/','/{pid}/');{% else %}var ORDER_ADD_URL='';var CUSTOMIZE_BASE='';{% endif %}
+  var CUST_CREATE_URL='{% url "pos:customer_quick_create" %}';
+  var TABLE_CREATE_URL='{% url "pos:table_quick_create" %}';
+  var CUR='{{ POS_SETTINGS.currency_symbol }}';
+
+  /* ── AJAX cart refresh ── */
+  function refreshCart(){
+    var cart=document.getElementById('pos-cart');
+    if(!cart)return Promise.resolve();
+    return fetch(CART_URL,{headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(function(r){return r.text()})
+      .then(function(html){
+        cart.innerHTML=html;
+        initCartInteractions();
+      });
+  }
+
+  /* ── AJAX form submit → refresh cart ── */
+  function ajaxSubmit(form){
+    var data=new FormData(form);
+    return fetch(form.action,{
+      method:'POST',
+      headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+      body:new URLSearchParams(data)
+    }).then(function(r){return r.json()})
+    .then(function(d){
+      if(!d.ok&&d.error)showToast(d.error,'error');
+      return refreshCart();
+    }).catch(function(){return refreshCart()});
+  }
+
+  /* ── Toast notifications ── */
+  function showToast(msg,type){
+    var t=document.createElement('div');
+    t.className='pos-toast '+(type||'info');
+    t.textContent=msg;
+    document.body.appendChild(t);
+    setTimeout(function(){t.classList.add('show')},10);
+    setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.remove()},300)},2500);
+  }
+
+  function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+  /* ── Modal utility ── */
+  function showModal(title,bodyHtml,onConfirm){
+    var overlay=document.createElement('div');
+    overlay.className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/40';
+    overlay.innerHTML='<div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5">'
+      +'<h3 class="text-base font-bold mb-3 text-gray-800 dark:text-gray-100">'+title+'</h3>'
+      +'<div class="mb-4">'+bodyHtml+'</div>'
+      +'<div class="flex gap-2 justify-end">'
+      +'<button type="button" class="modal-cancel h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-700 transition">إلغاء</button>'
+      +'<button type="button" class="modal-ok h-9 px-4 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dk transition">تأكيد</button>'
+      +'</div></div>';
+    document.body.appendChild(overlay);
+    var firstInput=overlay.querySelector('input,textarea');
+    if(firstInput)setTimeout(function(){firstInput.focus()},50);
+    overlay.querySelector('.modal-cancel').addEventListener('click',function(){overlay.remove()});
+    overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+    overlay.querySelector('.modal-ok').addEventListener('click',function(){
+      if(onConfirm)onConfirm();
+      overlay.remove();
+    });
+  }
+
+  function showPromptModal(title,placeholder,callback){
+    showModal(title,'<input type="text" id="modal-prompt-val" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none" placeholder="'+escHtml(placeholder)+'">',function(){
+      var val=document.getElementById('modal-prompt-val').value;
+      if(val&&val.trim())callback(val.trim());
+    });
+  }
+
+  /* ── Intercept product-add forms (in products panel) ── */
+  function initProductForms(){
+    document.querySelectorAll('.pos-products form[action*="/add/"]').forEach(function(f){
+      f.addEventListener('submit',function(e){
+        e.preventDefault();
+        ajaxSubmit(f).then(function(){showToast('تم إضافة المنتج','success')});
+      });
+    });
+  }
+  initProductForms();
+
+  /* ── Product search autocomplete ── */
+  function initProductSearch(){
+    var inp=document.getElementById('pos-search-input');
+    var hits=document.getElementById('product-search-hits');
+    if(!inp||!hits)return;
+    var tmo,activeIdx=-1;
+
+    function addProduct(id){
+      fetch(ORDER_ADD_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+        body:'product_id='+id+'&qty=1'
+      }).then(function(r){return r.json()})
+      .then(function(d){
+        if(!d.ok&&d.error)showToast(d.error,'error');
+        else showToast('تم إضافة المنتج','success');
+        return refreshCart();
+      });
+      inp.value='';
+      hits.style.display='none';
+      activeIdx=-1;
+    }
+
+    function renderHits(results){
+      hits.innerHTML='';
+      if(!results.length){hits.style.display='none';return}
+      activeIdx=-1;
+      results.forEach(function(p,i){
+        var btn=document.createElement('button');
+        btn.type='button';
+        btn.className='prod-ac-hit flex items-center justify-between w-full px-4 py-3 text-sm border-b border-gray-100 dark:border-gray-700 hover:bg-primary-soft dark:hover:bg-primary/10 transition-colors duration-150 cursor-pointer';
+        btn.setAttribute('data-pid',p.id);
+        btn.setAttribute('data-has-mod',p.has_modifiers?'1':'0');
+        var right=document.createElement('div');
+        right.className='flex items-center gap-3';
+        var icon=document.createElement('span');
+        icon.className='w-9 h-9 rounded-lg bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-sm font-bold text-primary shrink-0';
+        icon.textContent=p.name_ar.charAt(0);
+        var info=document.createElement('div');
+        info.className='text-right';
+        var name=document.createElement('div');
+        name.className='font-semibold text-gray-800 dark:text-gray-100';
+        name.textContent=p.name_ar;
+        info.appendChild(name);
+        if(p.category){
+          var cat=document.createElement('div');
+          cat.className='text-xs text-muted';
+          cat.textContent=p.category;
+          info.appendChild(cat);
+        }
+        right.appendChild(icon);
+        right.appendChild(info);
+        var price=document.createElement('span');
+        price.className='text-primary font-bold text-sm whitespace-nowrap';
+        price.textContent=p.price+' '+CUR;
+        btn.appendChild(price);
+        btn.appendChild(right);
+        btn.onclick=function(){
+          if(p.has_modifiers){
+            window.location.href=CUSTOMIZE_BASE.replace('{pid}',p.id);
+          } else {
+            addProduct(p.id);
+          }
+        };
+        hits.appendChild(btn);
+      });
+      hits.style.display='block';
+    }
+
+    function highlightItem(idx){
+      var items=hits.querySelectorAll('.prod-ac-hit');
+      items.forEach(function(it){it.classList.remove('ac-active');it.style.background=''});
+      if(idx>=0&&idx<items.length){
+        items[idx].classList.add('ac-active');
+        items[idx].style.background='rgba(108,92,231,0.1)';
+        items[idx].scrollIntoView({block:'nearest'});
+      }
+    }
+
+    inp.addEventListener('input',function(){
+      clearTimeout(tmo);
+      var q=inp.value.trim();
+      if(q.length<1){hits.innerHTML='';hits.style.display='none';return}
+      tmo=setTimeout(function(){
+        fetch(PRODUCT_SEARCH_URL+'?q='+encodeURIComponent(q))
+          .then(function(r){return r.json()})
+          .then(function(d){renderHits(d.results||[])});
+      },150);
+    });
+
+    inp.addEventListener('keydown',function(e){
+      var items=hits.querySelectorAll('.prod-ac-hit');
+      if(!items.length&&e.key!=='Escape')return;
+      if(e.key==='Tab'&&hits.style.display!=='none'&&items.length){
+        e.preventDefault();
+        var first=items[0];
+        if(first.getAttribute('data-has-mod')==='1'){
+          window.location.href=CUSTOMIZE_BASE.replace('{pid}',first.getAttribute('data-pid'));
+        } else {
+          addProduct(first.getAttribute('data-pid'));
+        }
+        return;
+      }
+      if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+        e.preventDefault();
+        if(e.key==='ArrowDown')activeIdx=activeIdx<items.length-1?activeIdx+1:0;
+        else activeIdx=activeIdx>0?activeIdx-1:items.length-1;
+        highlightItem(activeIdx);
+        return;
+      }
+      if(e.key==='Enter'&&hits.style.display!=='none'){
+        e.preventDefault();
+        var target=activeIdx>=0&&activeIdx<items.length?items[activeIdx]:items[0];
+        if(target){
+          if(target.getAttribute('data-has-mod')==='1'){
+            window.location.href=CUSTOMIZE_BASE.replace('{pid}',target.getAttribute('data-pid'));
+          } else {
+            addProduct(target.getAttribute('data-pid'));
+          }
+        }
+        return;
+      }
+      if(e.key==='Escape'){
+        inp.value='';
+        hits.style.display='none';
+        activeIdx=-1;
+      }
+    });
+
+    document.addEventListener('click',function(e){
+      if(!inp.contains(e.target)&&!hits.contains(e.target)){
+        hits.style.display='none';activeIdx=-1;
+      }
+    });
+  }
+  initProductSearch();
+
+  /* ── Intercept all cart forms ── */
+  function initCartInteractions(){
+    var cart=document.getElementById('pos-cart');
+    if(!cart)return;
+    cart.querySelectorAll('.ajax-cart-form').forEach(function(f){
+      f.addEventListener('submit',function(e){
+        e.preventDefault();
+        var confirmMsg=f.getAttribute('data-confirm');
+        if(confirmMsg&&!confirm(confirmMsg))return;
+        ajaxSubmit(f);
+      });
+    });
+    cart.querySelectorAll('.cart-line-item').forEach(function(el){
+      el.addEventListener('click',function(e){
+        if(e.target.closest('button')||e.target.closest('form'))return;
+        cart.querySelectorAll('.cart-line-item').forEach(function(x){x.classList.remove('ring-2','ring-primary/20')});
+        el.classList.add('ring-2','ring-primary/20');
+        selectedLineIdx=parseInt(el.getAttribute('data-line-idx'))||0;
+      });
+    });
+    cart.querySelectorAll('.line-note-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var lineId=btn.getAttribute('data-line-id');
+        var currentNote=btn.getAttribute('data-note')||'';
+        showModal('ملاحظة على الصنف','<textarea id="modal-note-input" rows="3" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="اكتب ملاحظة...">'+escHtml(currentNote)+'</textarea>',function(){
+          var note=document.getElementById('modal-note-input').value;
+          fetch(ORDER_ADD_URL.replace(/\/add\/$/,'/line/'+lineId+'/note/'),{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+            body:'line_note='+encodeURIComponent(note)
+          }).then(function(){return refreshCart()}).then(function(){showToast('تم حفظ الملاحظة','success')});
+        });
+      });
+    });
+    initPaymentUI();
+    initCustomerAutocomplete();
+  }
+  initCartInteractions();
+
+  /* ── Payment mode, quick amounts ── */
+  function initPaymentUI(){
+    var pmBtns=document.querySelectorAll('#pay-methods .pm-btn');
+    var pmVal=document.getElementById('pay-mode-val');
+    var mxPanel=document.getElementById('mixed-panel');
+    var qaPanel=document.getElementById('quick-amounts');
+    var cf=document.getElementById('checkout-form');
+    var payBtn=document.getElementById('pay-btn');
+
+    function setMode(m){
+      if(!pmVal)return;
+      pmVal.value=m;
+      pmBtns.forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m)});
+      if(mxPanel)mxPanel.classList.toggle('show',m==='mixed');
+      if(qaPanel)qaPanel.style.display=(m==='mixed')?'none':'flex';
+      if(m==='mixed')prefillMixed();
+      if(payBtn){
+        if(m){payBtn.style.opacity='1';payBtn.style.pointerEvents='auto';}
+      }
+    }
+    pmBtns.forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-m'))})});
+
+    if(cf){cf.addEventListener('submit',function(e){
+      if(!pmVal||!pmVal.value){
+        e.preventDefault();
+        showToast('اختر طريقة الدفع أولاً','error');
+      }
+    })}
+
+    function prefillMixed(){
+      var bal=cf?parseFloat(cf.getAttribute('data-balance')||'0'):0;
+      if(isNaN(bal))bal=0;
+      var mc=document.getElementById('mx-cash');if(mc)mc.value=bal>0?bal.toFixed(2):'0';
+      var mb=document.getElementById('mx-bank');if(mb)mb.value='0';
+      var mr=document.getElementById('mx-credit');if(mr)mr.value='0';
+      updateMxRemaining();
+    }
+    function updateMxRemaining(){
+      var bal=cf?parseFloat(cf.getAttribute('data-balance')||'0'):0;
+      var mc=parseFloat((document.getElementById('mx-cash')||{}).value||'0');
+      var mb=parseFloat((document.getElementById('mx-bank')||{}).value||'0');
+      var mr=parseFloat((document.getElementById('mx-credit')||{}).value||'0');
+      var rem=bal-mc-mb-mr;
+      var el=document.getElementById('mx-remaining');
+      if(el)el.textContent='المتبقي: '+(rem>0?rem.toFixed(2):'0.00')+' '+CUR;
+    }
+    ['mx-cash','mx-bank','mx-credit'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)el.addEventListener('input',updateMxRemaining);
+    });
+
+    if(qaPanel&&cf){
+      qaPanel.querySelectorAll('button').forEach(function(b){
+        b.addEventListener('click',function(){
+          var amt=b.getAttribute('data-amt');
+          if(amt==='exact'){setMode('cash')}
+          else{
+            setMode('mixed');
+            var mc=document.getElementById('mx-cash');
+            if(mc){mc.value=(parseFloat(mc.value||'0')+parseFloat(amt)).toFixed(2);updateMxRemaining();}
+          }
+        });
+      });
+    }
+  }
+
+  /* ── Customer autocomplete ── */
+  function initCustomerAutocomplete(){
+    function setup(searchId,hitsId,hiddenId){
+      var inp=document.getElementById(searchId),hits=document.getElementById(hitsId),hidden=document.getElementById(hiddenId);
+      if(!inp||!hits||!hidden)return;
+      var tmo;
+      inp.addEventListener('input',function(){
+        clearTimeout(tmo);
+        var q=inp.value.trim();
+        if(q.length<1){hits.style.display='none';return;}
+        tmo=setTimeout(function(){
+          fetch(SEARCH_URL+'?q='+encodeURIComponent(q))
+          .then(function(r){return r.json()})
+          .then(function(data){
+            hits.innerHTML='';
+            if(!data.results||!data.results.length){
+              hits.innerHTML='<div style="padding:8px 12px;color:var(--c-muted);font-size:.85rem">لا توجد نتائج</div>';
+              hits.style.display='block';return;
+            }
+            data.results.forEach(function(c){
+              var btn=document.createElement('button');
+              btn.type='button';btn.textContent=c.name_ar+(c.phone?' — '+c.phone:'');
+              btn.className='cust-ac-hit';
+              btn.onclick=function(){hidden.value=c.id;inp.value=c.name_ar;hits.style.display='none'};
+              hits.appendChild(btn);
+            });
+            hits.style.display='block';
+          });
+        },200);
+      });
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Tab'&&hits.style.display!=='none'){
+          var first=hits.querySelector('.cust-ac-hit');
+          if(first){e.preventDefault();first.click();}
+        }
+        if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+          e.preventDefault();
+          var items=hits.querySelectorAll('.cust-ac-hit');
+          if(!items.length)return;
+          var cur=-1;
+          items.forEach(function(it,i){if(it.classList.contains('ac-active'))cur=i;});
+          items.forEach(function(it){it.classList.remove('ac-active');it.style.background='';});
+          if(e.key==='ArrowDown')cur=cur<items.length-1?cur+1:0;
+          else cur=cur>0?cur-1:items.length-1;
+          items[cur].classList.add('ac-active');
+          items[cur].style.background='rgba(108,92,231,0.1)';
+          items[cur].scrollIntoView({block:'nearest'});
+        }
+        if(e.key==='Enter'&&hits.style.display!=='none'){
+          var active=hits.querySelector('.ac-active')||hits.querySelector('.cust-ac-hit');
+          if(active){e.preventDefault();active.click();}
+        }
+      });
+      inp.addEventListener('blur',function(){setTimeout(function(){hits.style.display='none'},200)});
+      inp.addEventListener('focus',function(){if(hits.childElementCount>0)hits.style.display='block'});
+    }
+    setup('cart-cust-search','cart-cust-hits','cart-cust-id');
+    setup('pay-cust-search','pay-cust-hits','pay-cust-id');
+
+    var clearBtn=document.getElementById('cart-cust-clear');
+    if(clearBtn){clearBtn.addEventListener('click',function(){
+      document.getElementById('cart-cust-id').value='';
+      document.getElementById('cart-cust-search').value='';
+      var f=document.getElementById('cart-cust-form');if(f)ajaxSubmit(f);
+    })}
+
+    var newBtn=document.getElementById('cart-cust-new');
+    if(newBtn){newBtn.addEventListener('click',function(){
+      showModal('إضافة عميل جديد',
+        '<input type="text" id="mc-cust-name" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none mb-2" placeholder="اسم العميل">'
+        +'<input type="text" id="mc-cust-phone" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none" placeholder="رقم الهاتف (اختياري)">',
+        function(){
+          var name=(document.getElementById('mc-cust-name').value||'').trim();
+          if(!name)return;
+          var phone=(document.getElementById('mc-cust-phone').value||'').trim();
+          fetch(CUST_CREATE_URL,{
+            method:'POST',
+            headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':CSRF},
+            body:'name_ar='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)
+          }).then(function(r){return r.json()}).then(function(data){
+            if(data.ok){
+              document.getElementById('cart-cust-id').value=data.id;
+              document.getElementById('cart-cust-search').value=data.name_ar;
+              var f=document.getElementById('cart-cust-form');if(f)ajaxSubmit(f);
+            }else{showToast(data.error||'خطأ','error')}
+          });
+        }
+      );
+    })}
+  }
+
+  /* ── Category tabs ── */
+  var chips=document.querySelectorAll('.pos-cat-btn');
+  var panels=document.querySelectorAll('.cat-panel');
+  if(chips.length&&panels.length){
+    function show(t){
+      var w=t==='featured'?'panel-featured':'panel-'+t;
+      panels.forEach(function(p){p.classList.toggle('is-visible',p.id===w)});
+      chips.forEach(function(c){c.classList.toggle('on',c.getAttribute('data-tab')===t)});
+    }
+    chips.forEach(function(c){c.addEventListener('click',function(){show(c.getAttribute('data-tab'))})});
+  }
+
+  /* ── Quick add table from strip ── */
+  var addTableBtn=document.getElementById('strip-add-table');
+  if(addTableBtn){
+    addTableBtn.addEventListener('click',function(){
+      showPromptModal('اسم الطاولة الجديدة','مثال: طاولة 8',function(name){
+        fetch(TABLE_CREATE_URL,{
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':CSRF},
+          body:'name_ar='+encodeURIComponent(name)
+        }).then(function(r){return r.json()}).then(function(d){
+          if(d.ok)location.reload();else showToast(d.error||'خطأ','error');
+        });
+      });
+    });
+  }
+
+  /* ── Keyboard shortcuts ── */
+  var selectedLineIdx=-1;
+  document.addEventListener('keydown',function(e){
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+    if(e.key==='Escape'){var hf=document.querySelector('.hold-btn');if(hf){e.preventDefault();hf.closest('form').submit()}}
+    if(e.key==='Enter'){
+      var pb=document.getElementById('pay-btn');
+      var pmVal=document.getElementById('pay-mode-val');
+      if(pb&&pmVal&&pmVal.value){e.preventDefault();pb.closest('form').submit()}
+    }
+    if(e.key==='/'){var si=document.getElementById('pos-search-input');if(si){e.preventDefault();si.focus()}}
+    if(e.key==='+'||e.key==='='){
+      e.preventDefault();
+      var allLines=document.querySelectorAll('.cart-line-item');
+      var idx=selectedLineIdx>=0&&selectedLineIdx<allLines.length?selectedLineIdx:allLines.length-1;
+      if(idx>=0){var plusBtn=allLines[idx].querySelector('.cl-qty form:last-of-type button');if(plusBtn)plusBtn.click()}
+    }
+    if(e.key==='-'){
+      e.preventDefault();
+      var allLines2=document.querySelectorAll('.cart-line-item');
+      var idx2=selectedLineIdx>=0&&selectedLineIdx<allLines2.length?selectedLineIdx:allLines2.length-1;
+      if(idx2>=0){var minusBtn=allLines2[idx2].querySelector('.cl-qty form:first-of-type button');if(minusBtn)minusBtn.click()}
+    }
+  });
+
+  /* ── Auto-focus search ── */
+  document.addEventListener('keypress',function(e){
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+    var si=document.getElementById('pos-search-input');
+    if(si&&/^[\u0600-\u06FFa-zA-Z0-9]$/.test(e.key)){si.focus()}
+  });
+})();
+</script>
+<style>
+.pos-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);padding:10px 24px;border-radius:10px;font-family:var(--font);font-size:.9rem;font-weight:600;z-index:9999;opacity:0;transition:all .3s ease;pointer-events:none}
+.pos-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.pos-toast.success{background:var(--c-green);color:#fff}
+.pos-toast.error{background:var(--c-red);color:#fff}
+.pos-toast.info{background:var(--c-primary);color:#fff}
+</style>
+{% endblock %}

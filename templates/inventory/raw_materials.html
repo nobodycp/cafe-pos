@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}المواد الخام{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">المواد الخام</h1>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'inventory:raw_material_create' %}"
+       class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm inline-flex items-center gap-2 hover:bg-primary-dk transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+      إضافة مادة خام
+    </a>
+    <a href="{% url 'inventory:home' %}"
+       class="h-11 px-5 rounded-lg bg-gray-500 text-white font-bold text-sm inline-flex items-center gap-2 hover:bg-gray-600 transition-colors">
+      &larr; المخزون
+    </a>
+  </div>
+</div>
+
+{# ── Raw Materials Table ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المادة الخام</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الوحدة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية الحالية</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">متوسط التكلفة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">القيمة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحد الأدنى</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in materials %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-bold">{{ e.material.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.material.unit.name_ar|default:"—" }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if e.low %}text-danger{% endif %}">{{ e.on_hand|floatformat:2 }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.avg_cost|floatformat:4|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.value|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.material.min_stock_level|floatformat:2 }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            {% if e.low %}
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">منخفض</span>
+            {% else %}
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">متوفر</span>
+            {% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'inventory:raw_material_edit' e.material.pk %}" class="text-primary font-semibold text-sm hover:text-primary-dk transition-colors">تعديل</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="p-8 text-center text-muted">
+            لا توجد مواد خام.
+            <a href="{% url 'inventory:raw_material_create' %}" class="text-primary font-semibold hover:text-primary-dk">أضف مادة خام الآن</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

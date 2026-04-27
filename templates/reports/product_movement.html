@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}حركة الأصناف{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">حركة الأصناف</h1>
+  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">← التقارير</a>
+</div>
+
+{# ── Period Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <div class="flex flex-wrap gap-2">
+    <a href="?period=week" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors {% if period != 'week' %}opacity-50{% endif %}">أسبوع</a>
+    <a href="?period=month" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors {% if period != 'month' and period != 'year' and period != 'week' %}{% else %}{% if period == 'month' %}{% else %}opacity-50{% endif %}{% endif %}">شهر</a>
+    <a href="?period=year" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors {% if period != 'year' %}opacity-50{% endif %}">سنة</a>
+  </div>
+  <p class="text-sm text-muted mt-2">من {{ date_from }}</p>
+</div>
+
+{# ── Top Sellers ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h3 class="text-lg font-bold mb-4">الأكثر مبيعاً</h3>
+  {% if top_sellers %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإيراد</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الربح</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in top_sellers %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ p.product__name_ar }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ p.total_qty }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ p.total_revenue|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ p.total_profit|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-center text-muted py-8">لا توجد مبيعات في هذه الفترة.</p>
+  {% endif %}
+</div>
+
+{# ── Slow Movers ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h3 class="text-lg font-bold mb-4">أصناف راكدة</h3>
+  {% if slow_movers %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">عرض</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in slow_movers %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ p.name_ar }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700"><a href="{% url 'catalog:product_card' p.pk %}" class="text-primary hover:text-primary-dk font-semibold transition-colors">بطاقة الصنف</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-center text-muted py-8">لا توجد أصناف راكدة.</p>
+  {% endif %}
+</div>
+{% endblock %}

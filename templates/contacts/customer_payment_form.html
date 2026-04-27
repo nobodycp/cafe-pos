@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}تسجيل سداد - {{ customer.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">تسجيل سداد - {{ customer.name_ar }}</h1>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ</label>
+        {{ form.amount }}
+        {% if form.amount.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.amount.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">طريقة الدفع</label>
+        {{ form.method }}
+        {% if form.method.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.method.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="grid grid-cols-1 gap-5 mt-5">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظة</label>
+        {{ form.note }}
+        {% if form.note.errors %}<p class="mt-1 text-xs text-danger font-semibold">{{ form.note.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 mt-5">حفظ</button>
+  </form>
+</div>
+
+<p class="mt-4">
+  <a href="{% url 'contacts:customer_detail' customer.pk %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
+</p>
+{% endblock %}

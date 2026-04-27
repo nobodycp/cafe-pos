@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}إضافة مصروف{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">إضافة مصروف</h1>
+  <a href="{% url 'expenses:list' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    العودة للمصروفات
+  </a>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">التصنيف</label>
+      {{ form.category }}
+      {% if form.category.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.category.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ</label>
+        {{ form.amount }}
+        {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-muted mb-1.5">طريقة الدفع</label>
+        {{ form.payment_method }}
+        {% if form.payment_method.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_method.errors.0 }}</p>{% endif %}
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">التاريخ</label>
+      {{ form.expense_date }}
+      {% if form.expense_date.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.expense_date.errors.0 }}</p>{% endif %}
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظات</label>
+      {{ form.notes }}
+      {% if form.notes.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
+    </div>
+    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
+  </form>
+</div>
+{% endblock %}

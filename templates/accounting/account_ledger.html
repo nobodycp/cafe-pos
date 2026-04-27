@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}كشف حساب — {{ account.name_ar }}{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <div>
+    <h1 class="text-2xl font-extrabold">كشف حساب: {{ account.code }} — {{ account.name_ar }}</h1>
+    <div class="mt-2">
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold {% if account.account_type == 'asset' %}bg-info/10 text-info{% elif account.account_type == 'liability' %}bg-danger/10 text-danger{% elif account.account_type == 'revenue' %}bg-success/10 text-success{% elif account.account_type == 'expense' %}bg-warning/10 text-warning{% else %}bg-info/10 text-info{% endif %}">{{ account.get_account_type_display }}</span>
+    </div>
+  </div>
+  <a href="{% url 'accounting:chart' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">&larr; دليل الحسابات</a>
+</div>
+
+{# ── Date Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <form method="get" class="flex gap-3 flex-wrap items-end">
+    <div>
+      <label class="block text-sm text-muted font-semibold mb-1">من</label>
+      <input type="date" name="from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+    </div>
+    <div>
+      <label class="block text-sm text-muted font-semibold mb-1">إلى</label>
+      <input type="date" name="to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+    </div>
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">عرض</button>
+  </form>
+</div>
+
+{# ── Ledger Table ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم القيد</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">البيان</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">مدين</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">دائن</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرصيد</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ r.date }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700"><a href="{% url 'accounting:journal_detail' r.entry_pk %}" class="text-primary hover:text-primary-dk font-semibold transition-colors">{{ r.entry_number }}</a></td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ r.description }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{% if r.debit %}{{ r.debit|floatformat:2|intcomma }}{% endif %}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{% if r.credit %}{{ r.credit|floatformat:2|intcomma }}{% endif %}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-bold">{{ r.balance|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-8">لا توجد حركات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

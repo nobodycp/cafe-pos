@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}تقرير المبيعات اليومي{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">تقرير المبيعات اليومي</h1>
+  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">← التقارير</a>
+</div>
+
+{# ── Date Filter ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <form method="get" class="flex gap-3 flex-wrap items-end">
+    <div>
+      <label class="block text-sm font-semibold mb-1">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+    </div>
+    <div>
+      <label class="block text-sm font-semibold mb-1">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+    </div>
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">عرض</button>
+  </form>
+</div>
+
+{# ── Summary Cards ── #}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">إجمالي المبيعات</div>
+    <div class="text-2xl font-extrabold text-success mt-1">{{ total_sales|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">إجمالي الربح</div>
+    <div class="text-2xl font-extrabold text-success mt-1">{{ total_profit|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">عدد الفواتير</div>
+    <div class="text-2xl font-extrabold text-primary mt-1">{{ invoice_count }}</div>
+  </div>
+</div>
+
+{# ── Invoice Details ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h3 class="text-lg font-bold mb-4">تفاصيل الفواتير</h3>
+  {% if invoices %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم الفاتورة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطاولة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإجمالي</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الربح</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">طريقة الدفع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">العميل</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in invoices %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.invoice.invoice_number }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.table_name|default:"—" }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.invoice.total|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ row.invoice.total_profit|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.payment_methods }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.invoice.customer|default:"—" }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">
+            {% if row.invoice.payment_status == "paid" %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/10 text-success">مدفوع</span>
+            {% elif row.invoice.payment_status == "partial" %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-info/10 text-info">جزئي</span>
+            {% else %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">غير مدفوع</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-center text-muted py-8">لا توجد فواتير في هذه الفترة.</p>
+  {% endif %}
+</div>
+{% endblock %}

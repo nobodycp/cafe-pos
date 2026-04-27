@@ -1,0 +1,162 @@
+{# Cart body fragment for AJAX updates #}
+{% if not current_order %}
+<div class="flex items-center justify-center text-muted text-sm py-12">لا يوجد طلب نشط</div>
+{% else %}
+<div class="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-700">
+  <div class="flex-1 min-w-0">
+    <span class="text-sm font-bold text-primary">طلب #{{ current_order.pk }}</span>
+    <span class="block text-xs text-muted truncate">{{ current_order.get_order_type_display }}{% if current_order.table %} — {{ current_order.table.name_ar }}{% endif %}</span>
+  </div>
+  <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" style="display:contents" class="ajax-cart-form">
+    {% csrf_token %}
+    <button type="submit" class="hold-btn h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-200" title="Esc = تعليق">تعليق <span class="inline-block text-[10px] px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-muted ms-0.5">Esc</span></button>
+  </form>
+  <a href="{% url 'pos:order_split' current_order.pk %}" class="hold-btn h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-200 no-underline flex items-center justify-center" title="تقسيم الفاتورة">تقسيم</a>
+  <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" style="display:contents" onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الطلب بالكامل؟')">
+    {% csrf_token %}
+    <button type="submit" class="hold-btn h-9 px-3 rounded-lg border border-danger text-xs font-semibold text-danger hover:bg-danger/10 transition duration-200" title="إلغاء الطلب">إلغاء</button>
+  </form>
+</div>
+
+{% if current_order.customer %}
+<div class="flex items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-primary-soft/50 dark:bg-primary/10">
+  <span class="text-sm font-semibold">{{ current_order.customer.name_ar }}</span>
+  <span class="text-xs text-muted">{{ current_order.customer.phone }}</span>
+</div>
+{% endif %}
+
+<div class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+  {% for line in lines %}
+  <div class="cart-line-item bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 transition-all duration-200 cursor-pointer{% if forloop.last %} ring-2 ring-primary/20{% endif %}" data-line-idx="{{ forloop.counter0 }}">
+    <div class="flex items-start justify-between gap-2">
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold">{{ line.product.name_ar }}</div>
+        {% if line.modifiers_json %}<div class="text-[11px] text-muted mt-0.5">{% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>{% endif %}
+        {% if line.line_note %}<div class="text-[11px] text-primary/80 mt-0.5 italic">{{ line.line_note }}</div>{% endif %}
+        <div class="cl-qty flex items-center gap-1 mt-2">
+          <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+            <input type="hidden" name="qty_delta" value="-1">
+            <button type="submit" class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-600 text-sm font-bold hover:bg-danger hover:text-white transition duration-200 flex items-center justify-center">−</button>
+          </form>
+          <span class="w-8 text-center text-sm font-bold">{{ line.quantity|floatformat:"0" }}</span>
+          <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+            <input type="hidden" name="qty_delta" value="1">
+            <button type="submit" class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-600 text-sm font-bold hover:bg-success hover:text-white transition duration-200 flex items-center justify-center">+</button>
+          </form>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-1 shrink-0">
+        <span class="text-sm font-bold text-primary">{{ line.line_total }} {{ POS_SETTINGS.currency_symbol }}</span>
+        <div class="flex items-center gap-1">
+          <button type="button" class="line-note-btn w-7 h-7 rounded-lg text-muted hover:bg-primary hover:text-white text-xs transition duration-200 flex items-center justify-center" title="ملاحظة" data-line-id="{{ line.pk }}" data-note="{{ line.line_note|default:'' }}">📝</button>
+          <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="حذف {{ line.product.name_ar }}؟">{% csrf_token %}
+            <button type="submit" class="cl-del w-7 h-7 rounded-lg text-danger/60 hover:bg-danger hover:text-white text-xs transition duration-200 flex items-center justify-center" title="حذف">✕</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="flex items-center justify-center text-muted text-sm py-12">السلة فارغة — اختر منتجات</div>
+  {% endfor %}
+
+  <details class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+    <summary class="cursor-pointer text-sm font-semibold text-muted hover:text-primary transition duration-200 py-1 select-none">خصم وملاحظات</summary>
+    <form method="post" action="{% url 'pos:order_discount' current_order.pk %}" class="ajax-cart-form mt-3 space-y-2">
+      {% csrf_token %}
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-semibold text-muted whitespace-nowrap">خصم مبلغ</label>
+        <input type="number" step="0.01" name="discount_amount" value="{{ current_order.discount_amount }}" class="flex-1 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-semibold text-muted whitespace-nowrap">خصم %</label>
+        <input type="number" step="0.01" name="discount_percent" value="{{ current_order.discount_percent }}" class="flex-1 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-sm focus:ring-2 focus:ring-primary outline-none">
+      </div>
+      <button type="submit" class="h-9 px-4 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary hover:text-white transition duration-200">تطبيق</button>
+    </form>
+    <form method="post" action="{% url 'pos:order_note' current_order.pk %}" class="ajax-cart-form mt-3 space-y-2">
+      {% csrf_token %}
+      <label class="text-xs font-semibold text-muted">ملاحظات الطلب</label>
+      <textarea name="order_note" rows="2" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none">{{ current_order.order_note }}</textarea>
+      <button type="submit" class="h-9 px-4 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary hover:text-white transition duration-200">حفظ</button>
+    </form>
+  </details>
+
+  <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
+    <form method="post" action="{% url 'pos:order_customer' current_order.pk %}" class="space-y-2" id="cart-cust-form">
+      {% csrf_token %}
+      <label class="text-xs font-semibold text-muted">العميل</label>
+      <div class="relative">
+        <input type="hidden" name="customer_id" id="cart-cust-id" value="{{ current_order.customer_id|default:'' }}">
+        <input type="search" id="cart-cust-search" placeholder="بحث عميل بالاسم أو الهاتف..." autocomplete="off"
+          value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
+          class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
+        <div id="cart-cust-hits" class="absolute top-full start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-lg max-h-[180px] overflow-y-auto shadow-lg" style="display:none"></div>
+      </div>
+      <div class="flex gap-1.5">
+        <button type="submit" class="flex-1 h-9 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary hover:text-white transition duration-200">تعيين</button>
+        <button type="button" class="h-9 px-3 rounded-lg border border-danger text-danger text-xs font-bold hover:bg-danger hover:text-white transition duration-200" id="cart-cust-clear">مسح</button>
+        <button type="button" class="h-9 px-3 rounded-lg border border-success text-success text-xs font-bold hover:bg-success hover:text-white transition duration-200" id="cart-cust-new">+ جديد</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if order_totals %}
+<div class="border-t-2 border-gray-200 dark:border-gray-700 p-3" id="cart-footer">
+  <div class="space-y-1.5 mb-3 text-sm">
+    {% if order_totals.discount > 0 %}
+    <div class="flex justify-between"><span class="text-muted">قبل الخصم</span><span>{{ order_totals.gross }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+    <div class="flex justify-between"><span class="text-muted">خصم</span><span class="text-danger font-semibold">-{{ order_totals.discount }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+    {% endif %}
+    {% if order_totals.service > 0 %}<div class="flex justify-between"><span class="text-muted">خدمة</span><span>{{ order_totals.service }}</span></div>{% endif %}
+    {% if order_totals.tax > 0 %}<div class="flex justify-between"><span class="text-muted">ضريبة</span><span>{{ order_totals.tax }}</span></div>{% endif %}
+    <div class="flex justify-between text-base font-bold pt-1.5 border-t border-gray-200 dark:border-gray-700"><span>الإجمالي</span><span>{{ order_totals.grand }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+    {% if tab_paid > 0 %}<div class="flex justify-between"><span class="text-muted">مدفوع</span><span class="text-success font-semibold">{{ tab_paid }} {{ POS_SETTINGS.currency_symbol }}</span></div>{% endif %}
+    <div class="flex justify-between font-bold text-primary"><span>المتبقي</span><span id="live-balance">{{ tab_balance }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+  </div>
+
+  <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{{ tab_balance }}" data-grand="{{ order_totals.grand }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
+    {% csrf_token %}
+    <div class="grid grid-cols-4 gap-1.5 mb-3" id="pay-methods">
+      <button type="button" class="pm-btn h-10 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-xs font-semibold transition duration-200 hover:border-primary" data-m="cash">كاش</button>
+      <button type="button" class="pm-btn h-10 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-xs font-semibold transition duration-200 hover:border-primary" data-m="bank">تطبيق</button>
+      <button type="button" class="pm-btn h-10 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-xs font-semibold transition duration-200 hover:border-primary" data-m="credit">آجل</button>
+      <button type="button" class="pm-btn h-10 rounded-lg border-2 border-gray-200 dark:border-gray-600 text-xs font-semibold transition duration-200 hover:border-primary" data-m="mixed">مختلط</button>
+    </div>
+    <input type="hidden" name="payment_mode" id="pay-mode-val" value="">
+
+    <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl mb-3" id="mixed-panel">
+      <label class="text-xs font-semibold text-muted">كاش</label>
+      <input type="number" step="0.01" name="pay_cash" id="mx-cash" value="0" class="h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
+      <label class="text-xs font-semibold text-muted">تطبيق</label>
+      <input type="number" step="0.01" name="pay_bank" id="mx-bank" value="0" class="h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
+      <label class="text-xs font-semibold text-muted">آجل</label>
+      <input type="number" step="0.01" name="pay_credit" id="mx-credit" value="0" class="h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
+      <div class="col-span-2 text-center text-sm font-bold text-primary" id="mx-remaining">المتبقي: {{ tab_balance }} {{ POS_SETTINGS.currency_symbol }}</div>
+    </div>
+
+    <div class="flex flex-wrap gap-1.5 mb-3" id="quick-amounts">
+      <button type="button" data-amt="exact" class="flex-1 h-9 min-w-[70px] rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-primary-soft dark:hover:bg-primary/10 hover:border-primary hover:text-primary transition duration-200">المبلغ بالضبط</button>
+      <button type="button" data-amt="5" class="h-9 w-11 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-primary-soft dark:hover:bg-primary/10 hover:border-primary hover:text-primary transition duration-200">+5</button>
+      <button type="button" data-amt="10" class="h-9 w-11 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-primary-soft dark:hover:bg-primary/10 hover:border-primary hover:text-primary transition duration-200">+10</button>
+      <button type="button" data-amt="20" class="h-9 w-11 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-primary-soft dark:hover:bg-primary/10 hover:border-primary hover:text-primary transition duration-200">+20</button>
+      <button type="button" data-amt="50" class="h-9 w-11 rounded-lg border border-gray-200 dark:border-gray-600 text-xs font-semibold hover:bg-primary-soft dark:hover:bg-primary/10 hover:border-primary hover:text-primary transition duration-200">+50</button>
+    </div>
+
+    <label class="text-[11px] font-semibold text-muted block mb-1">العميل (للآجل)</label>
+    <div class="relative mb-3">
+      <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
+      <input type="search" id="pay-cust-search" placeholder="بحث عميل..." autocomplete="off"
+        value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
+        class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
+      <div id="pay-cust-hits" class="absolute top-10 start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-lg max-h-[180px] overflow-y-auto shadow-lg" style="display:none"></div>
+    </div>
+
+    <button type="submit" class="w-full h-12 rounded-xl bg-success hover:brightness-110 text-white font-bold text-sm transition duration-200 flex items-center justify-center gap-2" id="pay-btn">
+      تسجيل دفع / إتمام <span class="text-[10px] px-1.5 py-0.5 bg-white/20 rounded">Enter</span>
+    </button>
+  </form>
+</div>
+{% endif %}
+{% endif %}

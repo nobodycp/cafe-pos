@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}موظف: {{ employee.name_ar }}{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ employee.name_ar }}</h1>
+  <a href="{% url 'payroll:employees' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    العودة للموظفين
+  </a>
+</div>
+
+{# ── Summary Card ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+      <span class="block text-sm font-semibold text-muted mb-1.5">أجر اليوم</span>
+      <span class="text-xl font-extrabold text-gray-800 dark:text-white">{{ employee.daily_wage|floatformat:2|intcomma }}</span>
+    </div>
+    <div class="bg-primary-soft dark:bg-primary/10 rounded-lg p-4">
+      <span class="block text-sm font-semibold text-muted mb-1.5">صافي الرصيد</span>
+      <span class="text-xl font-extrabold text-primary">{{ employee.net_balance|floatformat:2|intcomma }}</span>
+    </div>
+  </div>
+  <div class="flex gap-2 flex-wrap">
+    <a href="{% url 'payroll:employee_edit' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">تعديل</a>
+    <a href="{% url 'payroll:employee_advance' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-warning text-gray-800 font-bold text-sm hover:opacity-90 transition-colors">تسجيل سلفة</a>
+    <a href="{% url 'payroll:employee_payout' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:opacity-90 transition-colors">صرف راتب</a>
+    <a href="{% url 'payroll:employee_add_days' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-info text-white font-bold text-sm hover:opacity-90 transition-colors">إضافة أيام عمل</a>
+    <a href="{% url 'payroll:employee_cafe_purchase' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-danger text-white font-bold text-sm hover:opacity-90 transition-colors">تسجيل شراء</a>
+  </div>
+</div>
+
+{# ── Advances ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-lg font-extrabold text-gray-800 dark:text-white mb-4">السلف</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <tbody>
+        {% for a in advances %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ a.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ a.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ a.note }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="p-6 text-center text-muted">لا يوجد</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Payouts ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-lg font-extrabold text-gray-800 dark:text-white mb-4">صرف رواتب</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <tbody>
+        {% for p in payouts %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ p.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ p.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ p.days_count }} يوم</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="p-6 text-center text-muted">لا يوجد</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Cafe Purchases ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h2 class="text-lg font-extrabold text-gray-800 dark:text-white mb-4">مشتريات من المقهى</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <tbody>
+        {% for x in purchases %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ x.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ x.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ x.note }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3" class="p-6 text-center text-muted">لا يوجد</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

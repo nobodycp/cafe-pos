@@ -1,0 +1,104 @@
+{% extends "pos/cashier_base.html" %}
+{% block title %}إيصال {{ invoice.invoice_number }}{% endblock %}
+{% block cashier_body %}
+
+<div class="flex items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+  <div class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6" id="receipt-printable">
+
+    <h2 class="text-center text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-1">{{ cafe_name }}</h2>
+    <p class="text-center text-xs text-muted mb-4">فاتورة {{ invoice.invoice_number }}</p>
+
+    {% if invoice.order.table %}
+    <p class="text-center text-xs text-gray-600 dark:text-gray-400 mb-3">
+      الطاولة: {{ invoice.order.table.name_ar }}
+    </p>
+    {% endif %}
+
+    <table class="w-full text-sm border-collapse">
+      <thead>
+        <tr class="border-b-2 border-gray-300 dark:border-gray-600">
+          <th class="text-right py-2 font-semibold text-gray-700 dark:text-gray-300">الصنف</th>
+          <th class="text-center py-2 font-semibold text-gray-700 dark:text-gray-300">الكمية</th>
+          <th class="text-center py-2 font-semibold text-gray-700 dark:text-gray-300">السعر</th>
+          <th class="text-left py-2 font-semibold text-gray-700 dark:text-gray-300">المجموع</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for line in invoice.lines.all %}
+        <tr>
+          <td class="py-2 text-gray-800 dark:text-gray-200">{{ line.product.name_ar }}</td>
+          <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ line.quantity|floatformat:"0" }}</td>
+          <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ line.unit_price }}</td>
+          <td class="py-2 text-left font-semibold text-gray-800 dark:text-gray-200">{{ line.line_subtotal }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="mt-3 space-y-1">
+      {% if invoice.service_charge_total > 0 %}
+      <div class="flex justify-between text-xs text-muted py-0.5">
+        <span>خدمة</span><span>{{ invoice.service_charge_total }}</span>
+      </div>
+      {% endif %}
+      {% if invoice.tax_total > 0 %}
+      <div class="flex justify-between text-xs text-muted py-0.5">
+        <span>ضريبة</span><span>{{ invoice.tax_total }}</span>
+      </div>
+      {% endif %}
+      {% if invoice.discount_total > 0 %}
+      <div class="flex justify-between text-xs text-danger font-semibold py-0.5">
+        <span>خصم</span><span>-{{ invoice.discount_total }}</span>
+      </div>
+      {% endif %}
+      {% for pay in invoice.payments.all %}
+      <div class="flex justify-between text-xs text-muted py-0.5">
+        <span>{{ pay.get_method_display }}</span><span>{{ pay.amount }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="flex justify-between items-center pt-3 mt-3 border-t-2 border-gray-800 dark:border-gray-200">
+      <span class="text-xl font-extrabold text-gray-800 dark:text-gray-100">الإجمالي</span>
+      <span class="text-xl font-extrabold text-gray-800 dark:text-gray-100">{{ invoice.total }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+
+    <p class="text-center text-xs text-muted mt-3">{{ invoice.created_at|date:"Y-m-d H:i" }}</p>
+    <p class="text-center text-xs text-muted mt-1">شكراً لزيارتكم</p>
+
+    <div class="flex gap-2 mt-5 no-print">
+      <button onclick="window.print()"
+        class="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-bold
+               hover:bg-primary-dk transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-1.5">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        طباعة الإيصال
+      </button>
+      <a href="{% url 'pos:receipt_raw' invoice.pk %}"
+         class="flex-1 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
+                text-sm font-bold text-center hover:border-primary hover:text-primary
+                transition-all duration-200 no-underline flex items-center justify-center">
+        طباعة ESC/POS
+      </a>
+      <a href="{% url 'pos:main' %}"
+         class="flex-1 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
+                text-sm font-bold text-center hover:border-primary hover:text-primary
+                transition-all duration-200 no-underline flex items-center justify-center">
+        عودة
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block cashier_scripts %}
+<style>
+@media print {
+  body * { visibility: hidden !important; }
+  #receipt-printable, #receipt-printable * { visibility: visible !important; }
+  #receipt-printable { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; font-size: 12px; }
+  .no-print { display: none !important; }
+  #receipt-printable { box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+}
+</style>
+{% endblock %}

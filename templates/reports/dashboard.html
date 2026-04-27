@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}التقارير{% endblock %}
+{% block content %}
+
+{# ── Page Header ── #}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">التقارير</h1>
+</div>
+
+{# ── Quick Links – Reports ── #}
+<div class="flex flex-wrap gap-2 mb-5">
+  <a href="{% url 'reports:daily_sales' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">تقرير المبيعات اليومي</a>
+  <a href="{% url 'reports:expense_report' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">تقرير المصروفات</a>
+  <a href="{% url 'reports:weekly_report' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">التقرير الأسبوعي</a>
+  <a href="{% url 'reports:product_movement' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">حركة الأصناف</a>
+  <a href="{% url 'reports:cash_flow' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">التدفق النقدي</a>
+</div>
+
+{# ── Quick Links – Accounting ── #}
+<div class="flex flex-wrap gap-2 mb-6">
+  <a href="{% url 'accounting:chart' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">دليل الحسابات</a>
+  <a href="{% url 'accounting:trial_balance' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">ميزان المراجعة</a>
+  <a href="{% url 'accounting:pnl' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">الأرباح والخسائر</a>
+  <a href="{% url 'accounting:journal_list' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">القيود اليومية</a>
+</div>
+
+{# ── Summary Cards ── #}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">مبيعات اليوم</div>
+    <div class="text-2xl font-extrabold text-success mt-1">{{ today_sales|floatformat:2|intcomma }}</div>
+    {% if yesterday_sales %}
+    <div class="text-xs text-muted mt-2">
+      أمس: {{ yesterday_sales|floatformat:2|intcomma }}
+      {% if today_sales > yesterday_sales %}
+        <span class="text-success">&#9650;</span>
+      {% elif today_sales < yesterday_sales %}
+        <span class="text-danger">&#9660;</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">الربح</div>
+    <div class="text-2xl font-extrabold text-success mt-1">{{ today_profit|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">عدد الفواتير</div>
+    <div class="text-2xl font-extrabold text-primary mt-1">{{ today_count }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
+    <div class="text-sm text-muted font-semibold">متوسط الفاتورة</div>
+    <div class="text-2xl font-extrabold text-primary mt-1">{{ today_avg|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+
+{# ── Alert Cards ── #}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+  {% if low_stock_count %}
+  <a href="{% url 'inventory:home' %}?filter=low" class="block bg-danger/10 border border-danger rounded-xl p-5 text-center hover:shadow-md transition-shadow">
+    <div class="text-sm text-danger font-semibold">مخزون منخفض</div>
+    <div class="text-2xl font-extrabold text-danger mt-1">{{ low_stock_count }} صنف</div>
+  </a>
+  {% endif %}
+  {% if unpaid_customers %}
+  <div class="bg-warning/10 border border-warning rounded-xl p-5 text-center">
+    <div class="text-sm text-muted font-semibold">ذمم مدينة ({{ unpaid_customers }} عميل)</div>
+    <div class="text-2xl font-extrabold text-danger mt-1">{{ total_receivable|floatformat:2|intcomma }}</div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Weekly Chart ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h3 class="text-lg font-bold mb-4">مبيعات آخر 7 أيام</h3>
+  <canvas id="weeklySalesChart" class="w-full max-h-72"></canvas>
+</div>
+
+{# ── Top Products Today ── #}
+{% if top_products %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h3 class="text-lg font-bold mb-4">الأكثر مبيعاً اليوم</h3>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإيراد</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in top_products %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ p.product__name_ar }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ p.total_qty }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ p.total_revenue|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── Inventory Valuation ── #}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-lg font-bold mb-1">تقييم المخزون</h2>
+  <p class="text-2xl font-extrabold text-primary">{{ inventory_valuation|floatformat:2|intcomma }}</p>
+</div>
+
+{# ── Sessions ── #}
+<h2 class="text-xl font-extrabold mb-4">الورديات</h2>
+<div class="space-y-4">
+{% for b in session_blocks %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="text-lg font-bold">وردية #{{ b.session.pk }}</h3>
+      {% if b.session.status == "open" %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-success/10 text-success">مفتوحة</span>
+      {% else %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-info/10 text-info">مغلقة</span>
+      {% endif %}
+    </div>
+    <p class="text-sm text-muted mb-3">
+      من {{ b.session.created_at }}{% if b.session.closed_at %} إلى {{ b.session.closed_at }}{% endif %}
+    </p>
+    <table class="w-full text-sm">
+      <tbody>
+        <tr>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">عدد فواتير البيع</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.invoice_count }}</td>
+        </tr>
+        <tr>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">إيرادات البيع</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.revenue|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">تكلفة البضاعة المباعة</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.cost|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">الربح المعترف</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ b.profit|floatformat:2|intcomma }}</td>
+        </tr>
+        <tr>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">مصروفات الوردية</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-danger">{{ b.expenses|floatformat:2|intcomma }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+      <div class="bg-success/10 rounded-lg p-3 text-center">
+        <div class="text-xs text-muted font-semibold">كاش</div>
+        <div class="text-lg font-bold mt-1">{{ b.payments.cash|default:0|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="bg-info/10 rounded-lg p-3 text-center">
+        <div class="text-xs text-muted font-semibold">تطبيق</div>
+        <div class="text-lg font-bold mt-1">{{ b.payments.bank|default:0|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="bg-warning/10 rounded-lg p-3 text-center">
+        <div class="text-xs text-muted font-semibold">حساب عميل</div>
+        <div class="text-lg font-bold mt-1">{{ b.payments.credit|default:0|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+{% empty %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center text-muted">
+    لا توجد ورديات بعد.
+  </div>
+{% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  var labels = {{ chart_labels|safe }};
+  var data = {{ chart_data|safe }};
+  var ctx = document.getElementById('weeklySalesChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'المبيعات',
+        data: data,
+        backgroundColor: 'rgba(34,197,94,0.5)',
+        borderColor: 'rgba(34,197,94,1)',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(v) { return v.toLocaleString(); } } }
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}
