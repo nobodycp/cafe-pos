@@ -1,8 +1,6 @@
-# ☕ نظام نقاط البيع — مقهى/مطعم
+# نظام نقاط البيع — مقهى/مطعم
 
 نظام POS متكامل مع محاسبة مزدوجة، إدارة مخزون، وتقارير تفصيلية.
-
-> **نسخة تجريبية** — قابلة للتعديل حسب احتياجات العميل.
 
 ---
 
@@ -12,26 +10,39 @@
 git clone https://github.com/nobodycp/cafe-pos.git && cd cafe-pos && bash install.sh
 ```
 
+التثبيت يعمل تلقائياً:
+- تحميل الكود وتثبيت المكتبات
+- إعداد قاعدة البيانات (فارغة — تعبيها أنت)
+- إنشاء حساب مدير بكلمة مرور تختارها
+- تشغيل النظام كخدمة (يرجع يشتغل تلقائياً لو السيرفر أعاد تشغيل)
+
 ### المتطلبات
+- سيرفر Linux (Ubuntu/Debian مفضّل)
 - Python 3.8+
 - Git
 
 ---
 
-## التشغيل
+## بعد التثبيت
 
-```bash
-cd cafe-pos
-source .venv/bin/activate
-python3 manage.py runserver 0.0.0.0:8000
+افتح المتصفح على:
+
+```
+http://عنوان-السيرفر:8000
 ```
 
-ثم افتح المتصفح: **http://localhost:8000**
+سجّل دخول بحساب المدير الذي أنشأته أثناء التثبيت.
 
-| | |
-|---|---|
-| **اسم المستخدم** | `admin` |
-| **كلمة المرور** | `admin123` |
+---
+
+## إدارة الخدمة
+
+```bash
+sudo systemctl status cafe-pos      # حالة الخدمة
+sudo systemctl restart cafe-pos     # إعادة تشغيل
+sudo systemctl stop cafe-pos        # إيقاف
+sudo journalctl -u cafe-pos -f      # سجل الأخطاء
+```
 
 ---
 
@@ -40,10 +51,10 @@ python3 manage.py runserver 0.0.0.0:8000
 عند توفر تحديثات جديدة:
 
 ```bash
-cd cafe-pos && bash update.sh
+cd ~/cafe-pos && bash update.sh
 ```
 
-ثم أعد تشغيل السيرفر.
+يسحب التحديثات + يطبق تغييرات قاعدة البيانات + يعيد تشغيل الخدمة تلقائياً.
 
 ---
 
@@ -68,28 +79,7 @@ cd cafe-pos && bash update.sh
 ## البنية التقنية
 
 - **Backend**: Django 4.2 / Python
-- **Frontend**: Tailwind CSS + Alpine.js (بدون React/Vue)
-- **Database**: SQLite (تطوير) / PostgreSQL (إنتاج)
+- **Frontend**: Tailwind CSS + Alpine.js
+- **Server**: Gunicorn + systemd
+- **Database**: SQLite (افتراضي) / PostgreSQL (اختياري)
 - **التصميم**: RTL عربي بالكامل
-
----
-
-## للمطوّر
-
-```bash
-# إنشاء بيئة التطوير
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python3 manage.py migrate
-python3 manage.py seed_demo
-python3 manage.py runserver
-```
-
----
-
-## الملاحظات
-
-- غيّر `SECRET_KEY` و `DEBUG=False` في الإنتاج
-- لاستخدام PostgreSQL: أضف `DATABASE_URL` في `.env`
-- كلمة المرور الافتراضية `admin123` — غيّرها فوراً في الإنتاج
