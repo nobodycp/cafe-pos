@@ -86,14 +86,29 @@ if [ ! -f ".env" ]; then
     CAFE_EN="${CAFE_EN:-Demo Café}"
     read -rp "  البورت [$PORT]: " USER_PORT
     PORT="${USER_PORT:-$PORT}"
+    # عنوان يظهر في المتصفح (IP العام أو الدومين) — مهم لـ ALLOWED_HOSTS و CSRF
+    DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
+    DETECTED_IP="${DETECTED_IP:-}"
+    echo ""
+    read -rp "  عنوان الوصول من المتصفح (IP العام أو الدومين) [$DETECTED_IP]: " ACCESS_HOST
+    ACCESS_HOST="${ACCESS_HOST:-$DETECTED_IP}"
+    if [ -z "$ACCESS_HOST" ]; then
+        AH_LIST="localhost,127.0.0.1,*"
+        CSRF_LINE=""
+        info "لم يُكتشف عنوان — ALLOWED_HOSTS=* (إذا فشل تسجيل الدخول أضف في .env: CSRF_TRUSTED_ORIGINS=http://IP_العام:$PORT)"
+    else
+        AH_LIST="localhost,127.0.0.1,${ACCESS_HOST},*"
+        CSRF_LINE="CSRF_TRUSTED_ORIGINS=http://${ACCESS_HOST}:${PORT}"
+    fi
     echo ""
 
     cat > .env <<ENVEOF
 DEBUG=False
 SECRET_KEY=$SECRET
-ALLOWED_HOSTS=localhost,127.0.0.1,*
+ALLOWED_HOSTS=$AH_LIST
 CAFE_NAME_AR=$CAFE_AR
 CAFE_NAME_EN=$CAFE_EN
+${CSRF_LINE}
 ENVEOF
     ok "تم إنشاء .env"
 else

@@ -22,6 +22,9 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "te
 if DEBUG and "*" not in ALLOWED_HOSTS and "testserver" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS = list(ALLOWED_HOSTS) + ["testserver"]
 
+# عند الدخول من IP/دومين حقيقي (HTTP) — مطلوب أحياناً لتسجيل الدخول ونماذج POST
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
