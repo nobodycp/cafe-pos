@@ -35,6 +35,29 @@ http://عنوان-السيرفر:8000
 
 ---
 
+## المتصفح يعطي «This site can’t be reached» أو timeout
+
+الخدمة قد تكون شغّالة على السيرفر لكن **المنفذ مقفول من الإنترنت**.
+
+1. **لوحة مزوّد السحابة** (Hetzner Cloud Firewall، DigitalOcean، AWS Security Group، إلخ):  
+   أضف قاعدة **Inbound** — بروتوكول **TCP** — المنفذ **8000** (أو المنفذ الذي اخترته) — المصدر **0.0.0.0/0** (أو IP مكتبك فقط لزيادة الأمان).
+
+2. **UFW على Ubuntu** (إن كان مفعّلاً):
+
+   ```bash
+   sudo ufw allow 8000/tcp
+   sudo ufw reload
+   sudo ufw status
+   ```
+
+3. **اختبار من داخل السيرفر** (لو رجع رقم وليس خطأ، التطبيق يعمل):
+
+   ```bash
+   curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/
+   ```
+
+---
+
 ## إدارة الخدمة
 
 ```bash

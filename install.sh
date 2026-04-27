@@ -189,6 +189,19 @@ else
     warn "systemd غير متاح"
 fi
 
+# ── 9b. Firewall (UFW) — السبب الأشهر لـ ERR_TIMED_OUT من الإنترنت ──
+if command -v ufw >/dev/null 2>&1; then
+    if ufw status 2>/dev/null | grep -qi "Status: active"; then
+        info "جدار UFW مفعّل — فتح المنفذ $PORT للوصول من الخارج..."
+        if [ "$(id -u)" = "0" ]; then
+            ufw allow "$PORT"/tcp comment "cafe-pos" >/dev/null 2>&1 || true
+        elif command -v sudo >/dev/null 2>&1; then
+            sudo ufw allow "$PORT"/tcp comment "cafe-pos" >/dev/null 2>&1 || true
+        fi
+        ok "تم السماح بـ TCP $PORT في UFW (إن وُجدت القاعدة مسبقاً لن يتكرر)"
+    fi
+fi
+
 # ── 10. Get server IP ──
 SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 if [ -z "$SERVER_IP" ]; then SERVER_IP="localhost"; fi
@@ -209,4 +222,12 @@ echo -e "  ${CYAN}إعادة تشغيل:${NC}     sudo systemctl restart $SERVIC
 echo -e "  ${CYAN}سجل الأخطاء:${NC}     sudo journalctl -u $SERVICE_NAME -f"
 echo ""
 echo -e "  ${CYAN}للتحديث لاحقاً:${NC}   cd $APP_DIR && bash update.sh"
+echo ""
+echo -e "${YELLOW}═══ إذا المتصفح يعطي «timeout» أو لا يفتح الرابط ═══${NC}"
+echo -e "  1) في لوحة مزوّد السحابة (Hetzner / DigitalOcean / AWS …):"
+echo -e "     أضف قاعدة ${BOLD}Inbound${NC} — TCP — المنفذ ${BOLD}$PORT${NC} — المصدر 0.0.0.0/0"
+echo -e "  2) على السيرفر إذا UFW مفعّل:"
+echo -e "     ${BOLD}sudo ufw allow $PORT/tcp && sudo ufw reload${NC}"
+echo -e "  3) تحقق من السيرفر نفسه:"
+echo -e "     ${BOLD}curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/${NC}  ← يجب أن يظهر 200 أو 301 أو 302"
 echo ""
