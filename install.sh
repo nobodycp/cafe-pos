@@ -189,16 +189,23 @@ else
     warn "systemd غير متاح"
 fi
 
-# ── 9b. Firewall (UFW) — السبب الأشهر لـ ERR_TIMED_OUT من الإنترنت ──
+# ── 9b. Firewall (UFW) — لا نغلق SSH (22) أبداً ──
+_ufw() {
+    if [ "$(id -u)" = "0" ]; then
+        "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+        sudo "$@"
+    else
+        return 1
+    fi
+}
 if command -v ufw >/dev/null 2>&1; then
     if ufw status 2>/dev/null | grep -qi "Status: active"; then
-        info "جدار UFW مفعّل — فتح المنفذ $PORT للوصول من الخارج..."
-        if [ "$(id -u)" = "0" ]; then
-            ufw allow "$PORT"/tcp comment "cafe-pos" >/dev/null 2>&1 || true
-        elif command -v sudo >/dev/null 2>&1; then
-            sudo ufw allow "$PORT"/tcp comment "cafe-pos" >/dev/null 2>&1 || true
-        fi
-        ok "تم السماح بـ TCP $PORT في UFW (إن وُجدت القاعدة مسبقاً لن يتكرر)"
+        info "جدار UFW مفعّل — التأكد من السماح بـ SSH ثم المنفذ $PORT..."
+        # أهم خط: SSH على 22 — بدونها قد تُقفل الجلسة إذا فُعّل UFW لاحقاً بدون قاعدة SSH
+        _ufw ufw allow OpenSSH >/dev/null 2>&1 || _ufw ufw allow 22/tcp comment "ssh" >/dev/null 2>&1 || true
+        _ufw ufw allow "$PORT"/tcp comment "cafe-pos" >/dev/null 2>&1 || true
+        ok "UFW: السماح بـ SSH (OpenSSH/22) و TCP $PORT"
     fi
 fi
 
@@ -226,8 +233,10 @@ echo ""
 echo -e "${YELLOW}═══ إذا المتصفح يعطي «timeout» أو لا يفتح الرابط ═══${NC}"
 echo -e "  1) في لوحة مزوّد السحابة (Hetzner / DigitalOcean / AWS …):"
 echo -e "     أضف قاعدة ${BOLD}Inbound${NC} — TCP — المنفذ ${BOLD}$PORT${NC} — المصدر 0.0.0.0/0"
-echo -e "  2) على السيرفر إذا UFW مفعّل:"
+echo -e "  2) على السيرفر إذا UFW مفعّل (لا تنسَ SSH على 22 أولاً):"
+echo -e "     ${BOLD}sudo ufw allow OpenSSH${NC}   أو   ${BOLD}sudo ufw allow 22/tcp${NC}"
 echo -e "     ${BOLD}sudo ufw allow $PORT/tcp && sudo ufw reload${NC}"
+echo -e "     لا تشغّل ${BOLD}sudo ufw enable${NC} قبل التأكد أن قواعد SSH و$PORT موجودة."
 echo -e "  3) تحقق من السيرفر نفسه:"
 echo -e "     ${BOLD}curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/${NC}  ← يجب أن يظهر 200 أو 301 أو 302"
 echo ""

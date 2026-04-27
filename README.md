@@ -44,11 +44,19 @@ http://عنوان-السيرفر:8000
 
 2. **UFW على Ubuntu** (إن كان مفعّلاً):
 
+   **مهم:** SSH يعمل على المنفذ **22**. لا تفعّل `ufw enable` ولا تضيف قواعد بدون السماح بـ SSH أولاً وإلا قد تُقفل الدخول للسيرفر.
+
    ```bash
-   sudo ufw allow 8000/tcp
+   sudo ufw allow OpenSSH      # الأفضل على Ubuntu (يشمل SSH)
+   # أو إن لم يتوفر الاسم أعلاه:
+   sudo ufw allow 22/tcp
+
+   sudo ufw allow 8000/tcp     # أو المنفذ الذي اخترته للتطبيق
    sudo ufw reload
    sudo ufw status
    ```
+
+   ثم فقط إذا كنت متأكداً من القواعد: `sudo ufw enable`
 
 3. **اختبار من داخل السيرفر** (لو رجع رقم وليس خطأ، التطبيق يعمل):
 
