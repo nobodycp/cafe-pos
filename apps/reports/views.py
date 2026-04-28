@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render
 
 from apps.billing.models import InvoicePayment, SaleInvoice
@@ -110,7 +110,14 @@ def _session_block(ws: WorkSession):
         .values("method")
         .annotate(s=Sum("amount"))
     )
-    pay_map = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
+    pay_map = {
+        "cash": Decimal("0"),
+        "bank": Decimal("0"),
+        "bank_ps": Decimal("0"),
+        "palpay": Decimal("0"),
+        "jawwalpay": Decimal("0"),
+        "credit": Decimal("0"),
+    }
     for p in pay:
         m = p["method"]
         if m in pay_map:
@@ -164,7 +171,14 @@ def daily_sales_report(request):
         pays = [p.method for p in inv.payments.all()]
         methods = set(pays)
         method_labels = []
-        label_map = {"cash": "كاش", "bank": "تطبيق", "credit": "آجل"}
+        label_map = {
+            "cash": "كاش",
+            "bank": "شبكة (عام)",
+            "bank_ps": "بنك فلسطين",
+            "palpay": "بال باي",
+            "jawwalpay": "جوال باي",
+            "credit": "آجل",
+        }
         for m in methods:
             method_labels.append(label_map.get(m, m))
         table_name = ""
@@ -360,12 +374,15 @@ def cash_flow_report(request):
         invoice__created_at__date__lte=d_to,
     ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
 
-    bank_sales = InvoicePayment.objects.filter(
-        method="bank",
-        invoice__is_cancelled=False,
-        invoice__created_at__date__gte=d_from,
-        invoice__created_at__date__lte=d_to,
-    ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    bank_sales = (
+        InvoicePayment.objects.filter(
+            Q(method="bank") | Q(method="bank_ps") | Q(method="palpay") | Q(method="jawwalpay"),
+            invoice__is_cancelled=False,
+            invoice__created_at__date__gte=d_from,
+            invoice__created_at__date__lte=d_to,
+        ).aggregate(s=Sum("amount"))["s"]
+        or Decimal("0")
+    )
 
     customer_payments = CustomerLedgerEntry.objects.filter(
         entry_type="payment",

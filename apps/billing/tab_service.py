@@ -111,7 +111,14 @@ def sum_tab_payments(order: Order) -> Decimal:
 
 
 def payments_list_to_dict(payments: List[Tuple[str, Decimal]]) -> Dict[str, Decimal]:
-    d = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
+    d = {
+        "cash": Decimal("0"),
+        "bank": Decimal("0"),
+        "bank_ps": Decimal("0"),
+        "palpay": Decimal("0"),
+        "jawwalpay": Decimal("0"),
+        "credit": Decimal("0"),
+    }
     for method, amt in payments:
         m = str(method)
         if m in d:
@@ -120,7 +127,14 @@ def payments_list_to_dict(payments: List[Tuple[str, Decimal]]) -> Dict[str, Deci
 
 
 def _aggregate_tab_payments(order: Order) -> Dict[str, Decimal]:
-    d = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
+    d = {
+        "cash": Decimal("0"),
+        "bank": Decimal("0"),
+        "bank_ps": Decimal("0"),
+        "palpay": Decimal("0"),
+        "jawwalpay": Decimal("0"),
+        "credit": Decimal("0"),
+    }
     for p in order.tab_payments.filter(sale_invoice__isnull=True):
         if p.method in d:
             d[p.method] += _d(p.amount)

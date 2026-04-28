@@ -68,6 +68,9 @@ def _add_line(entry: JournalEntry, account: Account, debit: Decimal = Decimal("0
 PAYMENT_ACCOUNT_MAP = {
     "cash": "CASH",
     "bank": "BANK",
+    "bank_ps": "BANK",
+    "palpay": "BANK",
+    "jawwalpay": "BANK",
     "credit": "AR",
 }
 

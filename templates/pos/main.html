@@ -253,7 +253,7 @@
 </div>
 
 {# ─── Cart ─── #}
-<div class="w-[340px] shrink-0 bg-white dark:bg-gray-800 border-s border-gray-200 dark:border-gray-700 flex flex-col" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+<div class="w-[300px] shrink-0 bg-white dark:bg-gray-800 border-s border-gray-200 dark:border-gray-700 flex flex-col" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
   {% include "pos/_cart_fragment.html" %}
 </div>
 
@@ -296,6 +296,7 @@
     }).then(function(r){return r.json()})
     .then(function(d){
       if(!d.ok&&d.error)showToast(d.error,'error');
+      else if(d.ok&&form.action.indexOf('unit-price')!==-1)showToast('تم السعر','success');
       return refreshCart();
     }).catch(function(){return refreshCart()});
   }
@@ -554,6 +555,14 @@
       if(!pmVal||!pmVal.value){
         e.preventDefault();
         showToast('اختر طريقة الدفع أولاً','error');
+        return;
+      }
+      if(pmVal.value==='credit'){
+        var hid=document.getElementById('pay-cust-id');
+        if(!hid||!String(hid.value||'').trim()){
+          e.preventDefault();
+          showToast('اختر عميلاً للدفع الآجل','error');
+        }
       }
     })}
 

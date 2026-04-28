@@ -88,7 +88,10 @@ class SaleInvoiceLine(TimeStampedModel):
 class InvoicePayment(TimeStampedModel):
     class Method(models.TextChoices):
         CASH = "cash", _("كاش")
-        BANK = "bank", _("تطبيق")
+        BANK = "bank", _("شبكة (عام)")  # قديم + جزء «شبكة» من الدفع المختلط
+        BANK_PS = "bank_ps", _("بنك فلسطين")
+        PALPAY = "palpay", _("بال باي")
+        JAWWALPAY = "jawwalpay", _("جوال باي")
         CREDIT = "credit", _("آجل")
 
     invoice = models.ForeignKey(
@@ -110,7 +113,10 @@ class OrderPayment(TimeStampedModel):
 
     class Method(models.TextChoices):
         CASH = "cash", _("كاش")
-        BANK = "bank", _("تطبيق")
+        BANK = "bank", _("شبكة (عام)")
+        BANK_PS = "bank_ps", _("بنك فلسطين")
+        PALPAY = "palpay", _("بال باي")
+        JAWWALPAY = "jawwalpay", _("جوال باي")
         CREDIT = "credit", _("آجل")
 
     order = models.ForeignKey(

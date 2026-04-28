@@ -1,7 +1,10 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
+from apps.billing.cancel_service import cancel_sale_invoice
 from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
 
 
@@ -29,6 +32,42 @@ def sale_invoice_list(request):
         "q": q,
         "status": status or "",
     })
+
+
+@login_required
+@require_POST
+def sale_invoice_cancel(request, pk):
+    invoice = get_object_or_404(SaleInvoice.objects.select_related("customer", "order"), pk=pk)
+    if invoice.is_cancelled:
+        messages.error(request, "هذه الفاتورة ملغاة مسبقاً.")
+        return redirect("billing:invoice_detail", pk=invoice.pk)
+    reason = (request.POST.get("reason") or "").strip()
+    if not reason:
+        messages.error(request, "اكتب سبب إلغاء الفاتورة (مطلوب).")
+        return redirect("billing:invoice_detail", pk=invoice.pk)
+    try:
+        cancel_sale_invoice(invoice=invoice, reason=reason, user=request.user)
+    except ValueError as e:
+        code = str(e)
+        if code == "ALREADY_CANCELLED":
+            messages.error(request, "الفاتورة ملغاة مسبقاً.")
+        elif code == "INVOICE_HAS_RETURNS":
+            messages.error(
+                request,
+                "لا يمكن إلغاء فاتورة عليها مرتجع مسجّل. راجع المرتجعات أو المحاسب.",
+            )
+        elif code == "ALREADY_REVERSED":
+            messages.error(request, "تعارض في القيود المحاسبية — تواصل مع الدعم.")
+        elif code == "PRODUCT_NOT_STOCK_TRACKED":
+            messages.error(request, "تعذر تعديل أحد أصناف المخزون أثناء الإلغاء.")
+        else:
+            messages.error(request, code)
+        return redirect("billing:invoice_detail", pk=invoice.pk)
+    messages.success(
+        request,
+        "تم إلغاء الفاتورة وعكس المخزون والقيود المحاسبية ودفعات الآجل/الموردين المرتبطة.",
+    )
+    return redirect("billing:invoice_detail", pk=invoice.pk)
 
 
 @login_required

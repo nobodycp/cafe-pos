@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from apps.billing.models import SaleInvoice
+from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.contacts.models import Customer, CustomerLedgerEntry
 from apps.core.models import log_audit
 from apps.inventory.services import adjust_stock
@@ -31,6 +31,8 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
     """
     if invoice.is_cancelled:
         raise ValueError("ALREADY_CANCELLED")
+    if invoice.returns.exists():
+        raise ValueError("INVOICE_HAS_RETURNS")
 
     invoice.soft_cancel(reason)
 
@@ -61,7 +63,7 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
             note=f"عكس حركة إلغاء فاتورة {invoice.invoice_number}",
         )
 
-    credit_payments = invoice.payments.filter(method="credit")
+    credit_payments = invoice.payments.filter(method=InvoicePayment.Method.CREDIT)
     credit_total = sum(_d(p.amount) for p in credit_payments)
     if credit_total > 0 and invoice.customer:
         cust = invoice.customer

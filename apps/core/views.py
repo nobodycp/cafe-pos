@@ -195,7 +195,14 @@ def session_summary(request):
         .values("method")
         .annotate(s=Sum("amount"))
     )
-    pay_map = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
+    pay_map = {
+        "cash": Decimal("0"),
+        "bank": Decimal("0"),
+        "bank_ps": Decimal("0"),
+        "palpay": Decimal("0"),
+        "jawwalpay": Decimal("0"),
+        "credit": Decimal("0"),
+    }
     for p in pay_qs:
         m = p["method"]
         if m in pay_map:

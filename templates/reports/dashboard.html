@@ -152,18 +152,30 @@
         </tr>
       </tbody>
     </table>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-      <div class="bg-success/10 rounded-lg p-3 text-center">
-        <div class="text-xs text-muted font-semibold">كاش</div>
-        <div class="text-lg font-bold mt-1">{{ b.payments.cash|default:0|floatformat:2|intcomma }}</div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 text-center text-xs">
+      <div class="bg-success/10 rounded-lg p-2">
+        <div class="text-muted font-semibold">كاش</div>
+        <div class="font-bold mt-0.5">{{ b.payments.cash|default:0|floatformat:2|intcomma }}</div>
       </div>
-      <div class="bg-info/10 rounded-lg p-3 text-center">
-        <div class="text-xs text-muted font-semibold">تطبيق</div>
-        <div class="text-lg font-bold mt-1">{{ b.payments.bank|default:0|floatformat:2|intcomma }}</div>
+      <div class="bg-slate-100 dark:bg-gray-700/80 rounded-lg p-2">
+        <div class="text-muted font-semibold">شبكة عام</div>
+        <div class="font-bold mt-0.5">{{ b.payments.bank|default:0|floatformat:2|intcomma }}</div>
       </div>
-      <div class="bg-warning/10 rounded-lg p-3 text-center">
-        <div class="text-xs text-muted font-semibold">حساب عميل</div>
-        <div class="text-lg font-bold mt-1">{{ b.payments.credit|default:0|floatformat:2|intcomma }}</div>
+      <div class="bg-info/10 rounded-lg p-2">
+        <div class="text-muted font-semibold">بنك فلسطين</div>
+        <div class="font-bold mt-0.5">{{ b.payments.bank_ps|default:0|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="bg-info/10 rounded-lg p-2">
+        <div class="text-muted font-semibold">بال باي</div>
+        <div class="font-bold mt-0.5">{{ b.payments.palpay|default:0|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="bg-info/10 rounded-lg p-2">
+        <div class="text-muted font-semibold">جوال باي</div>
+        <div class="font-bold mt-0.5">{{ b.payments.jawwalpay|default:0|floatformat:2|intcomma }}</div>
+      </div>
+      <div class="bg-warning/10 rounded-lg p-2">
+        <div class="text-muted font-semibold">آجل</div>
+        <div class="font-bold mt-0.5">{{ b.payments.credit|default:0|floatformat:2|intcomma }}</div>
       </div>
     </div>
   </div>

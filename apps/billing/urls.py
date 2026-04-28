@@ -6,6 +6,7 @@ app_name = "billing"
 
 urlpatterns = [
     path("invoices/", views.sale_invoice_list, name="invoice_list"),
+    path("invoices/<int:pk>/cancel/", views.sale_invoice_cancel, name="sale_invoice_cancel"),
     path("invoices/<int:pk>/", views.sale_invoice_detail, name="invoice_detail"),
     path("invoices/customer/<int:customer_id>/", views.customer_invoices, name="customer_invoices"),
     path("invoices/<int:invoice_pk>/return/", views.sale_return_create, name="sale_return"),

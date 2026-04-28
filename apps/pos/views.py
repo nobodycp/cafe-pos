@@ -53,10 +53,14 @@ def _payments_from_checkout_form(request, remaining: Decimal) -> list:
     mode = request.POST.get("payment_mode", "").strip()
     if remaining <= 0:
         return []
-    if mode == "cash":
-        return [(InvoicePayment.Method.CASH, remaining)]
-    if mode == "bank":
-        return [(InvoicePayment.Method.BANK, remaining)]
+    single_modes = {
+        "cash": InvoicePayment.Method.CASH,
+        "bank_ps": InvoicePayment.Method.BANK_PS,
+        "palpay": InvoicePayment.Method.PALPAY,
+        "jawwalpay": InvoicePayment.Method.JAWWALPAY,
+    }
+    if mode in single_modes:
+        return [(single_modes[mode], remaining)]
     if mode == "credit":
         return [(InvoicePayment.Method.CREDIT, remaining)]
     if mode == "mixed":
@@ -67,6 +71,7 @@ def _payments_from_checkout_form(request, remaining: Decimal) -> list:
         if c > 0:
             out.append((InvoicePayment.Method.CASH, c))
         if b > 0:
+            # مبلغ «شبكة» في المختلط بدون تفصيل المحفظة — يُسجَّل كبنك عام
             out.append((InvoicePayment.Method.BANK, b))
         if cr > 0:
             out.append((InvoicePayment.Method.CREDIT, cr))
