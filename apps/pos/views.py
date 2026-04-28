@@ -630,11 +630,21 @@ def order_checkout(request, order_id):
         try:
             inv = finalize_order_invoice(order=order, user=request.user, customer=customer)
         except ValueError as e:
-            messages.error(request, str(e))
+            code = str(e)
+            if code == "TAB_PAYMENT_ON_EMPTY_ORDER":
+                messages.error(
+                    request,
+                    "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة.",
+                )
+            else:
+                messages.error(request, code)
             return redirect("pos:main")
         request.session.pop("active_pos_order_id", None)
-        messages.success(request, f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}")
-        return redirect("pos:receipt", invoice_id=inv.pk)
+        if inv:
+            messages.success(request, f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}")
+            return redirect("pos:receipt", invoice_id=inv.pk)
+        messages.success(request, "تم إغلاق الطاولة (طلب فارغ — دون فاتورة).")
+        return redirect("pos:tables_floor")
 
     payments = _payments_from_checkout_form(request, remaining)
     new_sum = sum((p[1] for p in payments), Decimal("0")).quantize(Decimal("0.01"))
@@ -663,6 +673,11 @@ def order_checkout(request, order_id):
             messages.error(request, "خطأ في تطابق المبالغ.")
         elif code == "CREDIT_REQUIRES_CUSTOMER":
             messages.error(request, "الائتمان يتطلب عميلاً.")
+        elif code == "TAB_PAYMENT_ON_EMPTY_ORDER":
+            messages.error(
+                request,
+                "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة.",
+            )
         else:
             messages.error(request, code)
         return redirect("pos:main")
@@ -671,6 +686,11 @@ def order_checkout(request, order_id):
         request.session.pop("active_pos_order_id", None)
         messages.success(request, f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}")
         return redirect("pos:receipt", invoice_id=inv.pk)
+    order.refresh_from_db()
+    if order.status == Order.Status.CHECKED_OUT:
+        request.session.pop("active_pos_order_id", None)
+        messages.success(request, "تم إغلاق الطاولة (طلب فارغ — دون فاتورة).")
+        return redirect("pos:tables_floor")
     messages.success(request, f"تم تسجيل دفعة. المتبقي: {(remaining - new_sum).quantize(Decimal('0.01'))} ر.س")
     return redirect("pos:main")
 

@@ -20,6 +20,7 @@ from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.pos.forms import DiningTableForm
 from apps.pos.models import DiningTable, Order, TableSession
+from apps.pos.table_service import prepare_work_session_for_shift_close
 
 
 @login_required
@@ -57,6 +58,7 @@ def close_session_view(request):
             closing = None
     ws = SessionService.get_open_session()
     if ws:
+        prepare_work_session_for_shift_close(ws)
         if Order.objects.filter(work_session=ws, status=Order.Status.OPEN).exists():
             request.session["flash_error"] = (
                 "لا يمكن إغلاق الوردية: يوجد طلبات مفتوحة أو طاولات لم تُسوَّ بعد. "
@@ -160,6 +162,7 @@ def session_summary(request):
                 closing = Decimal(str(raw).replace(",", "."))
             except (InvalidOperation, ValueError):
                 closing = None
+        prepare_work_session_for_shift_close(ws)
         if Order.objects.filter(work_session=ws, status=Order.Status.OPEN).exists():
             messages.error(
                 request,

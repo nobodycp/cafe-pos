@@ -272,27 +272,54 @@ def create_sale_invoice_core(
     return inv
 
 
+def _close_table_session_if_no_open_orders(*, table_session_id: Optional[int]) -> None:
+    """After an order leaves OPEN, close the table session if no OPEN orders remain."""
+    if not table_session_id:
+        return
+    if Order.objects.filter(table_session_id=table_session_id, status=Order.Status.OPEN).exists():
+        return
+    ts = TableSession.objects.filter(pk=table_session_id, status=TableSession.Status.OPEN).first()
+    if not ts:
+        return
+    from django.utils import timezone
+
+    ts.status = TableSession.Status.CLOSED
+    ts.closed_at = timezone.now()
+    ts.save(update_fields=["status", "closed_at", "updated_at"])
+
+
 @transaction.atomic
-def finalize_order_invoice(*, order: Order, user, customer: Optional[Customer] = None) -> SaleInvoice:
+def finalize_order_invoice(
+    *, order: Order, user, customer: Optional[Customer] = None
+) -> Optional[SaleInvoice]:
     totals = compute_order_totals(order)
     paid = sum_tab_payments(order)
     if paid + Decimal("0.005") < totals["grand"]:
         raise ValueError("TAB_NOT_FULLY_PAID")
+
+    # طلب بمجموع صفر وبدون بنود — لا فاتورة؛ إغلاق الطلب والجلسة (كان create_sale_invoice_core يرفض ORDER_EMPTY)
+    if not order.lines.exists() and totals["grand"] <= Decimal("0.005"):
+        if paid > Decimal("0.005"):
+            raise ValueError("TAB_PAYMENT_ON_EMPTY_ORDER")
+        order.status = Order.Status.CHECKED_OUT
+        order.save(update_fields=["status", "updated_at"])
+        sid = order.table_session_id
+        _close_table_session_if_no_open_orders(table_session_id=sid)
+        log_audit(
+            user,
+            "sale.tab.empty_close",
+            "pos.Order",
+            order.pk,
+            {"table_session_id": sid, "note": "no_invoice"},
+        )
+        return None
+
     pay_by_method = _aggregate_tab_payments(order)
     inv = create_sale_invoice_core(order=order, user=user, pay_by_method=pay_by_method, customer=customer)
     order.tab_payments.filter(sale_invoice__isnull=True).update(sale_invoice=inv)
     order.status = Order.Status.CHECKED_OUT
     order.save(update_fields=["status", "updated_at"])
-    if order.table_session_id and order.table_session.status == TableSession.Status.OPEN:
-        ts = order.table_session
-        other_open = Order.objects.filter(
-            table_session=ts, status=Order.Status.OPEN
-        ).exclude(pk=order.pk).exists()
-        if not other_open:
-            from django.utils import timezone
-            ts.status = TableSession.Status.CLOSED
-            ts.closed_at = timezone.now()
-            ts.save(update_fields=["status", "closed_at", "updated_at"])
+    _close_table_session_if_no_open_orders(table_session_id=order.table_session_id)
     log_audit(user, "sale.tab.finalize", "billing.SaleInvoice", inv.pk, {"total": str(totals["grand"])})
     return inv
 
