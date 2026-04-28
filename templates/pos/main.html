@@ -650,39 +650,7 @@
       inp.addEventListener('blur',function(){setTimeout(function(){hits.style.display='none'},200)});
       inp.addEventListener('focus',function(){if(hits.childElementCount>0)hits.style.display='block'});
     }
-    setup('cart-cust-search','cart-cust-hits','cart-cust-id');
     setup('pay-cust-search','pay-cust-hits','pay-cust-id');
-
-    var clearBtn=document.getElementById('cart-cust-clear');
-    if(clearBtn){clearBtn.addEventListener('click',function(){
-      document.getElementById('cart-cust-id').value='';
-      document.getElementById('cart-cust-search').value='';
-      var f=document.getElementById('cart-cust-form');if(f)ajaxSubmit(f);
-    })}
-
-    var newBtn=document.getElementById('cart-cust-new');
-    if(newBtn){newBtn.addEventListener('click',function(){
-      showModal('إضافة عميل جديد',
-        '<input type="text" id="mc-cust-name" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none mb-2" placeholder="اسم العميل">'
-        +'<input type="text" id="mc-cust-phone" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none" placeholder="رقم الهاتف (اختياري)">',
-        function(){
-          var name=(document.getElementById('mc-cust-name').value||'').trim();
-          if(!name)return;
-          var phone=(document.getElementById('mc-cust-phone').value||'').trim();
-          fetch(CUST_CREATE_URL,{
-            method:'POST',
-            headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':CSRF},
-            body:'name_ar='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)
-          }).then(function(r){return r.json()}).then(function(data){
-            if(data.ok){
-              document.getElementById('cart-cust-id').value=data.id;
-              document.getElementById('cart-cust-search').value=data.name_ar;
-              var f=document.getElementById('cart-cust-form');if(f)ajaxSubmit(f);
-            }else{showToast(data.error||'خطأ','error')}
-          });
-        }
-      );
-    })}
   }
 
   /* ── Category tabs ── */

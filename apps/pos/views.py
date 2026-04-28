@@ -29,6 +29,7 @@ from apps.pos.services import (
     delete_order_line,
     hold_order,
     set_line_note,
+    set_line_unit_price,
 )
 from apps.pos.table_service import (
     floor_rows_for_session,
@@ -481,6 +482,25 @@ def order_line_note(request, order_id, line_id):
         messages.error(request, str(e))
     request.session["active_pos_order_id"] = order.id
     return redirect("pos:main")
+
+
+@login_required
+@require_POST
+def order_line_unit_price(request, order_id, line_id):
+    order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
+    try:
+        up = _money(request.POST.get("unit_price", "0"))
+    except (InvalidOperation, ValueError):
+        return _ajax_or_redirect_error(request, "سعر غير صالح")
+    try:
+        set_line_unit_price(order=order, line_id=int(line_id), unit_price=up, user=request.user)
+    except ValueError as e:
+        code = str(e)
+        if code == "INVALID_UNIT_PRICE":
+            return _ajax_or_redirect_error(request, "السعر لا يمكن أن يكون سالباً")
+        return _ajax_or_redirect_error(request, code)
+    request.session["active_pos_order_id"] = order.id
+    return _ajax_or_redirect(request)
 
 
 @login_required

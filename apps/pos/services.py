@@ -119,14 +119,13 @@ def add_or_update_line(
             log_audit(user, "pos.line.remove", "pos.Order", order.pk, {"product": product.pk})
             return None
         line.quantity = new_q
-        line.unit_price = unit_price
+        # لا نعيد كتابة unit_price عند دمج الكمية — يحافظ على السعر اليدوي إن وُجد
         line.extra_unit_price = extra_unit
         line.modifiers_json = mod_json
         line.kitchen_batch_no = batch_no
         line.save(
             update_fields=[
                 "quantity",
-                "unit_price",
                 "extra_unit_price",
                 "modifiers_json",
                 "kitchen_batch_no",
@@ -187,6 +186,21 @@ def set_line_note(*, order: Order, line_id: int, line_note: str, user) -> None:
     line.line_note = (line_note or "")[:255]
     line.save(update_fields=["line_note", "updated_at"])
     log_audit(user, "pos.line.note", "pos.Order", order.pk, {"line": line_id})
+
+
+@transaction.atomic
+def set_line_unit_price(*, order: Order, line_id: int, unit_price: Decimal, user) -> None:
+    if order.status != Order.Status.OPEN or order.is_held:
+        raise ValueError("ORDER_NOT_OPEN")
+    line = OrderLine.objects.select_for_update().filter(pk=line_id, order=order).first()
+    if not line:
+        raise ValueError("LINE_NOT_FOUND")
+    up = _d(unit_price).quantize(Decimal("0.01"))
+    if up < 0:
+        raise ValueError("INVALID_UNIT_PRICE")
+    line.unit_price = up
+    line.save(update_fields=["unit_price", "updated_at"])
+    log_audit(user, "pos.line.unit_price", "pos.Order", order.pk, {"line": line_id, "unit_price": str(up)})
 
 
 @transaction.atomic

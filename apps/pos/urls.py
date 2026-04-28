@@ -19,6 +19,7 @@ urlpatterns = [
     path("order/<int:order_id>/line/<int:line_id>/adjust/", views.order_adjust_line, name="order_adjust_line"),
     path("order/<int:order_id>/remove/<int:line_id>/", views.order_remove_line, name="order_remove"),
     path("order/<int:order_id>/line/<int:line_id>/note/", views.order_line_note, name="order_line_note"),
+    path("order/<int:order_id>/line/<int:line_id>/unit-price/", views.order_line_unit_price, name="order_line_unit_price"),
     path("order/<int:order_id>/customer/", views.order_set_customer, name="order_customer"),
     path("order/<int:order_id>/note/", views.order_note, name="order_note"),
     path("order/<int:order_id>/discount/", views.order_discount, name="order_discount"),

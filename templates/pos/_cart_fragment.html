@@ -27,32 +27,36 @@
 
 <div class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
   {% for line in lines %}
-  <div class="cart-line-item bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 transition-all duration-200 cursor-pointer{% if forloop.last %} ring-2 ring-primary/20{% endif %}" data-line-idx="{{ forloop.counter0 }}">
-    <div class="flex items-start justify-between gap-2">
-      <div class="flex-1 min-w-0">
-        <div class="text-sm font-semibold">{{ line.product.name_ar }}</div>
-        {% if line.modifiers_json %}<div class="text-[11px] text-muted mt-0.5">{% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>{% endif %}
-        {% if line.line_note %}<div class="text-[11px] text-primary/80 mt-0.5 italic">{{ line.line_note }}</div>{% endif %}
-        <div class="cl-qty flex items-center gap-1 mt-2">
+  <div class="cart-line-item bg-gray-50 dark:bg-gray-700/50 rounded-lg px-1.5 py-1 transition-all duration-200 cursor-pointer{% if forloop.last %} ring-2 ring-primary/20{% endif %}" data-line-idx="{{ forloop.counter0 }}">
+    <div class="flex flex-nowrap items-center gap-1 min-w-0 w-full">
+      <div class="min-w-0 flex-1 flex flex-nowrap items-center gap-1 overflow-hidden">
+        <span class="text-[11px] font-semibold truncate min-w-0 basis-0 grow"
+          title="{{ line.product.name_ar }}{% if line.modifiers_json %} — {% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}{% endif %}{% if line.line_note %} — {{ line.line_note }}{% endif %}">{{ line.product.name_ar }}{% if line.modifiers_json %}<span class="text-muted font-normal">+</span>{% endif %}</span>
+        <div class="cl-qty flex items-center gap-0 shrink-0">
           <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
             <input type="hidden" name="qty_delta" value="-1">
-            <button type="submit" class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-600 text-sm font-bold hover:bg-danger hover:text-white transition duration-200 flex items-center justify-center">−</button>
+            <button type="submit" class="w-6 h-6 rounded bg-gray-200 dark:bg-gray-600 text-[11px] font-bold leading-none hover:bg-danger hover:text-white transition flex items-center justify-center p-0">−</button>
           </form>
-          <span class="w-8 text-center text-sm font-bold">{{ line.quantity|floatformat:"0" }}</span>
+          <span class="w-5 text-center text-[11px] font-bold">{{ line.quantity|floatformat:"0" }}</span>
           <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
             <input type="hidden" name="qty_delta" value="1">
-            <button type="submit" class="w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-600 text-sm font-bold hover:bg-success hover:text-white transition duration-200 flex items-center justify-center">+</button>
+            <button type="submit" class="w-6 h-6 rounded bg-gray-200 dark:bg-gray-600 text-[11px] font-bold leading-none hover:bg-success hover:text-white transition flex items-center justify-center p-0">+</button>
           </form>
         </div>
+        <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form flex flex-nowrap items-center gap-0.5 shrink-0" title="سعر القائمة {{ line.product.selling_price }}">
+          {% csrf_token %}
+          <input type="number" name="unit_price" step="0.01" min="0" value="{{ line.unit_price }}"
+            class="w-11 h-6 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-0.5 text-[10px] font-semibold text-center text-gray-800 dark:text-gray-100 focus:ring-1 focus:ring-primary/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+          <button type="submit" class="h-6 px-1 rounded bg-primary/15 text-primary text-[8px] font-bold hover:bg-primary hover:text-white transition leading-none">✓</button>
+          <span class="text-[8px] text-muted whitespace-nowrap opacity-80">{{ line.product.selling_price }}</span>
+        </form>
       </div>
-      <div class="flex flex-col items-end gap-1 shrink-0">
-        <span class="text-sm font-bold text-primary">{{ line.line_total }} {{ POS_SETTINGS.currency_symbol }}</span>
-        <div class="flex items-center gap-1">
-          <button type="button" class="line-note-btn w-7 h-7 rounded-lg text-muted hover:bg-primary hover:text-white text-xs transition duration-200 flex items-center justify-center" title="ملاحظة" data-line-id="{{ line.pk }}" data-note="{{ line.line_note|default:'' }}">📝</button>
-          <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="حذف {{ line.product.name_ar }}؟">{% csrf_token %}
-            <button type="submit" class="cl-del w-7 h-7 rounded-lg text-danger/60 hover:bg-danger hover:text-white text-xs transition duration-200 flex items-center justify-center" title="حذف">✕</button>
-          </form>
-        </div>
+      <span class="text-[11px] font-bold text-primary whitespace-nowrap shrink-0">{{ line.line_total }} {{ POS_SETTINGS.currency_symbol }}</span>
+      <div class="flex items-center gap-0 shrink-0">
+        <button type="button" class="line-note-btn w-6 h-6 rounded-md text-muted hover:bg-primary hover:text-white text-[10px] transition duration-200 flex items-center justify-center shrink-0" title="ملاحظة" data-line-id="{{ line.pk }}" data-note="{{ line.line_note|default:'' }}">📝</button>
+        <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form shrink-0" data-confirm="حذف {{ line.product.name_ar }}؟">{% csrf_token %}
+          <button type="submit" class="cl-del w-6 h-6 rounded-md text-danger/60 hover:bg-danger hover:text-white text-[10px] transition duration-200 flex items-center justify-center" title="حذف">✕</button>
+        </form>
       </div>
     </div>
   </div>
@@ -82,24 +86,6 @@
     </form>
   </details>
 
-  <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-    <form method="post" action="{% url 'pos:order_customer' current_order.pk %}" class="space-y-2" id="cart-cust-form">
-      {% csrf_token %}
-      <label class="text-xs font-semibold text-muted">العميل</label>
-      <div class="relative">
-        <input type="hidden" name="customer_id" id="cart-cust-id" value="{{ current_order.customer_id|default:'' }}">
-        <input type="search" id="cart-cust-search" placeholder="بحث عميل بالاسم أو الهاتف..." autocomplete="off"
-          value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
-          class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none">
-        <div id="cart-cust-hits" class="absolute top-full start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-lg max-h-[180px] overflow-y-auto shadow-lg" style="display:none"></div>
-      </div>
-      <div class="flex gap-1.5">
-        <button type="submit" class="flex-1 h-9 rounded-lg bg-primary/10 text-primary text-xs font-bold hover:bg-primary hover:text-white transition duration-200">تعيين</button>
-        <button type="button" class="h-9 px-3 rounded-lg border border-danger text-danger text-xs font-bold hover:bg-danger hover:text-white transition duration-200" id="cart-cust-clear">مسح</button>
-        <button type="button" class="h-9 px-3 rounded-lg border border-success text-success text-xs font-bold hover:bg-success hover:text-white transition duration-200" id="cart-cust-new">+ جديد</button>
-      </div>
-    </form>
-  </div>
 </div>
 
 {% if order_totals %}
