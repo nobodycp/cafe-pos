@@ -25,6 +25,7 @@
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطريقة</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظات</th>
+          <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase w-36">إجراءات</th>
         </tr>
       </thead>
       <tbody>
@@ -37,10 +38,19 @@
               <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold {% if e.payment_method == 'cash' %}bg-success-light text-success{% else %}bg-info-light text-info{% endif %}">{{ e.get_payment_method_display }}</span>
             </td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ e.notes|truncatechars:60 }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <div class="flex flex-wrap gap-2 items-center">
+                <a href="{% url 'expenses:edit' e.pk %}" class="text-xs font-bold text-primary hover:underline">تعديل</a>
+                <form method="post" action="{% url 'expenses:delete' e.pk %}" class="inline" onsubmit="return confirm('حذف المصروف وقيوده نهائياً؟');">
+                  {% csrf_token %}
+                  <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
+                </form>
+              </div>
+            </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="5" class="p-8 text-center text-muted">لا توجد مصروفات</td>
+            <td colspan="6" class="p-8 text-center text-muted">لا توجد مصروفات</td>
           </tr>
         {% endfor %}
       </tbody>

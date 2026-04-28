@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}تقرير الموظفين{% endblock %}
+{% block content %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold">تقرير الموظفين — السلف والصرف والمشتريات</h1>
+  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk">← التقارير</a>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <form method="get" class="flex gap-3 flex-wrap items-end">
+    <div>
+      <label class="block text-sm font-semibold mb-1">من</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-700">
+    </div>
+    <div>
+      <label class="block text-sm font-semibold mb-1">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-700">
+    </div>
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">عرض</button>
+  </form>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <div class="text-xs text-muted font-bold">إجمالي السلف</div>
+    <div class="text-lg font-extrabold text-warning mt-1">{{ grand_advances|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <div class="text-xs text-muted font-bold">إجمالي صرف الرواتب</div>
+    <div class="text-lg font-extrabold text-success mt-1">{{ grand_payouts|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
+    <div class="text-xs text-muted font-bold">مشتريات من المقهى</div>
+    <div class="text-lg font-extrabold text-info mt-1">{{ grand_cafe|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="rounded-xl border border-primary/30 bg-primary-soft dark:bg-primary/10 p-4 text-center">
+    <div class="text-xs text-muted font-bold">الإجمالي</div>
+    <div class="text-lg font-extrabold text-primary mt-1">{{ grand_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</div>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">الموظف</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">سلف</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">صرف رواتب</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">شراء مقهى</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">المجموع</th>
+          <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ row.employee.name_ar }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.advances|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.payouts|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.cafe|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end font-bold">{{ row.row_total|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+            <a href="{% url 'payroll:employee_detail' row.employee.pk %}" class="text-primary font-semibold text-xs hover:underline">البطاقة</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="p-8 text-center text-muted">لا موظفين نشطين</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

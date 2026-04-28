@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}إضافة مصروف{% endblock %}
+{% block title %}{% if edit_expense %}تعديل مصروف{% else %}إضافة مصروف{% endif %}{% endblock %}
 {% block content %}
 <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">إضافة مصروف</h1>
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{% if edit_expense %}تعديل مصروف{% else %}إضافة مصروف{% endif %}</h1>
   <a href="{% url 'expenses:list' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
     <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     العودة للمصروفات

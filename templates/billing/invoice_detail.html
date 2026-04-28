@@ -11,14 +11,14 @@
     <button onclick="window.print()" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">طباعة</button>
     {% if not invoice.is_cancelled %}
     <a href="{% url 'billing:sale_return' invoice.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-danger text-white font-bold text-sm hover:bg-red-700 active:scale-[0.98] transition-all duration-200">مرتجع</a>
-    <form method="post" action="{% url 'billing:sale_invoice_cancel' invoice.pk %}" class="flex flex-wrap items-center gap-2" id="sale-inv-cancel-form"
-      onsubmit="return confirm('سيتم إلغاء الفاتورة وعكس المخزون والقيود المحاسبية وآجل العميل إن وُجد. هل أنت متأكد؟');">
-      {% csrf_token %}
-      <input type="text" name="reason" required maxlength="500" placeholder="سبب الإلغاء (مطلوب)" autocomplete="off"
-        class="h-11 min-w-[180px] max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
-      <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border-2 border-danger text-danger font-bold text-sm hover:bg-danger/10 active:scale-[0.98] transition-all duration-200">إلغاء الفاتورة</button>
-    </form>
     {% endif %}
+    <form method="post" action="{% url 'billing:sale_invoice_delete' invoice.pk %}" class="flex flex-wrap items-center gap-2"
+      onsubmit="return confirm('سيتم حذف الفاتورة نهائياً بعد عكس المخزون والقيود والذمم. لا يمكن التراجع. متابعة؟');">
+      {% csrf_token %}
+      <input type="text" name="reason" required maxlength="500" placeholder="سبب الحذف (مطلوب)" autocomplete="off"
+        class="h-11 min-w-[180px] max-w-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary">
+      <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border-2 border-danger text-danger font-bold text-sm hover:bg-danger/10 active:scale-[0.98] transition-all duration-200">حذف نهائي</button>
+    </form>
     <a href="{% url 'billing:invoice_list' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-primary text-primary font-bold text-sm hover:bg-primary-soft active:scale-[0.98] transition-all duration-200">كل الفواتير</a>
   </div>
 </div>

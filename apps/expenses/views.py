@@ -1,17 +1,65 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from apps.core.services import SessionService
 from apps.expenses.forms import ExpenseCategoryForm, ExpenseForm
 from apps.expenses.models import Expense, ExpenseCategory
-from apps.expenses.services import create_expense
+from apps.expenses.services import create_expense, delete_expense_permanent
 
 
 @login_required
 def expense_list(request):
     qs = Expense.objects.select_related("category").order_by("-expense_date", "-created_at")[:300]
     return render(request, "expenses/list.html", {"expenses": qs})
+
+
+@login_required
+def expense_edit(request, pk):
+    expense = get_object_or_404(Expense.objects.select_related("category"), pk=pk)
+    if request.method == "POST":
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    ws = expense.work_session or SessionService.get_open_session()
+                    delete_expense_permanent(expense=expense, user=request.user)
+                    create_expense(
+                        category=form.cleaned_data["category"],
+                        amount=form.cleaned_data["amount"],
+                        payment_method=form.cleaned_data["payment_method"],
+                        expense_date=form.cleaned_data["expense_date"],
+                        notes=form.cleaned_data["notes"],
+                        work_session=ws,
+                        user=request.user,
+                    )
+                messages.success(request, "تم تحديث المصروف.")
+                return redirect("expenses:list")
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = ExpenseForm(initial={
+            "category": expense.category_id,
+            "amount": expense.amount,
+            "payment_method": expense.payment_method,
+            "expense_date": expense.expense_date,
+            "notes": expense.notes,
+        })
+    return render(request, "expenses/expense_form.html", {"form": form, "edit_expense": expense})
+
+
+@login_required
+@require_POST
+def expense_delete(request, pk):
+    expense = get_object_or_404(Expense, pk=pk)
+    try:
+        delete_expense_permanent(expense=expense, user=request.user)
+        messages.success(request, "تم حذف المصروف.")
+    except Exception as e:
+        messages.error(request, str(e))
+    return redirect("expenses:list")
 
 
 @login_required
@@ -36,7 +84,7 @@ def expense_create(request):
                 messages.error(request, str(e))
     else:
         form = ExpenseForm()
-    return render(request, "expenses/expense_form.html", {"form": form})
+    return render(request, "expenses/expense_form.html", {"form": form, "edit_expense": None})
 
 
 @login_required

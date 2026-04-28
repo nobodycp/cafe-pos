@@ -46,3 +46,17 @@ def create_expense(
 
     log_audit(user, "expense.create", "expenses.Expense", exp.pk, {"amount": str(amt), "category": category.code})
     return exp
+
+
+@transaction.atomic
+def delete_expense_permanent(*, expense: Expense, user=None) -> None:
+    """حذف مصروف وقيوده المحاسبية من النظام."""
+    from apps.accounting.models import JournalEntry
+
+    pk = str(expense.pk)
+    exp_pk = expense.pk
+    refs = JournalEntry.objects.filter(reference_type="expenses.Expense", reference_pk=pk)
+    JournalEntry.objects.filter(reversed_by__in=refs).update(reversed_by=None, is_reversed=False)
+    refs.delete()
+    log_audit(user, "expense.delete", "expenses.Expense", exp_pk, {})
+    expense.delete()

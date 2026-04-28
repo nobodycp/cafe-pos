@@ -182,8 +182,8 @@ def daily_sales_report(request):
         for m in methods:
             method_labels.append(label_map.get(m, m))
         table_name = ""
-        if hasattr(inv, "order") and inv.order and inv.order.table:
-            table_name = inv.order.table.name_ar
+        if inv.order_id and inv.order.table_session_id and inv.order.table_session.dining_table_id:
+            table_name = inv.order.table_session.dining_table.name_ar
         invoice_list.append({
             "invoice": inv,
             "table_name": table_name,
@@ -197,6 +197,72 @@ def daily_sales_report(request):
         "total_sales": agg["total_sales"] or Decimal("0"),
         "total_profit": agg["total_profit"] or Decimal("0"),
         "invoice_count": agg["count"] or 0,
+    })
+
+
+@login_required
+def payroll_report(request):
+    from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase, EmployeeSalaryPayout
+
+    today = date.today()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        d_to = today
+
+    employees = Employee.objects.filter(is_active=True).order_by("name_ar")
+    rows = []
+    grand_adv = grand_pay = grand_cafe = Decimal("0")
+    for emp in employees:
+        adv = (
+            EmployeeAdvance.objects.filter(
+                employee=emp,
+                created_at__date__gte=d_from,
+                created_at__date__lte=d_to,
+            ).aggregate(s=Sum("amount"))["s"]
+            or Decimal("0")
+        )
+        pay = (
+            EmployeeSalaryPayout.objects.filter(
+                employee=emp,
+                created_at__date__gte=d_from,
+                created_at__date__lte=d_to,
+            ).aggregate(s=Sum("amount"))["s"]
+            or Decimal("0")
+        )
+        caf = (
+            EmployeeCafePurchase.objects.filter(
+                employee=emp,
+                created_at__date__gte=d_from,
+                created_at__date__lte=d_to,
+            ).aggregate(s=Sum("amount"))["s"]
+            or Decimal("0")
+        )
+        grand_adv += adv
+        grand_pay += pay
+        grand_cafe += caf
+        rows.append({
+            "employee": emp,
+            "advances": adv,
+            "payouts": pay,
+            "cafe": caf,
+            "row_total": adv + pay + caf,
+        })
+
+    return render(request, "reports/payroll_report.html", {
+        "date_from": d_from.isoformat(),
+        "date_to": d_to.isoformat(),
+        "rows": rows,
+        "grand_advances": grand_adv,
+        "grand_payouts": grand_pay,
+        "grand_cafe": grand_cafe,
+        "grand_total": grand_adv + grand_pay + grand_cafe,
     })
 
 
@@ -352,8 +418,6 @@ def product_movement_report(request):
 def cash_flow_report(request):
     from apps.purchasing.models import SupplierPayment
     from apps.contacts.models import CustomerLedgerEntry
-    from apps.payroll.models import EmployeeAdvance, EmployeeSalaryPayout
-
     today = date.today()
     date_from = request.GET.get("date_from", "")
     date_to = request.GET.get("date_to", "")
@@ -403,17 +467,8 @@ def cash_flow_report(request):
         created_at__date__lte=d_to,
     ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
 
-    salary_payouts = EmployeeSalaryPayout.objects.filter(
-        created_at__date__gte=d_from,
-        created_at__date__lte=d_to,
-    ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-
-    advances = EmployeeAdvance.objects.filter(
-        created_at__date__gte=d_from,
-        created_at__date__lte=d_to,
-    ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
-
-    total_outflows = expenses_total + supplier_payments + salary_payouts + advances
+    # السلف وصرف الرواتب تُسجَّل ضمن المصروفات (تصنيف رواتب) — لا نجمعها مرة ثانية
+    total_outflows = expenses_total + supplier_payments
 
     net_flow = total_inflows - total_outflows
 
@@ -426,8 +481,6 @@ def cash_flow_report(request):
         "total_inflows": total_inflows,
         "expenses_total": expenses_total,
         "supplier_payments": supplier_payments,
-        "salary_payouts": salary_payouts,
-        "advances": advances,
         "total_outflows": total_outflows,
         "net_flow": net_flow,
     })

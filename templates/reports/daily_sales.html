@@ -55,12 +55,15 @@
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">طريقة الدفع</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">العميل</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+          <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
         </tr>
       </thead>
       <tbody>
         {% for row in invoices %}
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.invoice.invoice_number }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">
+            <a href="{% url 'billing:invoice_detail' row.invoice.pk %}" class="text-primary font-semibold hover:underline">{{ row.invoice.invoice_number }}</a>
+          </td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.table_name|default:"—" }}</td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.invoice.total|floatformat:2|intcomma }}</td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ row.invoice.total_profit|floatformat:2|intcomma }}</td>
@@ -74,6 +77,17 @@
             {% else %}
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">غير مدفوع</span>
             {% endif %}
+          </td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex flex-wrap gap-2 items-center">
+              <a href="{% url 'billing:invoice_detail' row.invoice.pk %}" class="text-xs font-bold text-primary hover:underline">عرض</a>
+              <form method="post" action="{% url 'billing:sale_invoice_delete' row.invoice.pk %}" class="inline" onsubmit="var r=prompt('سبب الحذف (مطلوب):'); if(!r||!r.trim()){return false;} this.reason.value=r.trim(); return confirm('حذف الفاتورة نهائياً من النظام؟');">
+                {% csrf_token %}
+                <input type="hidden" name="reason" value="">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% endfor %}

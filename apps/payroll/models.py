@@ -9,7 +9,9 @@ class Employee(TimeStampedModel):
     name_ar = models.CharField(_("الاسم"), max_length=200)
     name_en = models.CharField(_("الاسم (إنجليزي)"), max_length=200, blank=True)
     daily_wage = models.DecimalField(_("أجر اليوم"), max_digits=12, decimal_places=2, default=0)
+    hourly_wage = models.DecimalField(_("أجر الساعة"), max_digits=12, decimal_places=2, default=0)
     work_days_balance = models.DecimalField(_("أيام مستحقة / رصيد"), max_digits=10, decimal_places=2, default=0)
+    work_hours_balance = models.DecimalField(_("ساعات عمل مستحقة"), max_digits=10, decimal_places=2, default=0)
     advance_balance = models.DecimalField(_("سلف معلقة"), max_digits=14, decimal_places=2, default=0)
     store_purchases_balance = models.DecimalField(_("مشتريات من المقهى"), max_digits=14, decimal_places=2, default=0)
     net_balance = models.DecimalField(_("صافي الرصيد للموظف"), max_digits=14, decimal_places=2, default=0)
@@ -40,6 +42,14 @@ class EmployeeAdvance(TimeStampedModel):
     )
     amount = models.DecimalField(_("مبلغ السلفة"), max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     note = models.TextField(_("ملاحظة"), blank=True)
+    linked_expense = models.ForeignKey(
+        "expenses.Expense",
+        verbose_name=_("مصروف رواتب مرتبط"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payroll_advances",
+    )
 
     class Meta:
         verbose_name = _("سلفة")
@@ -61,9 +71,19 @@ class EmployeeSalaryPayout(TimeStampedModel):
         on_delete=models.SET_NULL,
     )
     days_count = models.DecimalField(_("عدد الأيام"), max_digits=8, decimal_places=2, validators=[MinValueValidator(0)])
+    hours_count = models.DecimalField(_("عدد الساعات"), max_digits=8, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     amount = models.DecimalField(_("المبلغ المدفوع"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
+    advance_applied = models.DecimalField(_("سلفة مخصومة من الصرف"), max_digits=14, decimal_places=2, default=0)
     method = models.CharField(_("طريقة الدفع"), max_length=16, default="cash")
     note = models.TextField(_("ملاحظة"), blank=True)
+    linked_expense = models.ForeignKey(
+        "expenses.Expense",
+        verbose_name=_("مصروف رواتب (النقد)"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payroll_payouts",
+    )
 
     class Meta:
         verbose_name = _("صرف راتب")
