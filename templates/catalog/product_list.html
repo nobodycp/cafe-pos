@@ -15,8 +15,9 @@
        class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] border border-primary text-primary hover:bg-primary-soft inline-flex items-center">
       الوحدات
     </a>
-    <a href="{% url 'catalog:product_create' %}"
-       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk inline-flex items-center gap-1.5">
+    <a href="{% url 'catalog:product_workspace' %}"
+       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk inline-flex items-center gap-1.5"
+       title="تصنيف، وحدة، ومنتج في خطوة واحدة">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       منتج جديد
     </a>
@@ -90,6 +91,10 @@
                         class="bg-transparent border-none text-primary hover:text-primary-dk font-semibold cursor-pointer text-sm transition-colors">
                   {% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}
                 </button>
+              </form>
+              <form method="post" action="{% url 'catalog:product_delete' p.pk %}" class="m-0 inline" onsubmit="return confirm('حذف المنتج نهائياً؟ لا يُنصح إن وُجدت حركات سابقة.');">
+                {% csrf_token %}
+                <button type="submit" class="bg-transparent border-none text-danger hover:underline font-bold cursor-pointer text-sm">حذف</button>
               </form>
             </div>
           </td>

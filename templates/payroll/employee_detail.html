@@ -1,49 +1,55 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}موظف: {{ employee.name_ar }}{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ employee.name_ar }}</h1>
-  <a href="{% url 'payroll:employees' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
+<div class="flex justify-between items-center mb-3 flex-wrap gap-3">
+  <h1 class="text-lg font-extrabold text-gray-800 dark:text-white">{{ employee.name_ar }}</h1>
+  <a href="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employees' %}{% else %}{% url 'payroll:employees' %}{% endif %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
     <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     العودة للموظفين
   </a>
 </div>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5 text-sm">
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">أجر اليوم</span>
-      <span class="text-lg font-extrabold">{{ employee.daily_wage|floatformat:2|intcomma }}</span>
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center gap-4 text-sm">
+      <div>
+        <span class="block text-[11px] text-muted font-bold">آلية العمل</span>
+        <span class="font-extrabold">{{ employee.get_pay_type_display }}</span>
+      </div>
+      <div>
+        <span class="block text-[11px] text-muted font-bold">{% if employee.pay_type == "hourly" %}أجر الساعة{% elif employee.pay_type == "monthly" %}راتب الشهر{% else %}أجر اليوم{% endif %}</span>
+        <span class="font-extrabold">{{ employee.pay_amount|floatformat:2|intcomma }}</span>
+      </div>
+      {% if employee.pay_type == "daily" %}
+      <div>
+        <span class="block text-[11px] text-muted font-bold">رصيد أيام</span>
+        <span class="font-extrabold">{{ employee.work_days_balance|floatformat:2|intcomma }}</span>
+      </div>
+      {% elif employee.pay_type == "hourly" %}
+      <div>
+        <span class="block text-[11px] text-muted font-bold">رصيد ساعات</span>
+        <span class="font-extrabold">{{ employee.work_hours_balance|floatformat:2|intcomma }}</span>
+      </div>
+      {% endif %}
+      <div>
+        <span class="block text-[11px] text-muted font-bold">سلف معلّقة</span>
+        <span class="font-extrabold text-warning">{{ employee.advance_balance|floatformat:2|intcomma }}</span>
+      </div>
+      <div class="px-3 py-1.5 rounded-sm bg-primary-soft dark:bg-primary/10">
+        <span class="block text-[11px] text-muted font-bold">صافي الرصيد</span>
+        <span class="font-extrabold text-primary">{{ employee.net_balance|floatformat:2|intcomma }}</span>
+      </div>
     </div>
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">أجر الساعة</span>
-      <span class="text-lg font-extrabold">{{ employee.hourly_wage|floatformat:2|intcomma }}</span>
+    <div class="flex gap-1.5 flex-wrap">
+    <a href="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_advance' employee.pk %}{% else %}{% url 'payroll:employee_advance' employee.pk %}{% endif %}" class="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-warning text-gray-800 font-bold text-xs hover:opacity-90 transition-colors">تسجيل سلفة</a>
+    <a href="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_payout' employee.pk %}{% else %}{% url 'payroll:employee_payout' employee.pk %}{% endif %}" class="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-success text-white font-bold text-xs hover:opacity-90 transition-colors">صرف راتب</a>
+    {% if employee.pay_type == "daily" %}
+    <a href="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_add_days' employee.pk %}{% else %}{% url 'payroll:employee_add_days' employee.pk %}{% endif %}" class="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-info text-white font-bold text-xs hover:opacity-90 transition-colors">إضافة أيام</a>
+    {% elif employee.pay_type == "hourly" %}
+    <a href="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_add_hours' employee.pk %}{% else %}{% url 'payroll:employee_add_hours' employee.pk %}{% endif %}" class="inline-flex items-center justify-center h-8 px-3 rounded-sm bg-info text-white font-bold text-xs hover:opacity-90 transition-colors">إضافة ساعات</a>
+    {% endif %}
     </div>
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">رصيد أيام</span>
-      <span class="text-lg font-extrabold">{{ employee.work_days_balance|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">رصيد ساعات</span>
-      <span class="text-lg font-extrabold">{{ employee.work_hours_balance|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">سلف معلّقة</span>
-      <span class="text-lg font-extrabold text-warning">{{ employee.advance_balance|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="bg-primary-soft dark:bg-primary/10 rounded-lg p-3">
-      <span class="block text-muted font-semibold mb-1">صافي الرصيد</span>
-      <span class="text-lg font-extrabold text-primary">{{ employee.net_balance|floatformat:2|intcomma }}</span>
-    </div>
-  </div>
-  <div class="flex gap-2 flex-wrap">
-    <a href="{% url 'payroll:employee_edit' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">تعديل</a>
-    <a href="{% url 'payroll:employee_advance' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-warning text-gray-800 font-bold text-sm hover:opacity-90 transition-colors">تسجيل سلفة</a>
-    <a href="{% url 'payroll:employee_payout' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:opacity-90 transition-colors">صرف راتب</a>
-    <a href="{% url 'payroll:employee_add_days' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-info text-white font-bold text-sm hover:opacity-90 transition-colors">إضافة أيام</a>
-    <a href="{% url 'payroll:employee_add_hours' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-info text-white font-bold text-sm hover:opacity-90 transition-colors">إضافة ساعات</a>
-    <a href="{% url 'payroll:employee_cafe_purchase' employee.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-danger text-white font-bold text-sm hover:opacity-90 transition-colors">تسجيل شراء</a>
   </div>
 </div>
 
@@ -66,7 +72,7 @@
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ a.amount|floatformat:2|intcomma }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ a.note }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <form method="post" action="{% url 'payroll:employee_advance_delete' employee.pk a.pk %}" class="inline" onsubmit="return confirm('حذف السلفة والمصروف المرتبط؟');">
+              <form method="post" action="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_advance_delete' employee.pk a.pk %}{% else %}{% url 'payroll:employee_advance_delete' employee.pk a.pk %}{% endif %}" class="inline" onsubmit="return confirm('حذف السلفة والمصروف المرتبط؟');">
                 {% csrf_token %}
                 <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
               </form>
@@ -88,7 +94,7 @@
         <tr>
           <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">التاريخ</th>
           <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">المبلغ</th>
-          <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">أيام / ساعات</th>
+          <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">الفترة</th>
           <th class="p-2 bg-gray-50 dark:bg-gray-700 w-24"></th>
         </tr>
       </thead>
@@ -97,9 +103,9 @@
           <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ p.created_at }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ p.amount|floatformat:2|intcomma }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm">{{ p.days_count }} يوم — {{ p.hours_count }} ساعة{% if p.advance_applied > 0 %} <span class="text-muted">(خصم سلفة {{ p.advance_applied|floatformat:2 }})</span>{% endif %}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm">{% if employee.pay_type == "daily" %}{{ p.days_count }} يوم{% elif employee.pay_type == "hourly" %}{{ p.hours_count }} ساعة{% else %}شهري{% endif %}{% if p.advance_applied > 0 %} <span class="text-muted">(خصم سلفة {{ p.advance_applied|floatformat:2 }})</span>{% endif %}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <form method="post" action="{% url 'payroll:employee_payout_delete' employee.pk p.pk %}" class="inline" onsubmit="return confirm('حذف صرف الراتب واسترجاع الأرصدة؟');">
+              <form method="post" action="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_payout_delete' employee.pk p.pk %}{% else %}{% url 'payroll:employee_payout_delete' employee.pk p.pk %}{% endif %}" class="inline" onsubmit="return confirm('حذف صرف الراتب واسترجاع الأرصدة؟');">
                 {% csrf_token %}
                 <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
               </form>
@@ -132,7 +138,7 @@
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ x.amount|floatformat:2|intcomma }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ x.note }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <form method="post" action="{% url 'payroll:employee_cafe_purchase_delete' employee.pk x.pk %}" class="inline" onsubmit="return confirm('حذف هذا السجل؟');">
+              <form method="post" action="{% if request.resolver_match.namespace == 'shell' %}{% url 'shell:employee_cafe_purchase_delete' employee.pk x.pk %}{% else %}{% url 'payroll:employee_cafe_purchase_delete' employee.pk x.pk %}{% endif %}" class="inline" onsubmit="return confirm('حذف هذا السجل؟');">
                 {% csrf_token %}
                 <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
               </form>

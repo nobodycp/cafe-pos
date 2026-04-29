@@ -1,217 +1,156 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}التقارير{% endblock %}
 {% block content %}
 
-{# ── Page Header ── #}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold">التقارير</h1>
-</div>
+{% include "reports/_reports_nav_tabs.html" %}
 
-{# ── Quick Links – Reports ── #}
-<div class="flex flex-wrap gap-2 mb-5">
-  <a href="{% url 'reports:daily_sales' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">تقرير المبيعات اليومي</a>
-  <a href="{% url 'reports:expense_report' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">تقرير المصروفات</a>
-  <a href="{% url 'reports:weekly_report' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">التقرير الأسبوعي</a>
-  <a href="{% url 'reports:product_movement' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">حركة الأصناف</a>
-  <a href="{% url 'reports:cash_flow' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">التدفق النقدي</a>
-  <a href="{% url 'reports:payroll_report' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">تقرير الموظفين</a>
-</div>
-
-{# ── Quick Links – Accounting ── #}
-<div class="flex flex-wrap gap-2 mb-6">
-  <a href="{% url 'accounting:chart' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">دليل الحسابات</a>
-  <a href="{% url 'accounting:trial_balance' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">ميزان المراجعة</a>
-  <a href="{% url 'accounting:pnl' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">الأرباح والخسائر</a>
-  <a href="{% url 'accounting:journal_list' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">القيود اليومية</a>
-</div>
-
-{# ── Summary Cards ── #}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
-    <div class="text-sm text-muted font-semibold">مبيعات اليوم</div>
-    <div class="text-2xl font-extrabold text-success mt-1">{{ today_sales|floatformat:2|intcomma }}</div>
-    {% if yesterday_sales %}
-    <div class="text-xs text-muted mt-2">
-      أمس: {{ yesterday_sales|floatformat:2|intcomma }}
-      {% if today_sales > yesterday_sales %}
-        <span class="text-success">&#9650;</span>
-      {% elif today_sales < yesterday_sales %}
-        <span class="text-danger">&#9660;</span>
+{# صف واحد مضغوط: مؤشرات اليوم + تقييم المخزون #}
+<div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5 mb-1.5">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-2 gap-y-0.5 text-center leading-tight">
+    <div class="px-0.5 py-0.5 rounded-sm bg-gray-50/80 dark:bg-gray-900/40">
+      <div class="text-[9px] text-muted font-bold">مبيعات اليوم</div>
+      <div class="text-sm font-extrabold text-success tabular-nums">{{ today_sales|floatformat:2|intcomma }}</div>
+      {% if yesterday_sales %}
+      <div class="text-[9px] text-muted tabular-nums">أمس {{ yesterday_sales|floatformat:2|intcomma }}{% if today_sales > yesterday_sales %} <span class="text-success">▲</span>{% elif today_sales < yesterday_sales %} <span class="text-danger">▼</span>{% endif %}</div>
       {% endif %}
     </div>
+    <div class="px-0.5 py-0.5 rounded-sm bg-gray-50/80 dark:bg-gray-900/40">
+      <div class="text-[9px] text-muted font-bold">الربح</div>
+      <div class="text-sm font-extrabold text-success tabular-nums">{{ today_profit|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="px-0.5 py-0.5 rounded-sm bg-gray-50/80 dark:bg-gray-900/40">
+      <div class="text-[9px] text-muted font-bold">فواتير</div>
+      <div class="text-sm font-extrabold text-primary tabular-nums">{{ today_count }}</div>
+    </div>
+    <div class="px-0.5 py-0.5 rounded-sm bg-gray-50/80 dark:bg-gray-900/40">
+      <div class="text-[9px] text-muted font-bold">متوسط</div>
+      <div class="text-sm font-extrabold text-primary tabular-nums">{{ today_avg|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="px-0.5 py-0.5 col-span-2 sm:col-span-1 lg:col-span-2 rounded-sm bg-primary/5 dark:bg-primary/10 border border-primary/15">
+      <div class="text-[9px] text-muted font-bold">تقييم المخزون</div>
+      <div class="text-sm font-extrabold text-primary tabular-nums">{{ inventory_valuation|floatformat:2|intcomma }}</div>
+    </div>
+  </div>
+  {% if low_stock_count or unpaid_customers %}
+  <div class="flex flex-wrap gap-1 mt-1 pt-1 border-t border-gray-100 dark:border-gray-700/80 justify-end">
+    {% if low_stock_count %}
+    <a href="{% if inventory_ns == 'shell' %}{% url 'shell:inventory_home' %}?filter=low{% else %}{% url 'inventory:home' %}?filter=low{% endif %}" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-danger/10 border border-danger/40 text-danger text-[10px] font-bold no-underline hover:bg-danger/15">
+      مخزون منخفض: {{ low_stock_count }}
+    </a>
+    {% endif %}
+    {% if unpaid_customers %}
+    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-warning/15 border border-warning/50 text-[10px] font-bold text-gray-800 dark:text-gray-100">
+      ذمم {{ unpaid_customers }} عميل: <span class="text-danger tabular-nums">{{ total_receivable|floatformat:2|intcomma }}</span>
+    </span>
     {% endif %}
   </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
-    <div class="text-sm text-muted font-semibold">الربح</div>
-    <div class="text-2xl font-extrabold text-success mt-1">{{ today_profit|floatformat:2|intcomma }}</div>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
-    <div class="text-sm text-muted font-semibold">عدد الفواتير</div>
-    <div class="text-2xl font-extrabold text-primary mt-1">{{ today_count }}</div>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 text-center">
-    <div class="text-sm text-muted font-semibold">متوسط الفاتورة</div>
-    <div class="text-2xl font-extrabold text-primary mt-1">{{ today_avg|floatformat:2|intcomma }}</div>
-  </div>
-</div>
-
-{# ── Alert Cards ── #}
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-  {% if low_stock_count %}
-  <a href="{% url 'inventory:home' %}?filter=low" class="block bg-danger/10 border border-danger rounded-xl p-5 text-center hover:shadow-md transition-shadow">
-    <div class="text-sm text-danger font-semibold">مخزون منخفض</div>
-    <div class="text-2xl font-extrabold text-danger mt-1">{{ low_stock_count }} صنف</div>
-  </a>
-  {% endif %}
-  {% if unpaid_customers %}
-  <div class="bg-warning/10 border border-warning rounded-xl p-5 text-center">
-    <div class="text-sm text-muted font-semibold">ذمم مدينة ({{ unpaid_customers }} عميل)</div>
-    <div class="text-2xl font-extrabold text-danger mt-1">{{ total_receivable|floatformat:2|intcomma }}</div>
-  </div>
   {% endif %}
 </div>
 
-{# ── Weekly Chart ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <h3 class="text-lg font-bold mb-4">مبيعات آخر 7 أيام</h3>
-  <canvas id="weeklySalesChart" class="w-full max-h-72"></canvas>
-</div>
-
-{# ── Top Products Today ── #}
-{% if top_products %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <h3 class="text-lg font-bold mb-4">الأكثر مبيعاً اليوم</h3>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإيراد</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in top_products %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ forloop.counter }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ p.product__name_ar }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ p.total_qty }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ p.total_revenue|floatformat:2|intcomma }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{# مخطط + أكثر مبيعاً في صف واحد على الشاشات العريضة #}
+<div class="grid grid-cols-1 {% if top_products %}lg:grid-cols-12{% endif %} gap-1.5 mb-1.5">
+  <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5 {% if top_products %}lg:col-span-5{% endif %}">
+    <h3 class="text-[10px] font-extrabold text-muted mb-0.5 m-0">مبيعات 7 أيام</h3>
+    <div class="relative w-full h-[88px] min-h-[88px]">
+      <canvas id="weeklySalesChart" class="w-full h-full"></canvas>
+    </div>
   </div>
+  {% if top_products %}
+  <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5 lg:col-span-7 min-w-0">
+    <h3 class="text-[10px] font-extrabold text-muted mb-0.5 m-0">أكثر مبيعاً اليوم</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[10px] leading-none">
+        <thead>
+          <tr class="border-b border-gray-200 dark:border-gray-600">
+            <th class="text-start py-1 px-1 font-bold text-muted w-6">#</th>
+            <th class="text-start py-1 px-1 font-bold text-muted">الصنف</th>
+            <th class="text-end py-1 px-1 font-bold text-muted w-10">كمية</th>
+            <th class="text-end py-1 px-1 font-bold text-muted">إيراد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in top_products %}
+          <tr class="border-b border-gray-50 dark:border-gray-700/60">
+            <td class="py-1 px-1 tabular-nums">{{ forloop.counter }}</td>
+            <td class="py-1 px-1 font-semibold truncate max-w-[8rem] sm:max-w-none">{{ p.product__name_ar }}</td>
+            <td class="py-1 px-1 text-end tabular-nums">{{ p.total_qty }}</td>
+            <td class="py-1 px-1 text-end text-success font-bold tabular-nums">{{ p.total_revenue|floatformat:2|intcomma }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 
-{# ── Inventory Valuation ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <h2 class="text-lg font-bold mb-1">تقييم المخزون</h2>
-  <p class="text-2xl font-extrabold text-primary">{{ inventory_valuation|floatformat:2|intcomma }}</p>
-</div>
-
-{# ── Sessions ── #}
-<h2 class="text-xl font-extrabold mb-4">الورديات</h2>
-<div class="space-y-4">
+<h2 class="text-[10px] font-extrabold mb-1 text-muted m-0">الورديات</h2>
+<div class="space-y-1.5">
 {% for b in session_blocks %}
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-    <div class="flex justify-between items-center mb-3">
-      <h3 class="text-lg font-bold">وردية #{{ b.session.pk }}</h3>
+  <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5">
+    <div class="flex justify-between items-center gap-1 mb-1 flex-wrap">
+      <h3 class="text-[10px] font-extrabold m-0">#{{ b.session.pk }}</h3>
       {% if b.session.status == "open" %}
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-success/10 text-success">مفتوحة</span>
+        <span class="px-1 py-0 rounded-sm text-[9px] font-bold bg-success/15 text-success">مفتوحة</span>
       {% else %}
-        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-info/10 text-info">مغلقة</span>
+        <span class="px-1 py-0 rounded-sm text-[9px] font-bold bg-info/15 text-info">مغلقة</span>
       {% endif %}
     </div>
-    <p class="text-sm text-muted mb-3">
-      من {{ b.session.created_at }}{% if b.session.closed_at %} إلى {{ b.session.closed_at }}{% endif %}
-    </p>
-    <table class="w-full text-sm">
-      <tbody>
-        <tr>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">عدد فواتير البيع</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.invoice_count }}</td>
-        </tr>
-        <tr>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">إيرادات البيع</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.revenue|floatformat:2|intcomma }}</td>
-        </tr>
-        <tr>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">تكلفة البضاعة المباعة</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ b.cost|floatformat:2|intcomma }}</td>
-        </tr>
-        <tr>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">الربح المعترف</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-success font-bold">{{ b.profit|floatformat:2|intcomma }}</td>
-        </tr>
-        <tr>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">مصروفات الوردية</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-danger">{{ b.expenses|floatformat:2|intcomma }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4 text-center text-xs">
-      <div class="bg-success/10 rounded-lg p-2">
-        <div class="text-muted font-semibold">كاش</div>
-        <div class="font-bold mt-0.5">{{ b.payments.cash|default:0|floatformat:2|intcomma }}</div>
-      </div>
-      <div class="bg-slate-100 dark:bg-gray-700/80 rounded-lg p-2">
-        <div class="text-muted font-semibold">شبكة عام</div>
-        <div class="font-bold mt-0.5">{{ b.payments.bank|default:0|floatformat:2|intcomma }}</div>
-      </div>
-      <div class="bg-info/10 rounded-lg p-2">
-        <div class="text-muted font-semibold">بنك فلسطين</div>
-        <div class="font-bold mt-0.5">{{ b.payments.bank_ps|default:0|floatformat:2|intcomma }}</div>
-      </div>
-      <div class="bg-info/10 rounded-lg p-2">
-        <div class="text-muted font-semibold">بال باي</div>
-        <div class="font-bold mt-0.5">{{ b.payments.palpay|default:0|floatformat:2|intcomma }}</div>
-      </div>
-      <div class="bg-info/10 rounded-lg p-2">
-        <div class="text-muted font-semibold">جوال باي</div>
-        <div class="font-bold mt-0.5">{{ b.payments.jawwalpay|default:0|floatformat:2|intcomma }}</div>
-      </div>
-      <div class="bg-warning/10 rounded-lg p-2">
-        <div class="text-muted font-semibold">آجل</div>
-        <div class="font-bold mt-0.5">{{ b.payments.credit|default:0|floatformat:2|intcomma }}</div>
-      </div>
+    <p class="text-[9px] text-muted mb-1 m-0 leading-tight line-clamp-2">{{ b.session.created_at }}{% if b.session.closed_at %} — {{ b.session.closed_at }}{% endif %}</p>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-x-2 gap-y-0 text-[9px] mb-1">
+      <div><span class="text-muted">فواتير</span> <span class="font-bold tabular-nums">{{ b.invoice_count }}</span></div>
+      <div><span class="text-muted">إيراد</span> <span class="font-bold tabular-nums">{{ b.revenue|floatformat:2|intcomma }}</span></div>
+      <div><span class="text-muted">تكلفة</span> <span class="font-bold tabular-nums">{{ b.cost|floatformat:2|intcomma }}</span></div>
+      <div><span class="text-muted">ربح</span> <span class="font-bold text-success tabular-nums">{{ b.profit|floatformat:2|intcomma }}</span></div>
+      <div class="col-span-2 sm:col-span-1"><span class="text-muted">مصروف</span> <span class="font-bold text-danger tabular-nums">{{ b.expenses|floatformat:2|intcomma }}</span></div>
+    </div>
+    <div class="grid grid-cols-3 sm:grid-cols-6 gap-0.5 text-center text-[8px] leading-tight">
+      <div class="bg-success/10 rounded px-0.5 py-0.5"><div class="text-muted font-bold">كاش</div><div class="font-bold tabular-nums leading-none">{{ b.payments.cash|default:0|floatformat:1|intcomma }}</div></div>
+      <div class="bg-slate-100 dark:bg-gray-700/80 rounded px-0.5 py-0.5"><div class="text-muted font-bold">شبكة</div><div class="font-bold tabular-nums leading-none">{{ b.payments.bank|default:0|floatformat:1|intcomma }}</div></div>
+      <div class="bg-info/10 rounded px-0.5 py-0.5"><div class="text-muted font-bold">فلسطين</div><div class="font-bold tabular-nums leading-none">{{ b.payments.bank_ps|default:0|floatformat:1|intcomma }}</div></div>
+      <div class="bg-info/10 rounded px-0.5 py-0.5"><div class="text-muted font-bold">بال باي</div><div class="font-bold tabular-nums leading-none">{{ b.payments.palpay|default:0|floatformat:1|intcomma }}</div></div>
+      <div class="bg-info/10 rounded px-0.5 py-0.5"><div class="text-muted font-bold">جوال</div><div class="font-bold tabular-nums leading-none">{{ b.payments.jawwalpay|default:0|floatformat:1|intcomma }}</div></div>
+      <div class="bg-warning/10 rounded px-0.5 py-0.5"><div class="text-muted font-bold">آجل</div><div class="font-bold tabular-nums leading-none">{{ b.payments.credit|default:0|floatformat:1|intcomma }}</div></div>
     </div>
   </div>
 {% empty %}
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center text-muted">
-    لا توجد ورديات بعد.
-  </div>
+  <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 py-4 text-center text-[10px] text-muted">لا توجد ورديات بعد.</div>
 {% endfor %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
 (function() {
-  var labels = {{ chart_labels|safe }};
-  var data = {{ chart_data|safe }};
-  var ctx = document.getElementById('weeklySalesChart').getContext('2d');
-  new Chart(ctx, {
+  var labels = {{ chart_labels_json|safe }};
+  var data = {{ chart_data_json|safe }};
+  var el = document.getElementById('weeklySalesChart');
+  if (!el || typeof Chart === 'undefined') return;
+  new Chart(el.getContext('2d'), {
     type: 'bar',
     data: {
       labels: labels,
       datasets: [{
         label: 'المبيعات',
         data: data,
-        backgroundColor: 'rgba(34,197,94,0.5)',
-        borderColor: 'rgba(34,197,94,1)',
+        backgroundColor: 'rgba(34,197,94,0.4)',
+        borderColor: 'rgba(34,197,94,0.9)',
         borderWidth: 1,
-        borderRadius: 6
+        borderRadius: 2
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      layout: { padding: { top: 2, right: 2, bottom: 0, left: 0 } },
+      plugins: { legend: { display: false }, tooltip: { titleFont: { size: 10 }, bodyFont: { size: 10 } } },
       scales: {
-        y: { beginAtZero: true, ticks: { callback: function(v) { return v.toLocaleString(); } } }
+        y: {
+          beginAtZero: true,
+          ticks: { font: { size: 8 }, maxTicksLimit: 5, callback: function(v) { return Number(v).toLocaleString(); } },
+          grid: { drawTicks: true, color: 'rgba(0,0,0,0.06)' }
+        },
+        x: { ticks: { font: { size: 8 }, maxRotation: 0 }, grid: { display: false } }
       }
     }
   });

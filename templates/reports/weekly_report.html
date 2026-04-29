@@ -1,56 +1,50 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}التقرير الأسبوعي{% endblock %}
 {% block content %}
 
-{# ── Page Header ── #}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold">التقرير الأسبوعي</h1>
-  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">← التقارير</a>
-</div>
+{% include "reports/_reports_nav_tabs.html" %}
+<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-1 m-0">التقرير الأسبوعي</p>
+<p class="text-[11px] text-muted mb-3 m-0">آخر 4 أسابيع</p>
 
-<p class="text-muted text-sm mb-6">آخر 4 أسابيع</p>
-
-<div class="space-y-4">
+<div class="space-y-2">
 {% for w in weeks %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-  <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-    <h3 class="text-lg font-bold">الأسبوع {{ w.iso_week }} — {{ w.iso_year }}</h3>
-    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-info/10 text-info">{{ w.start }} → {{ w.end }}</span>
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+  <div class="flex justify-between items-center gap-2 mb-2 flex-wrap">
+    <h3 class="text-xs font-extrabold m-0">الأسبوع {{ w.iso_week }} — {{ w.iso_year }}</h3>
+    <span class="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-bold bg-info/15 text-info whitespace-nowrap">{{ w.start }} → {{ w.end }}</span>
   </div>
 
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-    <div class="bg-success/10 rounded-lg p-3 text-center">
-      <div class="text-xs text-muted font-semibold">المبيعات</div>
-      <div class="text-lg font-bold text-success mt-1">{{ w.sales|floatformat:2|intcomma }}</div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-2">
+    <div class="bg-success/10 rounded-sm p-2 text-center border border-success/20">
+      <div class="text-[10px] text-muted font-bold">المبيعات</div>
+      <div class="text-sm font-extrabold text-success mt-0.5 tabular-nums">{{ w.sales|floatformat:2|intcomma }}</div>
     </div>
-    <div class="bg-success/10 rounded-lg p-3 text-center">
-      <div class="text-xs text-muted font-semibold">الربح الإجمالي</div>
-      <div class="text-lg font-bold text-success mt-1">{{ w.profit|floatformat:2|intcomma }}</div>
+    <div class="bg-success/10 rounded-sm p-2 text-center border border-success/20">
+      <div class="text-[10px] text-muted font-bold">الربح الإجمالي</div>
+      <div class="text-sm font-extrabold text-success mt-0.5 tabular-nums">{{ w.profit|floatformat:2|intcomma }}</div>
     </div>
-    <div class="bg-warning/10 rounded-lg p-3 text-center">
-      <div class="text-xs text-muted font-semibold">المصروفات</div>
-      <div class="text-lg font-bold text-danger mt-1">{{ w.expenses|floatformat:2|intcomma }}</div>
+    <div class="bg-warning/10 rounded-sm p-2 text-center border border-warning/30">
+      <div class="text-[10px] text-muted font-bold">المصروفات</div>
+      <div class="text-sm font-extrabold text-danger mt-0.5 tabular-nums">{{ w.expenses|floatformat:2|intcomma }}</div>
     </div>
-    <div class="{% if w.net >= 0 %}bg-success/10{% else %}bg-warning/10{% endif %} rounded-lg p-3 text-center">
-      <div class="text-xs text-muted font-semibold">صافي الربح</div>
-      <div class="text-lg font-bold {% if w.net >= 0 %}text-success{% else %}text-danger{% endif %} mt-1">{{ w.net|floatformat:2|intcomma }}</div>
+    <div class="{% if w.net >= 0 %}bg-success/10 border-success/20{% else %}bg-warning/10 border-warning/30{% endif %} rounded-sm p-2 text-center border">
+      <div class="text-[10px] text-muted font-bold">صافي الربح</div>
+      <div class="text-sm font-extrabold {% if w.net >= 0 %}text-success{% else %}text-danger{% endif %} mt-0.5 tabular-nums">{{ w.net|floatformat:2|intcomma }}</div>
     </div>
   </div>
 
-  <table class="w-full text-sm">
+  <table class="w-full text-xs">
     <tbody>
-      <tr>
-        <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">عدد الفواتير</td>
-        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ w.invoice_count }}</td>
+      <tr class="border-t border-gray-100 dark:border-gray-700">
+        <td class="py-1.5 font-semibold">عدد الفواتير</td>
+        <td class="py-1.5 text-end tabular-nums">{{ w.invoice_count }}</td>
       </tr>
     </tbody>
   </table>
 </div>
 {% empty %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center text-muted">
-  لا توجد بيانات.
-</div>
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center text-xs text-muted">لا توجد بيانات.</div>
 {% endfor %}
 </div>
 {% endblock %}

@@ -1,0 +1,71 @@
+{% extends "shell/base.html" %}
+{% block title %}{{ title }} — طرق الدفع{% endblock %}
+{% block nav_on_settings %}on{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">{{ title }}</span>
+    <span class="pos-shell-toolbar-hint hidden lg:inline">إعدادات طرق الدفع</span>
+    <span class="flex-1"></span>
+    <a href="{{ payment_methods_return_url }}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← طرق الدفع</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-3xl">
+      <form method="post" class="space-y-3">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="p-2 rounded-sm bg-danger/10 border border-danger/30 text-danger text-xs font-semibold">
+          {% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            <p class="text-[11px] text-muted mt-1">لاتيني صغير فقط، لا يُغيّر بعد الإنشاء.</p>
+            {% for e in form.code.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+          <div>
+            <label for="{{ form.label_ar.id_for_label }}">{{ form.label_ar.label }}</label>
+            {{ form.label_ar }}
+            {% for e in form.label_ar.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label for="{{ form.label_en.id_for_label }}">{{ form.label_en.label }}</label>
+            {{ form.label_en }}
+            {% for e in form.label_en.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+          <div>
+            <label for="{{ form.ledger.id_for_label }}">{{ form.ledger.label }}</label>
+            {{ form.ledger }}
+            <p class="text-[11px] text-muted mt-1">آجل / ذمم يستخدم للديون، وباقي الطرق للصندوق أو البنك.</p>
+            {% for e in form.ledger.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
+          <div>
+            <label for="{{ form.sort_order.id_for_label }}">{{ form.sort_order.label }}</label>
+            {{ form.sort_order }}
+          </div>
+          <div class="flex items-end pb-1">
+            <label class="flex items-center gap-2 cursor-pointer">
+              {{ form.is_active }}
+              <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ form.is_active.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 justify-end">
+          <a href="{{ payment_methods_return_url }}" class="inline-flex items-center h-9 px-4 rounded-sm border border-gray-300 dark:border-gray-600 font-bold text-xs text-gray-700 dark:text-gray-200 hover:border-primary">إلغاء</a>
+          <button type="submit" class="h-9 px-5 rounded-sm bg-primary text-white font-bold text-xs hover:bg-primary-dk transition-colors">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -185,10 +185,11 @@ def table_session_money_totals(table_session: TableSession) -> dict:
 
 
 def floor_rows_for_session(work_session) -> List[dict]:
-    """صفوف لعرض شبكة الطاولات — محسّنة بحد أدنى من الاستعلامات."""
-    from django.db.models import Sum, F, Q, DecimalField
-    from django.db.models.functions import Coalesce
+    """صفوف لعرض شبكة الطاولات.
 
+    لا نستخدم annotate على Order مع lines وtab_payments معاً — ينتج ضرباً كارتيزياً
+    فيُحسب كل دفعة بعدد أسطر الطلب (مثلاً 10 شيكل × 3 أسطر = 30).
+    """
     repair_stale_table_sessions_for_floor(work_session)
 
     tables = list(
@@ -204,23 +205,7 @@ def floor_rows_for_session(work_session) -> List[dict]:
     }
 
     if open_sessions:
-        session_ids = [s.pk for s in open_sessions.values()]
-        order_totals = {}
-        if session_ids:
-            for row in Order.objects.filter(
-                table_session_id__in=session_ids,
-                status=Order.Status.OPEN,
-            ).values("table_session_id").annotate(
-                total_grand=Coalesce(
-                    Sum(F("lines__quantity") * F("lines__unit_price"), output_field=DecimalField()),
-                    Decimal("0"),
-                ),
-                total_paid=Coalesce(Sum("tab_payments__amount"), Decimal("0")),
-            ):
-                order_totals[row["table_session_id"]] = {
-                    "grand": (row["total_grand"] or Decimal("0")).quantize(Decimal("0.01")),
-                    "paid": (row["total_paid"] or Decimal("0")).quantize(Decimal("0.01")),
-                }
+        order_totals = {ts.pk: table_session_money_totals(ts) for ts in open_sessions.values()}
     else:
         order_totals = {}
 
@@ -271,10 +256,13 @@ def floor_rows_for_session(work_session) -> List[dict]:
                 "customer_label": cust,
             })
             continue
-        m = order_totals.get(ts.pk, {"grand": Decimal("0"), "paid": Decimal("0")})
+        m = order_totals.get(
+            ts.pk,
+            {"grand": Decimal("0"), "paid": Decimal("0"), "remaining": Decimal("0")},
+        )
         grand = m["grand"]
         paid = m["paid"]
-        remaining = max(grand - paid, Decimal("0")).quantize(Decimal("0.01"))
+        remaining = m.get("remaining", max(grand - paid, Decimal("0")).quantize(Decimal("0.01")))
         cust = ""
         if ts.customer_id:
             cust = ts.customer.name_ar

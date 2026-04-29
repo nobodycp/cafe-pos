@@ -1,4 +1,5 @@
 from django import forms
+from decimal import Decimal
 
 from apps.catalog.models import Category, Product, RecipeLine, Unit
 
@@ -43,10 +44,19 @@ class ProductForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["product_type"].choices = self.SELLABLE_TYPES
         self.fields["category"].required = False
+        self.fields["min_stock_level"].required = False
         from apps.purchasing.models import Supplier
         self.fields["commission_vendor"].queryset = Supplier.objects.filter(is_active=True)
         for f in self.fields.values():
             f.widget.attrs.setdefault("class", "form-input")
+
+    def clean(self):
+        cleaned = super().clean()
+        product_type = cleaned.get("product_type")
+        if product_type in (Product.ProductType.MANUFACTURED, Product.ProductType.SERVICE, Product.ProductType.COMMISSION):
+            cleaned["is_stock_tracked"] = False
+            cleaned["min_stock_level"] = Decimal("0")
+        return cleaned
 
 
 class UnitForm(forms.ModelForm):
@@ -58,6 +68,31 @@ class UnitForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for f in self.fields.values():
             f.widget.attrs.setdefault("class", "form-input")
+
+
+class QuickCategoryForm(forms.ModelForm):
+    """تصنيف سريع من شاشة إعداد المنتج الموحّدة."""
+
+    class Meta:
+        model = Category
+        fields = ["name_ar", "name_en"]
+        widgets = {
+            "name_ar": forms.TextInput(attrs={"class": "form-input", "placeholder": "مثال: مشروبات ساخنة"}),
+            "name_en": forms.TextInput(attrs={"class": "form-input", "placeholder": "Optional"}),
+        }
+
+
+class QuickUnitForm(forms.ModelForm):
+    """وحدة قياس سريعة من شاشة إعداد المنتج الموحّدة."""
+
+    class Meta:
+        model = Unit
+        fields = ["code", "name_ar", "name_en"]
+        widgets = {
+            "code": forms.TextInput(attrs={"class": "form-input", "placeholder": "مثال: pcs", "dir": "ltr"}),
+            "name_ar": forms.TextInput(attrs={"class": "form-input", "placeholder": "قطعة، كغ، صحن..."}),
+            "name_en": forms.TextInput(attrs={"class": "form-input"}),
+        }
 
 
 class RecipeLineForm(forms.ModelForm):

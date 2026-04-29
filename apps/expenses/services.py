@@ -26,10 +26,13 @@ def create_expense(
     notes: str = "",
     work_session=None,
     user=None,
+    allow_salary_category: bool = False,
 ) -> Expense:
     amt = _d(amount)
     if amt <= 0:
         raise ValueError("INVALID_AMOUNT")
+    if category.code == ExpenseCategory.Code.SALARIES and not allow_salary_category:
+        raise ValueError("SALARIES_VIA_PAYROLL_ONLY")
 
     exp = Expense.objects.create(
         work_session=work_session,

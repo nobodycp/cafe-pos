@@ -1,0 +1,93 @@
+{% load humanize %}
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ customer.name_ar }}</h1>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-3">
+  <div class="flex items-center justify-between gap-3 flex-wrap">
+    <div class="flex gap-6 flex-wrap">
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">الرصيد (عليه)</span>
+      <span class="text-2xl font-extrabold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }}</span>
+    </div>
+    {% if customer.phone %}
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">الهاتف</span>
+      <span class="text-lg">{{ customer.phone }}</span>
+    </div>
+    {% endif %}
+    {% if customer.linked_supplier %}
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">مورد مرتبط</span>
+      <a href="{% url 'shell:supplier_detail' customer.linked_supplier.pk %}" class="text-lg font-bold text-primary hover:underline">{{ customer.linked_supplier.name_ar }}</a>
+    </div>
+    <div>
+      <span class="block text-sm font-semibold text-muted mb-1.5">رصيد المورد</span>
+      <span class="text-lg font-bold text-primary">{{ customer.linked_supplier.balance|floatformat:2|intcomma }}</span>
+    </div>
+    {% endif %}
+    </div>
+    <div class="flex justify-end gap-2 flex-wrap">
+    {% if contacts_ns == 'shell' %}
+    <a href="{% url 'shell:customer_statement' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
+    {% else %}
+    <a href="{% url 'contacts:customer_statement' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
+    {% endif %}
+    {% if customer.linked_supplier %}
+    <a href="{% url 'shell:supplier_detail' customer.linked_supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:brightness-90 active:scale-[0.98] transition-all duration-200">حساب المورد</a>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Ledger Card -->
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+  <div class="p-5 pb-0">
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-4">القيود</h2>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">النوع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in ledger %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.created_at }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if e.entry_type == 'invoice' %}bg-danger/10 text-danger{% elif e.entry_type == 'payment' %}bg-success/10 text-success{% else %}bg-warning/10 text-yellow-700 dark:text-warning{% endif %}">{{ e.get_entry_type_display }}</span>
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">
+              {% if e.reference_model == "billing.SaleInvoice" and e.reference_pk %}
+              <a href="{% url 'shell:invoice_detail' e.reference_pk %}" class="font-bold text-primary hover:underline">{{ e.note|default:e.reference_model }}</a>
+              {% else %}
+              {{ e.note }}
+              {% endif %}
+            </td>
+            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+              {% if contacts_ns == 'shell' %}
+              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
+              {% else %}
+              <form method="post" action="{% url 'contacts:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
+              {% endif %}
+                {% csrf_token %}
+                <button type="submit" class="text-xs font-bold text-danger hover:underline bg-transparent border-none cursor-pointer p-0">حذف</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="p-8 text-center text-muted">لا توجد قيود</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,36 @@
+{% extends "shell/base.html" %}
+{% block title %}إعداد منتج{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">إعداد منتج</span><span class="flex-1"></span>
+    <a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← المنتجات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2>تصنيف جديد</h2>
+        <form method="post" class="space-y-3">{% csrf_token %}<input type="hidden" name="workspace_action" value="add_category"><div><label>الاسم (عربي)</label>{{ quick_cat.name_ar }}</div><div><label>الاسم (إنجليزي)</label>{{ quick_cat.name_en }}</div><button type="submit" class="h-10 px-4 rounded-lg bg-primary/15 text-primary font-bold text-sm">حفظ التصنيف</button></form>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2>وحدة قياس جديدة</h2>
+        <form method="post" class="space-y-3">{% csrf_token %}<input type="hidden" name="workspace_action" value="add_unit"><div><label>الرمز</label>{{ quick_unit.code }}</div><div><label>الاسم (عربي)</label>{{ quick_unit.name_ar }}</div><div><label>الاسم (إنجليزي)</label>{{ quick_unit.name_en }}</div><button type="submit" class="h-10 px-4 rounded-lg bg-primary/15 text-primary font-bold text-sm">حفظ الوحدة</button></form>
+      </div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+      <h2>بيانات المنتج</h2>
+      <form method="post">
+        {% csrf_token %}<input type="hidden" name="workspace_action" value="save_product">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label>الاسم (عربي)</label>{{ product_form.name_ar }}</div><div><label>الاسم (إنجليزي)</label>{{ product_form.name_en }}</div>
+          <div><label>التصنيف</label>{{ product_form.category }}</div><div><label>الوحدة</label>{{ product_form.unit }}</div>
+          <div><label>سعر البيع</label>{{ product_form.selling_price }}</div><div><label>نوع المنتج</label>{{ product_form.product_type }}</div>
+          <div><label>الحد الأدنى للمخزون</label>{{ product_form.min_stock_level }}</div><div><label>الباركود</label>{{ product_form.barcode }}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><label class="flex items-center gap-2">{{ product_form.is_stock_tracked }}<span>تتبع المخزون</span></label><label class="flex items-center gap-2">{{ product_form.is_active }}<span>نشط</span></label></div>
+        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ المنتج</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

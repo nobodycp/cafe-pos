@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}دليل الحسابات{% endblock %}
 {% block content %}
@@ -14,6 +14,10 @@
   <a href="{% url 'accounting:pnl' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">الأرباح والخسائر</a>
   <a href="{% url 'accounting:journal_list' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk inline-flex items-center transition-colors">القيود اليومية</a>
 </div>
+
+<p class="text-sm text-muted mb-4 max-w-3xl leading-relaxed">
+  مصروفات فئة <strong>رواتب</strong> (بما فيها سلف الموظفين) تُنشأ تلقائياً من شاشة <a href="{% url 'payroll:employees' %}" class="text-primary font-semibold hover:underline">الموظفين</a> عند تسجيل سلفة أو صرف راتب، وليس من شاشة المصروفات العامة — وتُقيد محاسبياً على حساب <strong>رواتب (6001)</strong>. حساب «سلف الموظفين» القديم (1300) أُعيد تصنيفه مصروفاً وأُخفِي من الدليل بعد الترحيل؛ أي قيود أرشيفية تبقى مرتبطة به دون استخدامه في العمليات الجديدة.
+</p>
 
 {# ── Accounts Table ── #}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">

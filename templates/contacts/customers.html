@@ -1,40 +1,5 @@
 {% extends "base.html" %}
-{% load humanize %}
 {% block title %}العملاء{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">العملاء</h1>
-  <a href="{% url 'contacts:customer_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة عميل</a>
-</div>
-
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الهاتف</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرصيد (عليه)</th>
-          <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in customers %}
-          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ c.name_ar }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ c.phone }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if c.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ c.balance|floatformat:2|intcomma }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <a href="{% url 'contacts:customer_detail' c.pk %}" class="text-primary font-semibold hover:underline">كشف</a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="4" class="p-8 text-center text-muted">لا يوجد عملاء</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+{% include "contacts/_customers_list_body.html" %}
 {% endblock %}

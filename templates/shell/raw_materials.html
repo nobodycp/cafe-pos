@@ -1,0 +1,12 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}المواد الخام{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">المواد الخام</span><span class="flex-1"></span><a href="{% url 'shell:inventory_home' %}" class="text-xs font-bold text-primary">← المخزون</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="flex justify-between items-center mb-3"><h1>المواد الخام</h1><a href="{% url 'shell:raw_material_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">إضافة مادة خام</a></div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>المادة الخام</th><th>الوحدة</th><th>الكمية الحالية</th><th>متوسط التكلفة</th><th>القيمة</th><th>الحد الأدنى</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>{% for e in materials %}<tr><td class="font-bold">{{ e.material.name_ar }}</td><td>{{ e.material.unit.name_ar|default:"—" }}</td><td class="font-semibold {% if e.low %}text-danger{% endif %}">{{ e.on_hand|floatformat:2 }}</td><td>{{ e.avg_cost|floatformat:4|intcomma }}</td><td class="font-semibold">{{ e.value|floatformat:2|intcomma }}</td><td>{{ e.material.min_stock_level|floatformat:2 }}</td><td>{% if e.low %}<span class="text-danger font-bold">منخفض</span>{% else %}<span class="text-success font-bold">متوفر</span>{% endif %}</td><td><div class="flex gap-2 items-center"><a href="{% url 'shell:raw_material_edit' e.material.pk %}">تعديل</a><form method="post" action="{% url 'shell:raw_material_delete' e.material.pk %}" class="m-0" onsubmit="return confirm('حذف المادة الخام «{{ e.material.name_ar }}»؟');">{% csrf_token %}<button type="submit">حذف</button></form></div></td></tr>{% empty %}<tr><td colspan="8" class="p-8 text-center text-muted">لا توجد مواد خام.</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

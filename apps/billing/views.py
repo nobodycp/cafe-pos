@@ -28,7 +28,9 @@ def sale_invoice_list(request):
         qs = qs.filter(is_cancelled=(status == "cancelled"))
 
     invoices = qs[:200]
-    return render(request, "billing/invoice_list.html", {
+    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
+    template_name = "shell/invoice_list.html" if ns == "shell" else "billing/invoice_list.html"
+    return render(request, template_name, {
         "invoices": invoices,
         "q": q,
         "status": status or "",
@@ -45,6 +47,7 @@ def sale_invoice_delete(request, pk):
         messages.error(request, "اكتب سبب الحذف (مطلوب).")
         return redirect(fallback)
     inv_num = invoice.invoice_number
+    success_next = (request.POST.get("next_success") or "").strip()
     try:
         purge_sale_invoice(invoice=invoice, reason=reason, user=request.user)
     except ValueError as e:
@@ -62,6 +65,8 @@ def sale_invoice_delete(request, pk):
             messages.error(request, code)
         return redirect(fallback)
     messages.success(request, f"تم حذف الفاتورة {inv_num} نهائياً من النظام (مع عكس المخزون والقيود).")
+    if success_next.startswith("/") and not success_next.startswith("//") and "\n" not in success_next and "\r" not in success_next:
+        return redirect(success_next)
     return redirect("billing:invoice_list")
 
 
@@ -76,7 +81,9 @@ def sale_invoice_detail(request, pk):
     )
     lines = invoice.lines.select_related("product").order_by("pk")
     payments = invoice.payments.all()
-    return render(request, "billing/invoice_detail.html", {
+    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
+    template_name = "shell/invoice_detail.html" if ns == "shell" else "billing/invoice_detail.html"
+    return render(request, template_name, {
         "invoice": invoice,
         "lines": lines,
         "payments": payments,
@@ -92,7 +99,9 @@ def customer_invoices(request, customer_id):
     ).select_related(
         "order__table_session__dining_table", "work_session",
     ).order_by("-created_at")[:200]
-    return render(request, "billing/customer_invoices.html", {
+    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
+    template_name = "shell/customer_invoices.html" if ns == "shell" else "billing/customer_invoices.html"
+    return render(request, template_name, {
         "customer": customer,
         "invoices": invoices,
     })

@@ -151,6 +151,24 @@ def add_or_update_line(
 
 
 @transaction.atomic
+def set_line_quantity(*, order: Order, line_id: int, quantity: Decimal, user) -> Optional[OrderLine]:
+    if order.status != Order.Status.OPEN or order.is_held:
+        raise ValueError("ORDER_NOT_OPEN")
+    new_q = _d(quantity).quantize(Decimal("0.001"))
+    line = OrderLine.objects.filter(pk=line_id, order=order).first()
+    if not line:
+        raise ValueError("LINE_NOT_FOUND")
+    if new_q <= 0:
+        line.delete()
+        log_audit(user, "pos.line.remove", "pos.Order", order.pk, {"line": line_id})
+        return None
+    line.quantity = new_q
+    line.save(update_fields=["quantity", "updated_at"])
+    log_audit(user, "pos.line.update", "pos.Order", order.pk, {"line": line_id, "qty": str(new_q)})
+    return line
+
+
+@transaction.atomic
 def adjust_line_quantity(*, order: Order, line_id: int, quantity_delta: Decimal, user) -> Optional[OrderLine]:
     if order.status != Order.Status.OPEN or order.is_held:
         raise ValueError("ORDER_NOT_OPEN")

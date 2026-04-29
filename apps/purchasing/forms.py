@@ -1,5 +1,6 @@
 from django import forms
 
+from apps.core.payment_methods import get_payment_method_choices
 from apps.purchasing.models import Supplier
 
 
@@ -36,7 +37,7 @@ class SupplierPaymentForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-input", "step": "0.01"}),
     )
     method = forms.ChoiceField(
-        choices=[("cash", "نقدي"), ("bank", "بنك")],
+        choices=[],
         label="طريقة الدفع",
         widget=forms.Select(attrs={"class": "form-input"}),
     )
@@ -45,3 +46,7 @@ class SupplierPaymentForm(forms.Form):
         label="ملاحظة",
         widget=forms.Textarea(attrs={"class": "form-input", "rows": 2}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["method"].choices = get_payment_method_choices()

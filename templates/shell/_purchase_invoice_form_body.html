@@ -1,0 +1,125 @@
+{% if errors %}
+<div class="bg-danger/5 border-e-4 border-danger rounded-xl p-4 mb-5">
+  {% for err in errors %}<p class="text-danger text-sm font-semibold">{{ err }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  {{ purchase_form_state|json_script:"purchase-form-state" }}
+  <form method="post" id="purchase-form">
+    {% csrf_token %}
+
+    {% if suppliers %}
+    <div class="mb-4 max-w-xl relative">
+      <label>المورد</label>
+      <input type="hidden" name="supplier_id" id="purchase-supplier-id">
+      <input type="hidden" name="supplier_label" id="purchase-supplier-label">
+      <input type="text" id="purchase-supplier-search" autocomplete="off" placeholder="ابحث عن المورد أو أضف مورد جديد" class="w-full">
+      <div id="purchase-supplier-hits" class="purchase-ac-hits absolute start-0 end-0 top-full mt-px z-40 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
+      <div id="purchase-supplier-new" class="hidden mt-1.5">
+        <button type="button" id="purchase-supplier-create" class="h-8 px-3 rounded-sm bg-success text-white text-xs font-bold">+ إضافة مورد جديد</button>
+      </div>
+    </div>
+    {% endif %}
+
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-1">الأصناف</h2>
+    <div class="overflow-x-auto overflow-y-visible">
+      <table class="w-full text-sm purchase-entry-table" id="lines-table">
+        <colgroup>
+          <col class="w-10">
+          <col>
+          <col class="w-28">
+          <col class="w-24">
+          <col class="w-28">
+          <col class="w-24">
+          <col class="w-28">
+          <col class="w-16">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>المنتج</th>
+            <th>الوحدة</th>
+            <th>الكمية</th>
+            <th>سعر الوحدة</th>
+            <th>الخصم</th>
+            <th>الإجمالي</th>
+            <th>حذف</th>
+          </tr>
+        </thead>
+        <tbody id="lines-body">
+          {% for i in range20 %}
+          <tr class="purchase-line" data-idx="{{ i }}">
+            <td class="line-num">{{ forloop.counter }}</td>
+            <td>
+              <input type="hidden" name="product_{{ i }}" value="" class="line-product-id">
+              <div class="relative overflow-visible z-30">
+                <input type="text" autocomplete="off" dir="rtl" class="line-product-search w-full" data-idx="{{ i }}" placeholder="ابحث عن صنف…">
+                <div class="purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden" data-idx="{{ i }}"></div>
+                <div class="purchase-ac-new hidden mt-1.5 flex flex-wrap gap-2 items-center" data-idx="{{ i }}">
+                  <span class="text-[11px] text-muted w-full">لا يوجد تطابق — إضافة:</span>
+                  <button type="button" class="quick-add-btn h-8 px-2.5 rounded-sm bg-success/20 text-success text-xs font-bold hover:bg-success/30" data-ptype="raw">مادة خام</button>
+                  <button type="button" class="quick-add-btn h-8 px-2.5 rounded-sm bg-info/20 text-info text-xs font-bold hover:bg-info/30" data-ptype="ready">منتج جاهز</button>
+                </div>
+              </div>
+            </td>
+            <td>
+              <input type="hidden" name="unit_{{ i }}" value="" class="line-unit-id">
+              <div class="relative overflow-visible z-20">
+                <input type="text" autocomplete="off" class="line-unit-search w-full" data-idx="{{ i }}" placeholder="الوحدة">
+                <div class="purchase-unit-hits purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden" data-idx="{{ i }}"></div>
+                <div class="purchase-unit-new hidden mt-1.5" data-idx="{{ i }}">
+                  <button type="button" class="quick-add-unit-btn h-8 px-2.5 rounded-sm bg-success/20 text-success text-xs font-bold">+ إضافة وحدة</button>
+                </div>
+              </div>
+            </td>
+            <td><input type="number" name="qty_{{ i }}" step="0.01" min="0" class="line-qty w-full" data-idx="{{ i }}" placeholder="0"></td>
+            <td><input type="number" name="cost_{{ i }}" step="0.01" min="0" class="line-cost w-full" data-idx="{{ i }}" placeholder="0.00"></td>
+            <td><input type="number" name="discount_{{ i }}" step="0.01" min="0" class="line-discount w-full" data-idx="{{ i }}" placeholder="0.00"></td>
+            <td class="line-total font-bold" data-idx="{{ i }}">0.00</td>
+            <td><button type="button" class="remove-line-btn text-danger font-bold cursor-pointer bg-transparent border-0" data-idx="{{ i }}">حذف</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <button type="button" id="add-line-btn" class="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-success text-white font-bold text-sm mt-3">+ إضافة صنف</button>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 max-w-3xl">
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
+        <span class="block text-xs text-muted font-bold mb-1">الإجمالي</span>
+        <span id="purchase-subtotal" class="font-extrabold text-primary">0.00</span>
+      </div>
+      <div>
+        <label>الخصم العام</label>
+        <input type="number" name="general_discount" id="purchase-general-discount" step="0.01" min="0" value="0.00">
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
+        <span class="block text-xs text-muted font-bold mb-1">الصافي</span>
+        <span id="purchase-net-total" class="font-extrabold text-primary">0.00</span>
+      </div>
+    </div>
+
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mt-5 mb-2">طريقة الدفع</h2>
+    <input type="hidden" name="pay_method" id="purchase-pay-method" value="">
+    <div class="flex flex-wrap gap-1.5" id="purchase-pay-methods">
+      {% for row in payment_method_rows %}
+      <button type="button" class="purchase-pay-btn h-8 px-3 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 max-w-xl">
+      <div>
+        <label>المبلغ المدفوع</label>
+        <input type="number" name="pay_amount" id="purchase-paid-amount" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
+        <span class="block text-xs text-muted font-bold mb-1">المبلغ المتبقي</span>
+        <span id="purchase-remaining" class="font-extrabold text-danger">0.00</span>
+      </div>
+    </div>
+
+    <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>
+  </form>
+</div>

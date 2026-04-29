@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
+from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models
@@ -9,17 +10,23 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from apps.billing.models import InvoicePayment
 from apps.billing.receipt_escpos import build_invoice_receipt
 from apps.billing.tab_service import (
     apply_tab_payments_and_maybe_finalize,
+    cart_line_rows_for_template,
     compute_order_totals,
     finalize_order_invoice,
     sum_tab_payments,
 )
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.models import Customer
+from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
+from apps.core.payment_methods import (
+    credit_method_codes,
+    get_payment_method_codes,
+    method_codes_requiring_payer_details,
+)
 from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
 from apps.pos.services import (
@@ -29,6 +36,7 @@ from apps.pos.services import (
     delete_order_line,
     hold_order,
     set_line_note,
+    set_line_quantity,
     set_line_unit_price,
 )
 from apps.pos.table_service import (
@@ -50,33 +58,37 @@ def _money(s: str) -> Decimal:
 
 
 def _payments_from_checkout_form(request, remaining: Decimal) -> list:
+    """
+    دفعة واحدة لكل إرسال (بدون «مختلط»): يمكن دفع جزئي عبر pay_amount.
+    يُرجع قائمة عناصر (method, amount, payer_name, payer_phone).
+    """
     mode = request.POST.get("payment_mode", "").strip()
     if remaining <= 0:
         return []
-    single_modes = {
-        "cash": InvoicePayment.Method.CASH,
-        "bank_ps": InvoicePayment.Method.BANK_PS,
-        "palpay": InvoicePayment.Method.PALPAY,
-        "jawwalpay": InvoicePayment.Method.JAWWALPAY,
-    }
-    if mode in single_modes:
-        return [(single_modes[mode], remaining)]
-    if mode == "credit":
-        return [(InvoicePayment.Method.CREDIT, remaining)]
-    if mode == "mixed":
-        c = _money(request.POST.get("pay_cash", "0"))
-        b = _money(request.POST.get("pay_bank", "0"))
-        cr = _money(request.POST.get("pay_credit", "0"))
-        out = []
-        if c > 0:
-            out.append((InvoicePayment.Method.CASH, c))
-        if b > 0:
-            # مبلغ «شبكة» في المختلط بدون تفصيل المحفظة — يُسجَّل كبنك عام
-            out.append((InvoicePayment.Method.BANK, b))
-        if cr > 0:
-            out.append((InvoicePayment.Method.CREDIT, cr))
-        return out
-    return []
+    codes = get_payment_method_codes()
+    if mode not in codes:
+        return []
+    payer_name = (request.POST.get("payer_name") or "").strip()[:120]
+    payer_phone = (request.POST.get("payer_phone") or "").strip()[:40]
+    raw_amt = (request.POST.get("pay_amount") or "").strip()
+    try:
+        pay_amt = _money(raw_amt) if raw_amt else remaining
+    except (InvalidOperation, ValueError):
+        pay_amt = remaining
+    if pay_amt <= 0:
+        return []
+    if pay_amt > remaining + Decimal("0.02"):
+        pay_amt = remaining
+    return [(mode, pay_amt, payer_name, payer_phone)]
+
+
+@login_required
+def redirect_pos_settings_to_app(request, tail: str = ""):
+    """روابط قديمة /pos/settings/… → /app/settings/… (تحت include الجذر path(\"app/\", …))."""
+    path = "/app/settings/" + (tail.lstrip("/") if tail else "")
+    if request.GET:
+        path += "?" + request.GET.urlencode()
+    return redirect(path)
 
 
 @login_required
@@ -163,11 +175,12 @@ def pos_main(request):
             if tab_balance < 0:
                 tab_balance = Decimal("0")
 
+    cart_line_rows = cart_line_rows_for_template(lines, order_totals) if order and order_totals else []
+
     floor_rows = floor_rows_for_session(session) if session else []
 
     open_orders = []
     if session:
-        from apps.billing.models import OrderPayment
         open_orders = list(
             Order.objects.filter(
                 work_session=session,
@@ -175,25 +188,32 @@ def pos_main(request):
                 order_type__in=[Order.OrderType.DELIVERY, Order.OrderType.TAKEAWAY],
             )
             .select_related("customer")
+            .prefetch_related("lines", "tab_payments")
             .annotate(
                 line_count=Count("lines"),
                 total_qty=Sum("lines__quantity"),
-                lines_total=Sum(
-                    models.F("lines__quantity") * models.F("lines__unit_price"),
-                    output_field=models.DecimalField(),
-                ),
-                paid_total=Sum("tab_payments__amount"),
             )
             .order_by("-created_at")
         )
         for o in open_orders:
-            grand = (o.lines_total or Decimal("0")).quantize(Decimal("0.01"))
-            paid = (o.paid_total or Decimal("0")).quantize(Decimal("0.01"))
+            tot = compute_order_totals(o)
+            paid = sum_tab_payments(o)
+            grand = tot["grand"]
             o.calc_grand = grand
             o.calc_paid = paid
             o.calc_balance = max(grand - paid, Decimal("0"))
 
     lang = request.LANGUAGE_CODE or "ar"
+
+    home_tab = (request.GET.get("home") or "").strip()
+    if home_tab not in ("vouchers", "new"):
+        home_tab = "new"
+    treasury_voucher_form = None
+    treasury_next = ""
+    if session and not order:
+        treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
+        treasury_next = reverse("pos:main") + "?home=vouchers"
+
     return render(
         request,
         "pos/main.html",
@@ -208,10 +228,14 @@ def pos_main(request):
             "order_totals": order_totals,
             "tab_paid": tab_paid,
             "tab_balance": tab_balance,
+            "cart_line_rows": cart_line_rows,
             "open_orders": open_orders,
 
             "ui_lang": lang,
             "cafe_name": settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR),
+            "pos_home_initial": home_tab,
+            "treasury_voucher_form": treasury_voucher_form,
+            "treasury_next": treasury_next,
         },
     )
 
@@ -451,12 +475,17 @@ def order_add_product(request, order_id):
 @require_POST
 def order_adjust_line(request, order_id, line_id):
     order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
+    set_raw = (request.POST.get("set_quantity") or "").strip()
     try:
-        dq = _money(request.POST.get("qty_delta", "0"))
+        if set_raw != "":
+            nq = _money(set_raw)
+            set_line_quantity(order=order, line_id=int(line_id), quantity=nq, user=request.user)
+        else:
+            dq = _money(request.POST.get("qty_delta", "0"))
+            adjust_line_quantity(order=order, line_id=int(line_id), quantity_delta=dq, user=request.user)
     except (InvalidOperation, ValueError):
-        dq = Decimal("0")
-    try:
-        adjust_line_quantity(order=order, line_id=int(line_id), quantity_delta=dq, user=request.user)
+        request.session["active_pos_order_id"] = order.id
+        return _ajax_or_redirect_error(request, "كمية غير صالحة")
     except ValueError as e:
         request.session["active_pos_order_id"] = order.id
         return _ajax_or_redirect_error(request, str(e))
@@ -484,8 +513,13 @@ def order_line_note(request, order_id, line_id):
     try:
         set_line_note(order=order, line_id=int(line_id), line_note=request.POST.get("line_note", ""), user=request.user)
     except ValueError as e:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": str(e)}, status=400)
         messages.error(request, str(e))
+        return redirect("pos:main")
     request.session["active_pos_order_id"] = order.id
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True})
     return redirect("pos:main")
 
 
@@ -628,9 +662,13 @@ def order_hold(request, order_id):
     try:
         hold_order(order=order, user=request.user)
     except ValueError as e:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": str(e)}, status=400)
         messages.error(request, str(e))
         return redirect("pos:main")
     request.session.pop("active_pos_order_id", None)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True})
     messages.success(request, "تم تعليق الطلب — يمكن استئنافه من الطاولة.")
     return redirect("pos:tables_floor")
 
@@ -672,7 +710,7 @@ def order_checkout(request, order_id):
         return redirect("pos:tables_floor")
 
     payments = _payments_from_checkout_form(request, remaining)
-    new_sum = sum((p[1] for p in payments), Decimal("0")).quantize(Decimal("0.01"))
+    new_sum = sum((p[1] for p in payments), Decimal("0")).quantize(Decimal("0.01"))  # type: ignore[index]
 
     if remaining > 0 and new_sum <= 0:
         messages.error(request, "أدخل مبلغ دفع أكبر من صفر.")
@@ -681,10 +719,19 @@ def order_checkout(request, order_id):
         messages.error(request, "مجموع الدفعات يتجاوز المتبقي على الطلب.")
         return redirect("pos:main")
 
-    for _m, amt in payments:
-        if _m == InvoicePayment.Method.CREDIT and amt > 0 and not customer:
+    ar_codes = credit_method_codes()
+    for item in payments:
+        _m = item[0]
+        amt = item[1]
+        if _m in ar_codes and amt > 0 and not customer:
             messages.error(request, "اختر عميلاً لجزء الائتمان.")
             return redirect("pos:main")
+        if _m in method_codes_requiring_payer_details() and amt > 0:
+            pn = item[2] if len(item) > 2 else ""
+            ph = item[3] if len(item) > 3 else ""
+            if len(str(pn).strip()) < 2 or len(str(ph).strip()) < 8:
+                messages.error(request, "أدخل اسم المحوّل ورقم الجوال (للتتبع) مع بنك فلسطين / بال باي / جوال باي.")
+                return redirect("pos:main")
 
     try:
         inv = apply_tab_payments_and_maybe_finalize(
@@ -743,13 +790,53 @@ def cart_fragment(request):
             tab_balance = (order_totals["grand"] - tab_paid).quantize(Decimal("0.01"))
             if tab_balance < 0:
                 tab_balance = Decimal("0")
+    cart_line_rows = cart_line_rows_for_template(lines, order_totals) if order and order_totals else []
     return render(request, "pos/_cart_fragment.html", {
         "current_order": order,
         "lines": lines,
+        "cart_line_rows": cart_line_rows,
         "order_totals": order_totals,
         "tab_paid": tab_paid,
         "tab_balance": tab_balance,
     })
+
+
+@login_required
+@require_GET
+def payer_hints_search(request):
+    """اقتراحات اسم/جوال المحوّل من دفعات سابقة (تبويب لاختيار أول نتيجة)."""
+    from django.db.models import Q
+
+    from apps.billing.models import InvoicePayment, OrderPayment
+
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 1:
+        return JsonResponse({"results": []})
+    seen = set()
+    results = []
+    inv_q = (
+        InvoicePayment.objects.filter(Q(payer_name__icontains=q) | Q(payer_phone__icontains=q))
+        .exclude(payer_name="", payer_phone="")
+        .order_by("-id")[:40]
+    )
+    op_q = (
+        OrderPayment.objects.filter(Q(payer_name__icontains=q) | Q(payer_phone__icontains=q))
+        .exclude(payer_name="", payer_phone="")
+        .order_by("-id")[:40]
+    )
+    for p in list(inv_q) + list(op_q):
+        name = (p.payer_name or "").strip()
+        phone = (p.payer_phone or "").strip()
+        if not name and not phone:
+            continue
+        key = (name, phone)
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append({"name_ar": name, "phone": phone})
+        if len(results) >= 15:
+            break
+    return JsonResponse({"results": results})
 
 
 def _ajax_or_redirect(request, redirect_url="pos:main"):
@@ -771,10 +858,17 @@ def _ajax_or_redirect_error(request, msg, redirect_url="pos:main"):
 def receipt_print(request, invoice_id):
     from apps.billing.models import SaleInvoice
 
+    from apps.core.payment_methods import load_payment_method_rows
+
     inv = get_object_or_404(SaleInvoice, pk=invoice_id)
     lang = request.LANGUAGE_CODE or "ar"
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
-    return render(request, "pos/receipt_preview.html", {"invoice": inv, "cafe_name": cafe})
+    pm_label_map = {r["code"]: r["label_ar"] for r in load_payment_method_rows()}
+    return render(
+        request,
+        "pos/receipt_preview.html",
+        {"invoice": inv, "cafe_name": cafe, "pm_label_map": pm_label_map},
+    )
 
 
 @login_required

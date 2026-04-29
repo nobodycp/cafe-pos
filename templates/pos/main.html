@@ -1,19 +1,17 @@
-{% extends "pos/cashier_base.html" %}
+{% extends "shell/base.html" %}
 {% block title %}الكاشير — {{ cafe_name }}{% endblock %}
-{% block nav_on_orders %}bg-primary/10 text-primary{% endblock %}
+{% block nav_on_orders %}on{% endblock %}
 {% block cashier_body %}
 
 <style>
 .cat-panel{display:none}
 .cat-panel.is-visible{display:block}
-.pos-cat-btn.on{background-color:#6c5ce7;color:#fff;border-color:#6c5ce7}
-.pm-btn.on{background-color:#6c5ce7;color:#fff;border-color:#6c5ce7}
-#mixed-panel{display:none}
-#mixed-panel.show{display:grid}
+.pos-cat-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
+.pm-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
 .ts-tile.st-free{border-color:#00b894}
 .ts-tile.st-busy{border-color:#fdcb6e;background:rgba(253,203,110,.06)}
-.ts-tile.st-mine,.ts-tile.st-active{border-color:#6c5ce7;background:#eef0ff}
-.dark .ts-tile.st-mine,.dark .ts-tile.st-active{background:rgba(108,92,231,.12)}
+.ts-tile.st-mine,.ts-tile.st-active{border-color:#1e3a5f;background:#e2e8f0}
+.dark .ts-tile.st-mine,.dark .ts-tile.st-active{background:rgba(30,58,95,.2)}
 .dark .ts-tile.st-busy{background:rgba(253,203,110,.08)}
 .cust-ac-hit{display:block;width:100%;padding:8px 12px;text-align:right;font-size:.85rem;border:none;background:none;cursor:pointer;font-family:inherit;color:inherit}
 .cust-ac-hit:hover{background:#eef0ff}
@@ -26,138 +24,125 @@
 
 {% if not work_session %}
 {# ─── No session ─── #}
-<div class="flex items-center justify-center flex-1">
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md mx-4">
-    <h2 class="text-xl font-bold text-center mb-6">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
+<div class="pos-start-shell flex items-center justify-center flex-1 p-2">
+  <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-5 w-full max-w-sm mx-2">
+    <h2 class="text-base font-bold text-center mb-4">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
     <form method="post" action="{% url 'core:session_open' %}">
       {% csrf_token %}
       <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ LBL.opening_cash|default:"الصندوق الافتتاحي" }}</label>
-        <input type="number" name="opening_cash" value="0" step="0.01" min="0"
-               class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
+        <label class="block text-xs font-semibold text-muted mb-1">{{ LBL.opening_cash|default:"الصندوق الافتتاحي" }}</label>
+        <input type="number" name="opening_cash" value="0" step="0.01" min="0" class="w-full">
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظات</label>
-        <input type="text" name="notes" placeholder="اختياري"
-               class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
+      <div class="mb-3">
+        <label class="block text-xs font-semibold text-muted mb-1">ملاحظات</label>
+        <input type="text" name="notes" placeholder="اختياري" class="w-full">
       </div>
-      <button class="w-full h-11 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm transition duration-200 mt-2" type="submit">{{ LBL.open_btn|default:"فتح الوردية" }}</button>
+      <button class="w-full h-9 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-sm mt-1 border border-[#163051]" type="submit">{{ LBL.open_btn|default:"فتح الوردية" }}</button>
     </form>
   </div>
 </div>
 
 {% elif not current_order %}
-{# ─── No active order — new order screen ─── #}
-<div class="flex-1 overflow-y-auto px-4 py-6">
-  <div class="max-w-4xl mx-auto">
+{# ─── بدون طلب نشط: عرض مكتبي — طلب + سندات معاً (8 / 4) ─── #}
+<div class="flex flex-col flex-1 min-h-0 overflow-hidden" id="pos-home-root" data-initial-tab="{{ pos_home_initial|default:'new' }}">
+  <div class="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-700 bg-[#e8eaed] dark:bg-gray-950">
+    <span class="text-sm font-bold text-gray-800 dark:text-gray-100">بدء طلب وسندات</span>
+    <span class="text-[10px] text-muted hidden lg:inline">الطلبات يساراً · السندات يميناً</span>
+  </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <h2 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">طلب جديد</h2>
-      <a href="{% url 'pos:tables_floor' %}" class="inline-flex items-center h-11 px-6 bg-primary hover:bg-primary-dk text-white font-bold rounded-xl transition duration-200 no-underline text-sm">
-        <svg class="w-4 h-4 me-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        خريطة الطاولات
-      </a>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
-        <div class="w-12 h-12 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center">
-          <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        </div>
-        <h3 class="text-base font-bold">صالة</h3>
-        <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-3">
-          {% csrf_token %}
-          <input type="hidden" name="order_type" value="dine_in">
-          <select name="table_id" required class="w-full h-11 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm focus:ring-2 focus:ring-primary outline-none transition duration-200">
-            <option value="">— اختر طاولة —</option>
-            {% for t in tables %}<option value="{{ t.pk }}">{{ t.name_ar }}</option>{% endfor %}
-          </select>
-          <button class="w-full h-11 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm transition duration-200" type="submit">بدء طلب صالة</button>
-        </form>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
-        <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-          <svg class="w-6 h-6 text-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11V3H8v8M4 15h16l-2 6H6z"/></svg>
-        </div>
-        <h3 class="text-base font-bold">سفري</h3>
-        <form method="post" action="{% url 'pos:order_new' %}" class="w-full">
-          {% csrf_token %}
-          <input type="hidden" name="order_type" value="takeaway">
-          <button class="w-full h-11 rounded-lg bg-warning hover:brightness-110 text-gray-800 font-bold text-sm transition duration-200 mt-auto" type="submit">بدء طلب سفري</button>
-        </form>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
-        <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center">
-          <svg class="w-6 h-6 text-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        </div>
-        <h3 class="text-base font-bold">توصيل</h3>
-        <form method="post" action="{% url 'pos:order_new' %}" class="w-full">
-          {% csrf_token %}
-          <input type="hidden" name="order_type" value="delivery">
-          <button class="w-full h-11 rounded-lg bg-info hover:brightness-110 text-white font-bold text-sm transition duration-200 mt-auto" type="submit">بدء طلب توصيل</button>
-        </form>
-      </div>
-    </div>
-
-    {% if open_orders %}
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-      <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 rounded-full bg-danger animate-pulse"></span>
-          <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100">طلبات مفتوحة ({{ open_orders|length }})</h3>
-        </div>
-        <span class="text-xs text-muted">اضغط استئناف للعودة للطلب</span>
-      </div>
-      <div class="divide-y divide-gray-100 dark:divide-gray-700">
-        {% for o in open_orders %}
-        <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-          <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0
-              {% if o.order_type == 'delivery' %}bg-info/20 text-info{% else %}bg-warning/20 text-warning{% endif %}">
-              {% if o.order_type == 'delivery' %}
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              {% else %}
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11V3H8v8M4 15h16l-2 6H6z"/></svg>
-              {% endif %}
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-sm text-gray-800 dark:text-gray-100">#{{ o.pk }}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full font-semibold
-                  {% if o.order_type == 'delivery' %}bg-info/10 text-info{% else %}bg-warning/10 text-warning{% endif %}">
-                  {{ o.get_order_type_display }}
-                </span>
-                {% if o.is_held %}<span class="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-600 text-muted font-semibold">معلّق</span>{% endif %}
-              </div>
-              <div class="flex items-center gap-3 mt-0.5 text-xs text-muted">
-                {% if o.customer %}<span>{{ o.customer.name_ar }}</span>{% endif %}
-                <span>{{ o.line_count|default:0 }} صنف</span>
-                <span>{{ o.created_at|time:"H:i" }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="text-left">
-              <div class="text-sm font-bold {% if o.calc_balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ o.calc_grand }} {{ POS_SETTINGS.currency_symbol }}</div>
-              {% if o.calc_paid > 0 %}
-              <div class="text-[11px] text-success font-semibold">مدفوع {{ o.calc_paid }}</div>
-              {% endif %}
-            </div>
-            <form method="post" action="{% url 'pos:order_resume' o.pk %}">
+  <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
+    <div class="lg:col-span-8 flex flex-col gap-3 min-h-0 p-3 lg:pe-2 overflow-y-auto lg:overflow-hidden border-b lg:border-b-0 lg:border-e border-gray-300 dark:border-gray-700">
+      <section class="shrink-0">
+        <h2 class="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">نوع الطلب</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 min-h-[11rem]">
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+            <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">صالة</h3>
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-2 flex-1 justify-end mt-auto">
               {% csrf_token %}
-              <button type="submit" class="h-9 px-4 rounded-lg bg-primary hover:bg-primary-dk text-white text-xs font-bold transition duration-200 active:scale-95">
-                استئناف
-              </button>
+              <input type="hidden" name="order_type" value="dine_in">
+              <select name="table_id" required class="w-full">
+                <option value="">— اختر طاولة —</option>
+                {% for t in tables %}<option value="{{ t.pk }}">{{ t.name_ar }}</option>{% endfor %}
+              </select>
+              <button class="w-full h-9 rounded-sm bg-[#1e3a5f] text-white font-bold text-sm border border-[#163051]" type="submit">بدء طلب صالة</button>
+            </form>
+          </div>
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+            <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">سفري</h3>
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col flex-1 justify-end mt-auto">
+              {% csrf_token %}
+              <input type="hidden" name="order_type" value="takeaway">
+              <button class="w-full h-9 rounded-sm bg-amber-400 text-gray-900 font-bold text-sm border border-amber-600" type="submit">بدء سفري</button>
+            </form>
+          </div>
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+            <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">توصيل</h3>
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col flex-1 justify-end mt-auto">
+              {% csrf_token %}
+              <input type="hidden" name="order_type" value="delivery">
+              <button class="w-full h-9 rounded-sm bg-sky-600 text-white font-bold text-sm border border-sky-800" type="submit">بدء توصيل</button>
             </form>
           </div>
         </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+      </section>
 
+      {% if open_orders %}
+      <section class="flex-1 min-h-0 flex flex-col rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden">
+        <div class="shrink-0 px-3 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h3 class="text-xs font-bold text-gray-800 dark:text-gray-100">طلبات مفتوحة ({{ open_orders|length }})</h3>
+          <span class="text-[10px] text-muted">استئناف</span>
+        </div>
+        <div class="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+          {% for o in open_orders %}
+          <div class="flex items-center justify-between px-3 py-2 gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/40">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="font-bold text-sm">#{{ o.pk }}</span>
+                <span class="text-[10px] px-1.5 py-0.5 border border-gray-300 dark:border-gray-600 rounded-sm">{{ o.get_order_type_display }}</span>
+                {% if o.is_held %}<span class="text-[10px] border border-gray-400 px-1 rounded-sm">معلّق</span>{% endif %}
+              </div>
+              <div class="text-xs text-muted truncate mt-0.5">
+                {% if o.customer %}{{ o.customer.name_ar }} · {% endif %}{{ o.line_count|default:0 }} صنف · {{ o.created_at|time:"H:i" }}
+              </div>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <div class="text-end leading-tight">
+                <div class="text-sm font-bold {% if o.calc_balance > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">{{ o.calc_grand }} {{ POS_SETTINGS.currency_symbol }}</div>
+                {% if o.calc_paid > 0 %}<div class="text-[10px] text-emerald-600">مدفوع {{ o.calc_paid }}</div>{% endif %}
+              </div>
+              <form method="post" action="{% url 'pos:order_resume' o.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="h-8 px-3 rounded-sm bg-[#1e3a5f] text-white text-xs font-bold border border-[#163051]">فتح</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+    </div>
+
+    <aside id="pos-vouchers-col" class="lg:col-span-4 flex flex-col min-h-0 p-2 lg:ps-2 overflow-y-auto bg-[#e8eaed] dark:bg-gray-950">
+      {% if treasury_voucher_form %}
+        {% include "core/_pos_home_treasury_panel.html" %}
+      {% else %}
+        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">سندات</h2>
+        <p class="text-sm text-muted">افتح وردية لتسجيل السندات من هنا.</p>
+      {% endif %}
+    </aside>
   </div>
 </div>
+<script>
+(function() {
+  var root = document.getElementById('pos-home-root');
+  if (!root) return;
+  var initial = (root.dataset.initialTab || 'new').trim();
+  if (initial === 'vouchers') {
+    var col = document.getElementById('pos-vouchers-col');
+    if (col) setTimeout(function() { col.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+  }
+})();
+</script>
 
 {% else %}
 {# ═══════════════════════════════════════════════ #}
@@ -166,60 +151,60 @@
 <div class="flex flex-1 min-h-0">
 
 {# ─── Table mini-strip ─── #}
-<div class="w-[200px] shrink-0 bg-white dark:bg-gray-800 border-e border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto p-2 gap-2">
-  <div class="text-sm font-bold text-muted px-1 py-1.5">الطاولات</div>
+<div class="w-[168px] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto p-1 gap-1">
+  <div class="text-[10px] font-bold text-gray-500 px-1 py-0.5 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
   {% for row in floor_rows %}
-  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-xl border-2 border-gray-200 dark:border-gray-600 p-2.5 hover:shadow-md transition-all duration-200">
+  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-sm border border-gray-300 dark:border-gray-600 p-1.5">
     {% csrf_token %}
     <input type="hidden" name="table_id" value="{{ row.table.pk }}">
     {% if row.session and row.session.customer_id %}
     <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
     {% endif %}
-    <span class="t-name block text-sm font-bold truncate">{{ row.table.name_ar }}</span>
+    <span class="t-name block text-xs font-bold truncate">{{ row.table.name_ar }}</span>
     {% if row.status != 'free' %}
-    <span class="t-amt block text-xs font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
-    {% if row.customer_label %}<span class="t-cust block text-[11px] text-muted truncate mt-0.5">{{ row.customer_label }}</span>{% endif %}
+    <span class="t-amt block text-[10px] font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
+    {% if row.customer_label %}<span class="t-cust block text-[9px] text-muted truncate">{{ row.customer_label }}</span>{% endif %}
     {% endif %}
-    <button type="submit" class="t-link w-full h-8 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition duration-200 mt-2">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
+    <button type="submit" class="t-link w-full h-7 rounded-sm bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 mt-1">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
   </form>
   {% endfor %}
-  <button type="button" class="h-10 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-sm font-semibold text-muted hover:border-primary hover:text-primary transition duration-200" id="strip-add-table">+ طاولة</button>
-  <div class="mt-auto pt-2">
-    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-xs font-semibold text-primary hover:underline">عرض الكل</a>
+  <button type="button" class="h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
+  <div class="mt-auto pt-1">
+    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-[10px] font-bold text-[#1e3a5f] hover:underline">الكل</a>
   </div>
 </div>
 
 {# ─── CENTER: Products ─── #}
-<div class="pos-products flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-900 p-4">
-  <div class="relative mb-4" id="product-search-wrap">
-    <svg class="absolute start-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="search" placeholder="بحث سريع... (اكتب للبحث)" autocomplete="off" id="pos-search-input"
-           class="w-full h-11 ps-10 pe-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition duration-200">
-    <div id="product-search-hits" class="absolute top-12 start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl max-h-[320px] overflow-y-auto shadow-xl" style="display:none"></div>
+<div class="pos-products flex-1 flex flex-col overflow-hidden bg-[#e8eaed] dark:bg-gray-950 p-2">
+  <div class="relative mb-2" id="product-search-wrap">
+    <svg class="absolute start-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="search" placeholder="اسم أو باركود…" autocomplete="off" id="pos-search-input"
+           class="w-full h-8 ps-8 pe-2 rounded-sm border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs outline-none">
+    <div id="product-search-hits" class="absolute top-full start-0 end-0 z-50 mt-px bg-white dark:bg-gray-800 border border-gray-400 dark:border-gray-600 max-h-[280px] overflow-y-auto shadow-sm" style="display:none"></div>
   </div>
 
-  <div class="flex gap-2 mb-4 overflow-x-auto pb-1" role="tablist">
-    <button type="button" class="pos-cat-btn on px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap border border-gray-200 dark:border-gray-600 transition-all duration-200 shrink-0" data-tab="featured" role="tab">الأكثر مبيعاً</button>
+  <div class="flex gap-1 mb-2 overflow-x-auto pb-0.5" role="tablist">
+    <button type="button" class="pos-cat-btn on px-2 h-7 rounded-sm text-[11px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 shrink-0 bg-white dark:bg-gray-800" data-tab="featured" role="tab">الأكثر مبيعاً</button>
     {% for sec in product_sections %}
-    <button type="button" class="pos-cat-btn px-4 h-9 rounded-full text-sm font-semibold whitespace-nowrap border border-gray-200 dark:border-gray-600 text-muted hover:bg-primary-soft dark:hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 shrink-0" data-tab="cat-{{ sec.category.pk }}" role="tab">{{ sec.category.name_ar }} <span class="opacity-60 text-xs">({{ sec.count }})</span></button>
+    <button type="button" class="pos-cat-btn px-2 h-7 rounded-sm text-[11px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shrink-0" data-tab="cat-{{ sec.category.pk }}" role="tab">{{ sec.category.name_ar }} <span class="opacity-70">({{ sec.count }})</span></button>
     {% endfor %}
   </div>
 
   <div id="panel-featured" class="cat-panel is-visible flex-1 overflow-y-auto min-h-0">
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5">
       {% for p in featured_rows %}
       {% if p.modifier_group_count %}
-      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200 no-underline text-inherit">
-        <div class="relative w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}<span class="absolute -top-1.5 -start-1.5 bg-warning text-[10px] font-bold text-gray-800 px-1.5 py-0.5 rounded-full shadow-sm leading-none">تخصيص</span></div>
-        <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[10px] text-muted mt-0.5 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
+      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 hover:border-[#1e3a5f] no-underline text-inherit">
+        <div class="relative w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}<span class="absolute -top-0.5 -start-0.5 bg-amber-400 text-[8px] font-bold text-gray-900 px-0.5 leading-none border border-amber-700">+</span></div>
+        <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[9px] text-gray-500 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
       </a>
       {% else %}
       <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
         <input type="hidden" name="product_id" value="{{ p.pk }}">
         <input type="hidden" name="qty" value="1">
-        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 cursor-pointer hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200">
-          <div class="w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}</div>
-          <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[10px] text-muted mt-0.5 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
+        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 cursor-pointer hover:border-[#1e3a5f]">
+          <div class="w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}</div>
+          <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[9px] text-gray-500 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
         </button>
       </form>
       {% endif %}
@@ -229,20 +214,20 @@
 
   {% for sec in product_sections %}
   <div id="panel-cat-{{ sec.category.pk }}" class="cat-panel flex-1 overflow-y-auto min-h-0">
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5">
       {% for p in sec.product_rows %}
       {% if p.modifier_group_count %}
-      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200 no-underline text-inherit">
-        <div class="relative w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}<span class="absolute -top-1.5 -start-1.5 bg-warning text-[10px] font-bold text-gray-800 px-1.5 py-0.5 rounded-full shadow-sm leading-none">تخصيص</span></div>
-        <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
+      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 hover:border-[#1e3a5f] no-underline text-inherit">
+        <div class="relative w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}<span class="absolute -top-0.5 -start-0.5 bg-amber-400 text-[8px] font-bold text-gray-900 px-0.5 leading-none border border-amber-700">+</span></div>
+        <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
       </a>
       {% else %}
       <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
         <input type="hidden" name="product_id" value="{{ p.pk }}">
         <input type="hidden" name="qty" value="1">
-        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 flex flex-col items-center gap-2 cursor-pointer hover:shadow-lg hover:scale-[1.03] hover:border-primary/30 transition-all duration-200">
-          <div class="w-14 h-14 rounded-xl bg-primary-soft dark:bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">{{ p.name_ar.0 }}</div>
-          <div class="text-center min-w-0 w-full"><div class="text-sm font-semibold truncate">{{ p.name_ar }}</div><div class="text-xs text-primary font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
+        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 cursor-pointer hover:border-[#1e3a5f]">
+          <div class="w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}</div>
+          <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
         </button>
       </form>
       {% endif %}
@@ -253,7 +238,7 @@
 </div>
 
 {# ─── Cart ─── #}
-<div class="w-[300px] shrink-0 bg-white dark:bg-gray-800 border-s border-gray-200 dark:border-gray-700 flex flex-col" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+<div class="w-[clamp(280px,40vw,640px)] min-w-[260px] max-w-[min(720px,55vw)] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 flex flex-col min-h-0" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
   {% include "pos/_cart_fragment.html" %}
 </div>
 
@@ -268,11 +253,15 @@
   var CSRF='{{ csrf_token }}';
   var SEARCH_URL='{% url "pos:customers_search" %}';
   var PRODUCT_SEARCH_URL='{% url "pos:products_search" %}';
+  var PAYER_HINTS_URL='{% url "pos:payer_hints" %}';
   {% if current_order %}var ORDER_ADD_URL='{% url "pos:order_add" current_order.pk %}';
   var CUSTOMIZE_BASE='{% url "pos:customize_product" current_order.pk 0 %}'.replace('/0/','/{pid}/');{% else %}var ORDER_ADD_URL='';var CUSTOMIZE_BASE='';{% endif %}
   var CUST_CREATE_URL='{% url "pos:customer_quick_create" %}';
   var TABLE_CREATE_URL='{% url "pos:table_quick_create" %}';
   var CUR='{{ POS_SETTINGS.currency_symbol }}';
+  var POS_MAIN_URL='{% url "pos:main" %}';
+  var TABLES_FLOOR_URL='{% url "pos:tables_floor" %}';
+  var selectedLineId=null;
 
   /* ── AJAX cart refresh ── */
   function refreshCart(){
@@ -370,6 +359,9 @@
         if(!d.ok&&d.error)showToast(d.error,'error');
         else showToast('تم إضافة المنتج','success');
         return refreshCart();
+      }).then(function(){
+        var si=document.getElementById('pos-search-input');
+        if(si){si.focus(); try{si.select();}catch(x){}}
       });
       inp.value='';
       hits.style.display='none';
@@ -490,6 +482,23 @@
   }
   initProductSearch();
 
+  function getSelectedCartLine(){
+    var cart=document.getElementById('pos-cart');
+    if(!cart)return null;
+    return cart.querySelector('tr.cart-line-item.is-selected');
+  }
+  function setSelectedCartLine(tr){
+    var cart=document.getElementById('pos-cart');
+    if(!cart)return;
+    cart.querySelectorAll('tr.cart-line-item').forEach(function(x){x.classList.remove('is-selected')});
+    if(tr){tr.classList.add('is-selected');selectedLineId=tr.getAttribute('data-line-id');}
+    else{selectedLineId=null;}
+  }
+  function lineUrl(suffix){
+    if(!ORDER_ADD_URL)return '';
+    return ORDER_ADD_URL.replace(/\/add\/$/,'/'+suffix);
+  }
+
   /* ── Intercept all cart forms ── */
   function initCartInteractions(){
     var cart=document.getElementById('pos-cart');
@@ -502,54 +511,257 @@
         ajaxSubmit(f);
       });
     });
-    cart.querySelectorAll('.cart-line-item').forEach(function(el){
+    cart.querySelectorAll('tr.cart-line-item').forEach(function(el){
       el.addEventListener('click',function(e){
         if(e.target.closest('button')||e.target.closest('form'))return;
-        cart.querySelectorAll('.cart-line-item').forEach(function(x){x.classList.remove('ring-2','ring-primary/20')});
-        el.classList.add('ring-2','ring-primary/20');
-        selectedLineIdx=parseInt(el.getAttribute('data-line-idx'))||0;
+        setSelectedCartLine(el);
       });
     });
-    cart.querySelectorAll('.line-note-btn').forEach(function(btn){
-      btn.addEventListener('click',function(){
-        var lineId=btn.getAttribute('data-line-id');
-        var currentNote=btn.getAttribute('data-note')||'';
-        showModal('ملاحظة على الصنف','<textarea id="modal-note-input" rows="3" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="اكتب ملاحظة...">'+escHtml(currentNote)+'</textarea>',function(){
-          var note=document.getElementById('modal-note-input').value;
-          fetch(ORDER_ADD_URL.replace(/\/add\/$/,'/line/'+lineId+'/note/'),{
-            method:'POST',
-            headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
-            body:'line_note='+encodeURIComponent(note)
-          }).then(function(){return refreshCart()}).then(function(){showToast('تم حفظ الملاحظة','success')});
+    function openLineNoteModal(lineId,currentNote){
+      showModal('ملاحظة على الصنف','<textarea id="modal-note-input" rows="3" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="اكتب ملاحظة...">'+escHtml(currentNote||'')+'</textarea>',function(){
+        var note=document.getElementById('modal-note-input').value;
+        fetch(lineUrl('line/'+lineId+'/note/'),{
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+          body:'line_note='+encodeURIComponent(note)
+        }).then(function(r){return r.json().catch(function(){return{ok:true}})})
+        .then(function(d){
+          if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
+          return refreshCart().then(function(){showToast('تم حفظ الملاحظة','success')});
         });
       });
+    }
+    function bindTb(id,fn){
+      var b=document.getElementById(id);
+      if(b)b.addEventListener('click',fn);
+    }
+    bindTb('tb-line-delete',function(){
+      var tr=getSelectedCartLine();
+      if(!tr){showToast('اختر سطراً','error');return;}
+      if(!confirm('حذف السطر؟'))return;
+      var lid=tr.getAttribute('data-line-id');
+      var body=new URLSearchParams();
+      body.set('csrfmiddlewaretoken',CSRF);
+      fetch(lineUrl('remove/'+lid+'/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+        .then(function(){return refreshCart()});
     });
+    bindTb('tb-line-note',function(){
+      var tr=getSelectedCartLine();
+      if(!tr){showToast('اختر سطراً','error');return;}
+      var ne=tr.querySelector('.js-line-note');
+      var raw=ne?ne.textContent:'';
+      openLineNoteModal(tr.getAttribute('data-line-id'),raw);
+    });
+    bindTb('tb-line-price',function(){
+      var tr=getSelectedCartLine();
+      if(!tr){showToast('اختر سطراً','error');return;}
+      var lid=tr.getAttribute('data-line-id');
+      var cur=tr.getAttribute('data-unit-price')||'0';
+      showModal('سعر الوحدة','<input type="number" id="modal-price-inp" step="0.01" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
+        var v=document.getElementById('modal-price-inp').value;
+        var body=new URLSearchParams();
+        body.set('unit_price',v);
+        body.set('csrfmiddlewaretoken',CSRF);
+        fetch(lineUrl('line/'+lid+'/unit-price/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+          .then(function(r){return r.json()})
+          .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart()});
+      });
+    });
+    bindTb('tb-line-qty',function(){
+      var tr=getSelectedCartLine();
+      if(!tr){showToast('اختر سطراً','error');return;}
+      var lid=tr.getAttribute('data-line-id');
+      var cur=tr.getAttribute('data-qty')||'1';
+      showModal('الكمية','<input type="number" id="modal-qty-inp" step="0.001" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
+        var v=document.getElementById('modal-qty-inp').value;
+        var body=new URLSearchParams();
+        body.set('set_quantity',v);
+        body.set('csrfmiddlewaretoken',CSRF);
+        fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+          .then(function(r){return r.json()})
+          .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart()});
+      });
+    });
+    bindTb('tb-new-invoice',function(){
+      var hf=document.getElementById('tb-hold-form');
+      if(!hf||!ORDER_ADD_URL)return;
+      if(!confirm('تعليق الطلب الحالي والانتقال لشاشة جديدة؟'))return;
+      var body=new URLSearchParams(new FormData(hf));
+      fetch(hf.action,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+        .then(function(r){return r.json()})
+        .then(function(d){
+          if(d&&d.ok)window.location.href=POS_MAIN_URL;
+          else showToast((d&&d.error)||'تعذر التعليق','error');
+        }).catch(function(){showToast('تعذر التعليق','error')});
+    });
+    bindTb('tb-open-drawer',function(){
+      showToast('الدرج: يُفتح من برنامج الطابعة المحلي أو اختصار الطابعة','info');
+    });
+    (function initOrderNoteCompact(){
+      var nf=document.getElementById('order-note-form-compact');
+      var ni=document.getElementById('order-note-compact');
+      var btn=document.getElementById('order-note-save-btn');
+      if(!nf||!ni)return;
+      var lastSaved=String(ni.value||'');
+      function saveOrderNote(){
+        var v=String(ni.value||'');
+        if(v===lastSaved)return;
+        var body=new URLSearchParams(new FormData(nf));
+        fetch(nf.action,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+          .then(function(r){return r.json()})
+          .then(function(d){
+            if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
+            lastSaved=v;
+          });
+      }
+      ni.addEventListener('blur',function(){saveOrderNote();});
+      ni.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ni.blur();}});
+      if(btn)btn.addEventListener('click',function(e){e.preventDefault();saveOrderNote();});
+    })();
     initPaymentUI();
     initCustomerAutocomplete();
   }
   initCartInteractions();
 
-  /* ── Payment mode, quick amounts ── */
+  document.addEventListener('keydown',function(e){
+    if(!ORDER_ADD_URL)return;
+    var ae=document.activeElement;
+    if(ae&&/^modal-/.test(String(ae.id||'')))return;
+    if(ae&&ae.closest&&ae.closest('#checkout-form')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
+    if(e.key==='/'){
+      e.preventDefault();
+      var si0=document.getElementById('pos-search-input');
+      if(si0)si0.focus();
+      return;
+    }
+    var tag=(ae&&ae.tagName||'').toLowerCase();
+    var inSearch=ae&&ae.id==='pos-search-input';
+    if(inSearch&&(e.key==='Delete'||e.key==='F2'||e.key==='F3'||e.key==='F4'))return;
+    if(tag==='textarea')return;
+    if(tag==='input'&&ae.type!=='button'&&ae.type!=='submit'){
+      if(['F2','F3','F4','F9','Escape'].indexOf(e.key)<0&&e.key!=='Delete'&&e.key!=='+'&&e.key!=='-')return;
+    }
+    var tr=getSelectedCartLine();
+    var lid=tr?tr.getAttribute('data-line-id'):null;
+    if(e.key==='Escape'){
+      var aeEsc=document.activeElement;
+      if(aeEsc&&aeEsc.id==='pos-search-input')return;
+      if(aeEsc&&aeEsc.id==='order-note-compact')return;
+      if(aeEsc&&aeEsc.closest&&aeEsc.closest('#cart-discount-note-block'))return;
+      var pHits=document.getElementById('pay-payer-hits');
+      var cHits=document.getElementById('pay-cust-hits');
+      if(pHits&&pHits.style.display==='block'){pHits.style.display='none';e.preventDefault();return;}
+      if(cHits&&cHits.style.display==='block'){cHits.style.display='none';e.preventDefault();return;}
+      setSelectedCartLine(null);
+      var prHits=document.getElementById('product-search-hits');
+      if(prHits)prHits.style.display='none';
+      var holdBar=document.getElementById('pos-btn-hold-order');
+      if(holdBar){e.preventDefault();holdBar.click();}
+      return;
+    }
+    if(e.key==='F9'){e.preventDefault();var cb=document.getElementById('pos-btn-cancel-order');if(cb)cb.click();return;}
+    if(e.key==='F4'&&lid){e.preventDefault();document.getElementById('tb-line-note')&&document.getElementById('tb-line-note').click();return;}
+    if(e.key==='F3'&&lid){e.preventDefault();document.getElementById('tb-line-price')&&document.getElementById('tb-line-price').click();return;}
+    if(e.key==='F2'&&lid){e.preventDefault();document.getElementById('tb-line-qty')&&document.getElementById('tb-line-qty').click();return;}
+    if(e.key==='Delete'&&lid){e.preventDefault();document.getElementById('tb-line-delete')&&document.getElementById('tb-line-delete').click();return;}
+    if((e.key==='+'||e.key==='=')&&lid){
+      e.preventDefault();
+      var body=new URLSearchParams();body.set('qty_delta','1');body.set('csrfmiddlewaretoken',CSRF);
+      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body}).then(function(){return refreshCart()});
+      return;
+    }
+    if(e.key==='-'&&lid){
+      e.preventDefault();
+      var b2=new URLSearchParams();b2.set('qty_delta','-1');b2.set('csrfmiddlewaretoken',CSRF);
+      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:b2}).then(function(){return refreshCart()});
+    }
+  },true);
+
+  /* ── Payment mode ── */
   function initPaymentUI(){
     var pmBtns=document.querySelectorAll('#pay-methods .pm-btn');
     var pmVal=document.getElementById('pay-mode-val');
-    var mxPanel=document.getElementById('mixed-panel');
-    var qaPanel=document.getElementById('quick-amounts');
     var cf=document.getElementById('checkout-form');
     var payBtn=document.getElementById('pay-btn');
+    var epPanel=document.getElementById('ep-payer-panel');
+    var arCustPanel=document.getElementById('pay-ar-customer-panel');
+    var payAmt=document.getElementById('pay-amt');
+
+    function parseMoneyStr(s){
+      if(s==null||s==='')return NaN;
+      var t=String(s).trim().replace(/\u00a0/g,'').replace(/\s/g,'');
+      t=t.replace(/٬/g,'').replace(/'/g,'');
+      var ar='٠١٢٣٤٥٦٧٨٩';var en='0123456789';
+      for(var i=0;i<10;i++)t=t.split(ar[i]).join(en[i]);
+      t=t.replace(/٫/g,'.').replace(/,/g,'.');
+      var n=parseFloat(t);
+      return isNaN(n)?NaN:n;
+    }
+    function formatPayAmt(n){
+      if(isNaN(n)||n<0)return'0.00';
+      return(Math.round(n*100)/100).toFixed(2);
+    }
+    function syncPayAmountDefault(opts){
+      opts=opts||{};
+      if(!payAmt||!cf)return;
+      var bal=parseMoneyStr(cf.getAttribute('data-balance'));
+      if(isNaN(bal)||bal<0)bal=0;
+      var force=opts.force===true;
+      var cur=parseMoneyStr(payAmt.value);
+      if(force||!String(payAmt.value||'').trim()||isNaN(cur)||cur<=0)
+        payAmt.value=formatPayAmt(bal);
+    }
 
     function setMode(m){
       if(!pmVal)return;
       pmVal.value=m;
       pmBtns.forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m)});
-      if(mxPanel)mxPanel.classList.toggle('show',m==='mixed');
-      if(qaPanel)qaPanel.style.display=(m==='mixed')?'none':'flex';
-      if(m==='mixed')prefillMixed();
+      var onBtn=document.querySelector('#pay-methods .pm-btn.on');
+      var needPayer=onBtn&&onBtn.getAttribute('data-needs-payer')==='1';
+      var isAr=onBtn&&(onBtn.getAttribute('data-ledger')||'')==='ar';
+      if(epPanel)epPanel.classList.toggle('hidden',!needPayer);
+      if(arCustPanel)arCustPanel.classList.toggle('hidden',!isAr);
+      syncPayAmountDefault({force:true});
       if(payBtn){
         if(m){payBtn.style.opacity='1';payBtn.style.pointerEvents='auto';}
+        else{payBtn.style.opacity='0.55';payBtn.style.pointerEvents='auto';}
       }
     }
     pmBtns.forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-m'))})});
+
+    var cancelOrd=document.getElementById('pos-btn-cancel-order');
+    if(cancelOrd)cancelOrd.addEventListener('click',function(){
+      if(!confirm('إلغاء الطلب بالكامل؟'))return;
+      var cff=document.getElementById('pos-cancel-order-form');
+      if(cff)cff.submit();
+    });
+    var holdOrd=document.getElementById('pos-btn-hold-order');
+    if(holdOrd)holdOrd.addEventListener('click',function(){
+      var hf=document.getElementById('tb-hold-form');
+      if(!hf)return;
+      if(!confirm('تعليق الطلب؟'))return;
+      hf.requestSubmit();
+    });
+    if(cf){cf.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;
+      var t=e.target;if(!t)return;
+      if(t.id==='pay-btn')return;
+      if(t.tagName==='TEXTAREA')return;
+      if(t.tagName==='BUTTON'&&t.type==='button')return;
+      var pch=document.getElementById('pay-cust-hits');
+      if(t.id==='pay-cust-search'&&pch&&pch.style.display==='block'){
+        var ca=pch.querySelector('.cust-ac-hit');
+        if(ca)return;
+      }
+      var pph=document.getElementById('pay-payer-hits');
+      if(t.id==='pay-payer-name'&&pph&&pph.style.display==='block'){
+        var pa=pph.querySelector('.cust-ac-hit');
+        if(pa&&!String(pa.textContent||'').includes('لا نتائج'))return;
+      }
+      e.preventDefault();
+      var pb=document.getElementById('pay-btn');
+      if(pb)pb.click();
+    },true);}
 
     if(cf){cf.addEventListener('submit',function(e){
       if(!pmVal||!pmVal.value){
@@ -557,55 +769,79 @@
         showToast('اختر طريقة الدفع أولاً','error');
         return;
       }
-      if(pmVal.value==='credit'){
+      var onPm=document.querySelector('#pay-methods .pm-btn.on');
+      if(onPm&&(onPm.getAttribute('data-ledger')||'')==='ar'){
         var hid=document.getElementById('pay-cust-id');
         if(!hid||!String(hid.value||'').trim()){
           e.preventDefault();
           showToast('اختر عميلاً للدفع الآجل','error');
+          return;
+        }
+      }
+      if(onPm&&onPm.getAttribute('data-needs-payer')==='1'){
+        var pn=document.getElementById('pay-payer-name');
+        var ph=document.getElementById('pay-payer-phone');
+        var n=pn?String(pn.value||'').trim():'';
+        var p=ph?String(ph.value||'').replace(/\D/g,'').trim():'';
+        if(n.length<2||p.length<8){
+          e.preventDefault();
+          showToast('أدخل اسم المحوّل ورقم الجوال','error');
         }
       }
     })}
 
-    function prefillMixed(){
-      var bal=cf?parseFloat(cf.getAttribute('data-balance')||'0'):0;
-      if(isNaN(bal))bal=0;
-      var mc=document.getElementById('mx-cash');if(mc)mc.value=bal>0?bal.toFixed(2):'0';
-      var mb=document.getElementById('mx-bank');if(mb)mb.value='0';
-      var mr=document.getElementById('mx-credit');if(mr)mr.value='0';
-      updateMxRemaining();
-    }
-    function updateMxRemaining(){
-      var bal=cf?parseFloat(cf.getAttribute('data-balance')||'0'):0;
-      var mc=parseFloat((document.getElementById('mx-cash')||{}).value||'0');
-      var mb=parseFloat((document.getElementById('mx-bank')||{}).value||'0');
-      var mr=parseFloat((document.getElementById('mx-credit')||{}).value||'0');
-      var rem=bal-mc-mb-mr;
-      var el=document.getElementById('mx-remaining');
-      if(el)el.textContent='المتبقي: '+(rem>0?rem.toFixed(2):'0.00')+' '+CUR;
-    }
-    ['mx-cash','mx-bank','mx-credit'].forEach(function(id){
-      var el=document.getElementById(id);
-      if(el)el.addEventListener('input',updateMxRemaining);
-    });
-
-    if(qaPanel&&cf){
-      qaPanel.querySelectorAll('button').forEach(function(b){
-        b.addEventListener('click',function(){
-          var amt=b.getAttribute('data-amt');
-          if(amt==='exact'){setMode('cash')}
-          else{
-            setMode('mixed');
-            var mc=document.getElementById('mx-cash');
-            if(mc){mc.value=(parseFloat(mc.value||'0')+parseFloat(amt)).toFixed(2);updateMxRemaining();}
-          }
-        });
+    function setupPayerHints(){
+      var inp=document.getElementById('pay-payer-name');
+      var hits=document.getElementById('pay-payer-hits');
+      if(!inp||!hits||!PAYER_HINTS_URL)return;
+      var tmo;
+      inp.addEventListener('input',function(){
+        clearTimeout(tmo);
+        var q=inp.value.trim();
+        if(q.length<1){hits.style.display='none';return;}
+        tmo=setTimeout(function(){
+          fetch(PAYER_HINTS_URL+'?q='+encodeURIComponent(q))
+          .then(function(r){return r.json()})
+          .then(function(data){
+            hits.innerHTML='';
+            if(!data.results||!data.results.length){
+              hits.innerHTML='<div class="cust-ac-hit" style="color:var(--c-muted)">لا نتائج</div>';
+              hits.style.display='block';return;
+            }
+            data.results.forEach(function(row){
+              var btn=document.createElement('button');
+              btn.type='button';
+              btn.textContent=(row.name_ar||'')+(row.phone?' — '+row.phone:'');
+              btn.className='cust-ac-hit';
+              btn.onclick=function(){
+                inp.value=row.name_ar||'';
+                var ph=document.getElementById('pay-payer-phone');
+                if(ph)ph.value=row.phone||'';
+                hits.style.display='none';
+              };
+              hits.appendChild(btn);
+            });
+            hits.style.display='block';
+          });
+        },200);
+      });
+      inp.addEventListener('keydown',function(e){
+        if(e.key==='Tab'&&hits.style.display!=='none'){
+          var first=hits.querySelector('.cust-ac-hit');
+          if(first&&!first.textContent.includes('لا نتائج')){e.preventDefault();first.click();}
+        }
+      });
+      document.addEventListener('click',function(ev){
+        if(!inp.contains(ev.target)&&!hits.contains(ev.target))hits.style.display='none';
       });
     }
+    setupPayerHints();
   }
 
   /* ── Customer autocomplete ── */
   function initCustomerAutocomplete(){
-    function setup(searchId,hitsId,hiddenId){
+    function setup(searchId,hitsId,hiddenId,opts){
+      opts=opts||{};
       var inp=document.getElementById(searchId),hits=document.getElementById(hitsId),hidden=document.getElementById(hiddenId);
       if(!inp||!hits||!hidden)return;
       var tmo;
@@ -624,7 +860,8 @@
             }
             data.results.forEach(function(c){
               var btn=document.createElement('button');
-              btn.type='button';btn.textContent=c.name_ar+(c.phone?' — '+c.phone:'');
+              btn.type='button';
+              btn.textContent=opts.nameOnlyHits?(c.name_ar||''):(c.name_ar+(c.phone?' — '+c.phone:''));
               btn.className='cust-ac-hit';
               btn.onclick=function(){hidden.value=c.id;inp.value=c.name_ar;hits.style.display='none'};
               hits.appendChild(btn);
@@ -659,7 +896,7 @@
       inp.addEventListener('blur',function(){setTimeout(function(){hits.style.display='none'},200)});
       inp.addEventListener('focus',function(){if(hits.childElementCount>0)hits.style.display='block'});
     }
-    setup('pay-cust-search','pay-cust-hits','pay-cust-id');
+    setup('pay-cust-search','pay-cust-hits','pay-cust-id',{nameOnlyHits:true});
   }
 
   /* ── Category tabs ── */
@@ -689,31 +926,6 @@
       });
     });
   }
-
-  /* ── Keyboard shortcuts ── */
-  var selectedLineIdx=-1;
-  document.addEventListener('keydown',function(e){
-    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
-    if(e.key==='Escape'){var hf=document.querySelector('.hold-btn');if(hf){e.preventDefault();hf.closest('form').submit()}}
-    if(e.key==='Enter'){
-      var pb=document.getElementById('pay-btn');
-      var pmVal=document.getElementById('pay-mode-val');
-      if(pb&&pmVal&&pmVal.value){e.preventDefault();pb.closest('form').submit()}
-    }
-    if(e.key==='/'){var si=document.getElementById('pos-search-input');if(si){e.preventDefault();si.focus()}}
-    if(e.key==='+'||e.key==='='){
-      e.preventDefault();
-      var allLines=document.querySelectorAll('.cart-line-item');
-      var idx=selectedLineIdx>=0&&selectedLineIdx<allLines.length?selectedLineIdx:allLines.length-1;
-      if(idx>=0){var plusBtn=allLines[idx].querySelector('.cl-qty form:last-of-type button');if(plusBtn)plusBtn.click()}
-    }
-    if(e.key==='-'){
-      e.preventDefault();
-      var allLines2=document.querySelectorAll('.cart-line-item');
-      var idx2=selectedLineIdx>=0&&selectedLineIdx<allLines2.length?selectedLineIdx:allLines2.length-1;
-      if(idx2>=0){var minusBtn=allLines2[idx2].querySelector('.cl-qty form:first-of-type button');if(minusBtn)minusBtn.click()}
-    }
-  });
 
   /* ── Auto-focus search ── */
   document.addEventListener('keypress',function(e){

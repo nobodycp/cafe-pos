@@ -9,8 +9,9 @@ from apps.billing.tab_service import (
     compute_order_totals,
     create_sale_invoice_core,
     next_invoice_number,
-    payments_list_to_dict,
+    order_payment_source,
 )
+from apps.core.payment_methods import payments_list_to_dict
 from apps.contacts.models import Customer
 from apps.core.models import log_audit
 from apps.core.services import SessionService
@@ -23,7 +24,7 @@ def checkout_order(
     *,
     order: Order,
     user,
-    payments: List[Tuple[str, Decimal]],
+    payments: List[Tuple],
     customer: Optional[Customer] = None,
 ) -> SaleInvoice:
     """
@@ -45,7 +46,24 @@ def checkout_order(
     if pay_sum != totals["grand"]:
         raise ValueError("PAYMENT_SUM_MISMATCH")
 
-    inv = create_sale_invoice_core(order=order, user=user, pay_by_method=pay_map, customer=customer)
+    src = order_payment_source(order)
+    payment_rows = []
+    for item in payments:
+        if not item:
+            continue
+        method = str(item[0])
+        raw_amt = item[1]
+        amt = raw_amt if isinstance(raw_amt, Decimal) else Decimal(str(raw_amt))
+        if amt <= 0:
+            continue
+        pn = str(item[2]).strip()[:120] if len(item) > 2 else ""
+        ph = str(item[3]).strip()[:40] if len(item) > 3 else ""
+        payment_rows.append(
+            {"method": method, "amount": amt, "payer_name": pn, "payer_phone": ph, "source": src}
+        )
+    inv = create_sale_invoice_core(
+        order=order, user=user, pay_by_method=pay_map, customer=customer, payment_rows=payment_rows
+    )
 
     order.status = Order.Status.CHECKED_OUT
     order.save(update_fields=["status", "updated_at"])

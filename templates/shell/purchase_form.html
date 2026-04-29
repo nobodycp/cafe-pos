@@ -1,0 +1,14 @@
+{% extends "shell/base.html" %}
+{% block title %}فاتورة شراء - {{ supplier.name_ar }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">فاتورة شراء - {{ supplier.name_ar }}</span><span class="flex-1"></span>
+    <a href="{% url 'shell:supplier_detail' supplier.pk %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← المورد</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_purchase_invoice_form_body.html" %}
+    {% include "purchasing/_purchase_invoice_scripts.html" %}
+  </div>
+</div>
+{% endblock %}

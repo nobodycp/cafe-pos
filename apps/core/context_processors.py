@@ -75,3 +75,23 @@ def low_stock_count(request):
         quantity_on_hand__lte=F("product__min_stock_level"),
     ).count()
     return {"LOW_STOCK_COUNT": count}
+
+
+def shell_template_base(request):
+    namespace = (getattr(getattr(request, "resolver_match", None), "namespace", "") or "").strip()
+    return {
+        "base_template": "shell/base.html" if namespace == "shell" else "base.html",
+    }
+
+
+def shell_route_namespaces(request):
+    """When the request is under the shell URLconf, reverse module URLs on shell:*."""
+    shell = (getattr(getattr(request, "resolver_match", None), "namespace", "") or "").strip() == "shell"
+    return {
+        "reports_ns": "shell" if shell else "reports",
+        "billing_ns": "shell" if shell else "billing",
+        "inventory_ns": "shell" if shell else "inventory",
+        "accounting_ns": "shell" if shell else "accounting",
+        "payroll_ns": "shell" if shell else "payroll",
+        "catalog_ns": "shell" if shell else "catalog",
+    }

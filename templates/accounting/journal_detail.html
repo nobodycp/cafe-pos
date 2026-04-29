@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}قيد {{ entry.entry_number }}{% endblock %}
 {% block content %}
@@ -31,7 +31,15 @@
       {% if entry.reference_type %}
       <tr>
         <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">المرجع</td>
-        <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ entry.reference_type }} #{{ entry.reference_pk }}</td>
+        <td class="p-3 border-b border-gray-200 dark:border-gray-700">
+          {% if entry.reference_type == "billing.SaleInvoice" and entry.reference_pk %}
+          <a href="{% url 'billing:invoice_detail' entry.reference_pk %}" class="font-bold text-primary hover:underline">فاتورة بيع #{{ entry.reference_pk }}</a>
+          {% elif entry.reference_type == "purchasing.PurchaseInvoice" and entry.reference_pk %}
+          <a href="{% url 'purchasing:purchase_detail' entry.reference_pk %}" class="font-bold text-primary hover:underline">فاتورة شراء #{{ entry.reference_pk }}</a>
+          {% else %}
+          {{ entry.reference_type }} #{{ entry.reference_pk }}
+          {% endif %}
+        </td>
       </tr>
       {% endif %}
       {% if entry.user %}

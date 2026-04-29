@@ -16,7 +16,8 @@
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
   <form method="post" id="purchase-form">
     {% csrf_token %}
-    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-3">أسطر الشراء</h2>
+    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-1">أسطر الشراء</h2>
+    <p class="text-xs text-muted mb-3">اكتب اسم الصنف للبحث والاقتراح؛ إن لم يظهر في القائمة استخدم «مادة خام» أو «منتج جاهز» لإنشائه فوراً ثم أكمل الكمية والتكلفة.</p>
     <div class="overflow-x-auto">
       <table class="w-full text-sm" id="lines-table">
         <thead>
@@ -34,12 +35,18 @@
           <tr class="purchase-line" data-idx="{{ i }}" {% if i > 0 %}style="display:none;"{% endif %}>
             <td class="line-num p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <select name="product_{{ i }}" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors">
-                <option value="">-- اختر --</option>
-                {% for p in products %}
-                  <option value="{{ p.pk }}">{{ p.name_ar }}</option>
-                {% endfor %}
-              </select>
+              <input type="hidden" name="product_{{ i }}" value="" class="line-product-id">
+              <div class="relative">
+                <input type="text" autocomplete="off" dir="rtl"
+                  class="line-product-search w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  data-idx="{{ i }}" placeholder="ابحث بالاسم أو أضف صنفاً جديداً…">
+                <div class="purchase-ac-hits absolute start-0 end-0 top-full mt-0.5 z-30 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hidden" data-idx="{{ i }}"></div>
+                <div class="purchase-ac-new hidden mt-1.5 flex flex-wrap gap-2 items-center" data-idx="{{ i }}">
+                  <span class="text-[11px] text-muted w-full">لا يوجد تطابق — إضافة:</span>
+                  <button type="button" class="quick-add-btn h-8 px-2.5 rounded-lg bg-success/20 text-success text-xs font-bold hover:bg-success/30" data-ptype="raw">مادة خام</button>
+                  <button type="button" class="quick-add-btn h-8 px-2.5 rounded-lg bg-info/20 text-info text-xs font-bold hover:bg-info/30" data-ptype="ready">منتج جاهز</button>
+                </div>
+              </div>
             </td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
               <input type="number" name="qty_{{ i }}" step="0.01" min="0" class="w-full h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors line-qty" data-idx="{{ i }}" placeholder="0">
@@ -92,47 +99,5 @@
   <a href="{% url 'purchasing:supplier_detail' supplier.pk %}" class="text-primary font-semibold hover:underline text-sm">&larr; رجوع</a>
 </p>
 
-<script>
-var visibleLines = 1;
-var allLines = document.querySelectorAll('.purchase-line');
-
-document.getElementById('add-line-btn').addEventListener('click', function() {
-  if (visibleLines < allLines.length) {
-    allLines[visibleLines].style.display = '';
-    visibleLines++;
-  }
-  if (visibleLines >= allLines.length) this.style.display = 'none';
-});
-
-document.querySelectorAll('.remove-line-btn').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    var row = this.closest('tr');
-    row.querySelectorAll('input').forEach(function(inp) { inp.value = ''; });
-    row.querySelectorAll('select').forEach(function(sel) { sel.value = ''; });
-    row.style.display = 'none';
-    row.querySelector('.line-total').textContent = '—';
-    recalcTotal();
-  });
-});
-
-document.querySelectorAll('.line-qty, .line-cost').forEach(function(inp) {
-  inp.addEventListener('input', function() {
-    var idx = this.dataset.idx;
-    var q = parseFloat(document.querySelector('.line-qty[data-idx="'+idx+'"]').value) || 0;
-    var c = parseFloat(document.querySelector('.line-cost[data-idx="'+idx+'"]').value) || 0;
-    var t = (q * c).toFixed(2);
-    document.querySelector('.line-total[data-idx="'+idx+'"]').textContent = (q > 0 && c > 0) ? t : '—';
-    recalcTotal();
-  });
-});
-
-function recalcTotal() {
-  var total = 0;
-  document.querySelectorAll('.line-total').forEach(function(el) {
-    var v = parseFloat(el.textContent);
-    if (!isNaN(v)) total += v;
-  });
-  document.getElementById('grand-total').textContent = total > 0 ? total.toFixed(2) : '—';
-}
-</script>
+{% include "purchasing/_purchase_invoice_scripts.html" %}
 {% endblock %}

@@ -1,0 +1,23 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}المخزون{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">المخزون</span><span class="flex-1"></span><a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary">← لوحة الطلبات</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+      <h1>المخزون</h1>
+      <div class="flex flex-wrap gap-1.5">
+        <a href="{% url 'shell:raw_materials' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">المواد الخام</a>
+        <a href="{% url 'shell:inventory_adjust' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تسوية مخزون</a>
+        <a href="{% url 'shell:inventory_movements' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">سجل الحركات</a>
+        <a href="{% url 'shell:stocktake_list' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">الجرد</a>
+      </div>
+    </div>
+    {% if low_stock %}
+    <div class="bg-warning/10 border border-warning rounded-xl p-3 mb-3"><strong>تنبيهات الحد الأدنى</strong>{% for b in low_stock %}<div class="text-sm">{{ b.product.name_ar }}: <span class="text-danger font-bold">{{ b.quantity_on_hand|floatformat:2 }}</span> / الحد {{ b.product.min_stock_level }}</div>{% endfor %}</div>
+    {% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>الصنف</th><th>الكمية</th><th>متوسط التكلفة</th><th>القيمة</th></tr></thead><tbody>{% for b in balances %}<tr><td class="font-semibold">{{ b.product.name_ar }}</td><td>{{ b.quantity_on_hand|floatformat:2 }}</td><td>{{ b.average_cost|floatformat:4 }}</td><td class="font-semibold">{{ b.value|floatformat:2|intcomma }}</td></tr>{% empty %}<tr><td colspan="4" class="p-8 text-center text-muted">لا يوجد مخزون</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

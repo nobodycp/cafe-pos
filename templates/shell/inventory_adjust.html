@@ -1,0 +1,19 @@
+{% extends "shell/base.html" %}
+{% block title %}تسوية مخزون{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">تسوية مخزون</span><span class="flex-1"></span><a href="{% url 'shell:inventory_home' %}" class="text-xs font-bold text-primary">← المخزون</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if errors %}<div class="bg-danger/5 border border-danger/20 rounded-xl p-3 mb-3">{% for err in errors %}<p class="text-danger text-sm font-semibold">{{ err }}</p>{% endfor %}</div>{% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+      <form method="post">{% csrf_token %}
+        <div class="mb-4"><label>المنتج</label><select name="product_id" required><option value="">— اختر منتج —</option>{% for p in products %}<option value="{{ p.pk }}">{{ p.name_ar }}</option>{% endfor %}</select></div>
+        <div class="mb-4"><label>نوع التسوية</label><select name="adj_type"><option value="add">إضافة للمخزون</option><option value="set">تعيين الكمية</option><option value="waste">هالك / تلف</option></select></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label>الكمية</label><input type="number" name="quantity" step="0.01" min="0.01" required></div><div><label>تكلفة الوحدة</label><input type="number" name="unit_cost" step="0.01" min="0"></div></div>
+        <div class="mb-4"><label>ملاحظة</label><input type="text" name="note" placeholder="اختياري"></div>
+        <button type="submit" class="w-full h-11 rounded-lg bg-primary text-white font-bold text-sm">تنفيذ التسوية</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

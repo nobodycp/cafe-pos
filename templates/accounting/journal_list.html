@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}القيود اليومية{% endblock %}
 {% block content %}
@@ -34,7 +34,15 @@
           <td class="p-3 border-b border-gray-200 dark:border-gray-700"><a href="{% url 'accounting:journal_detail' e.pk %}" class="text-primary hover:text-primary-dk font-semibold transition-colors">{{ e.entry_number }}</a></td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ e.date }}</td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ e.description|truncatechars:80 }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-xs text-muted">{{ e.reference_type }} {{ e.reference_pk }}</td>
+          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-xs text-muted">
+            {% if e.reference_type == "billing.SaleInvoice" and e.reference_pk %}
+            <a href="{% url 'billing:invoice_detail' e.reference_pk %}" class="font-bold text-primary hover:underline">فاتورة بيع #{{ e.reference_pk }}</a>
+            {% elif e.reference_type == "purchasing.PurchaseInvoice" and e.reference_pk %}
+            <a href="{% url 'purchasing:purchase_detail' e.reference_pk %}" class="font-bold text-primary hover:underline">فاتورة شراء #{{ e.reference_pk }}</a>
+            {% else %}
+            {{ e.reference_type }} {{ e.reference_pk }}
+            {% endif %}
+          </td>
           <td class="p-3 border-b border-gray-200 dark:border-gray-700">
             {% if e.is_reversed %}
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger">معكوس</span>

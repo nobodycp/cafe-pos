@@ -8,6 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>تسجيل الدخول</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
+  <link rel="stylesheet" href="{% static 'classic-theme.css' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
   tailwind.config = {
@@ -16,7 +17,7 @@
       extend: {
         fontFamily: { sans: ['Cairo', 'sans-serif'] },
         colors: {
-          primary:  { DEFAULT: '#6c5ce7', dk: '#5649c0', soft: '#eef0ff', light: '#a29bfe' },
+          primary:  { DEFAULT: '#1e3a5f', dk: '#163051', soft: '#e2e8f0', light: '#3d5a80' },
           success:  { DEFAULT: '#00b894', light: '#e8f8f5' },
           danger:   { DEFAULT: '#d63031', light: '#ffe5e5' },
           warning:  { DEFAULT: '#fdcb6e', light: '#fff8e1' },
@@ -30,12 +31,17 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="font-sans bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 antialiased flex items-center justify-center min-h-screen p-4">
+<body class="app-classic-shell font-sans bg-[#e8eaed] dark:bg-gray-950 text-gray-800 dark:text-gray-100 antialiased flex flex-col min-h-screen">
 
+  <header class="app-classic-topbar shrink-0 flex items-center gap-2 h-9 px-3 text-[11px] font-semibold text-white bg-[#1e3a5f] dark:bg-[#0c1929] border-b border-black/20">
+    <span class="truncate flex-1 text-right">تسجيل الدخول</span>
+  </header>
+
+  <div class="flex-1 flex items-center justify-center p-4 min-h-0">
   <div class="w-full max-w-md">
     {# Brand / Logo #}
-    <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-light text-white font-extrabold text-xl shadow-lg shadow-primary/25 mb-4">
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-sm bg-[#1e3a5f] border border-[#163051] text-white font-extrabold text-lg mb-3">
         POS
       </div>
       <h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100">تسجيل الدخول</h1>
@@ -43,9 +49,9 @@
     </div>
 
     {# Login Card #}
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
+    <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-6 sm:p-8">
       {% if form.errors %}
-      <div class="bg-danger-light dark:bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 mb-5 flex items-center gap-3">
+      <div class="bg-danger-light dark:bg-danger/10 border border-danger/30 rounded-sm px-4 py-3 mb-5 flex items-center gap-3">
         <svg class="w-5 h-5 text-danger flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
         <span class="text-sm font-bold text-danger">بيانات الدخول غير صحيحة.</span>
       </div>
@@ -62,7 +68,7 @@
           {{ form.password }}
         </div>
         <button type="submit"
-                class="w-full h-12 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200 shadow-sm shadow-primary/20">
+                class="w-full h-11 rounded-sm bg-[#1e3a5f] text-white font-bold text-sm hover:bg-[#163051] border border-[#163051] transition-colors">
           دخول
         </button>
       </form>
@@ -77,6 +83,7 @@
         <span x-text="darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'"></span>
       </button>
     </div>
+  </div>
   </div>
 
 </body>

@@ -1,0 +1,12 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}الجرد #{{ take.pk }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">الجرد #{{ take.pk }}</span><span class="flex-1"></span><a href="{% url 'shell:stocktake_list' %}" class="text-xs font-bold text-primary">← الجرد</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if diff_count > 0 %}<div class="bg-warning/10 border border-warning rounded-xl p-3 mb-3"><strong>{{ diff_count }}</strong> صنف بفروقات — إجمالي الفروقات المطلقة: <strong>{{ total_diff|floatformat:2 }}</strong></div>{% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>#</th><th>الصنف</th><th>الوحدة</th><th>كمية النظام</th><th>الكمية الفعلية</th><th>الفرق</th></tr></thead><tbody>{% for line in lines %}<tr><td>{{ forloop.counter }}</td><td class="font-semibold">{{ line.product.name_ar }}</td><td>{{ line.product.unit.name_ar|default:"—" }}</td><td>{{ line.system_quantity|floatformat:2 }}</td><td>{% if line.actual_quantity is not None %}{{ line.actual_quantity|floatformat:2 }}{% else %}—{% endif %}</td><td class="font-bold {% if line.difference > 0 %}text-success{% elif line.difference < 0 %}text-danger{% endif %}">{% if line.actual_quantity is not None %}{{ line.difference|floatformat:2 }}{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

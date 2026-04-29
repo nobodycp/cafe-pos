@@ -1,4 +1,5 @@
-{% extends "pos/cashier_base.html" %}
+{% extends "shell/base.html" %}
+{% load core_extras %}
 {% block title %}إيصال {{ invoice.invoice_number }}{% endblock %}
 {% block cashier_body %}
 
@@ -14,22 +15,24 @@
     </p>
     {% endif %}
 
-    <table class="w-full text-sm border-collapse">
+    <table class="w-full text-xs border-collapse table-fixed">
       <thead>
         <tr class="border-b-2 border-gray-300 dark:border-gray-600">
-          <th class="text-right py-2 font-semibold text-gray-700 dark:text-gray-300">الصنف</th>
-          <th class="text-center py-2 font-semibold text-gray-700 dark:text-gray-300">الكمية</th>
-          <th class="text-center py-2 font-semibold text-gray-700 dark:text-gray-300">السعر</th>
-          <th class="text-left py-2 font-semibold text-gray-700 dark:text-gray-300">المجموع</th>
+          <th class="w-6 text-center py-1 font-semibold text-gray-700 dark:text-gray-300">#</th>
+          <th class="text-right py-1 font-semibold text-gray-700 dark:text-gray-300 min-w-0">الصنف</th>
+          <th class="w-10 text-center py-1 font-semibold text-gray-700 dark:text-gray-300">كمية</th>
+          <th class="w-12 text-center py-1 font-semibold text-gray-700 dark:text-gray-300">سعر</th>
+          <th class="w-14 text-left py-1 font-semibold text-gray-700 dark:text-gray-300">مجموع</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
         {% for line in invoice.lines.all %}
         <tr>
-          <td class="py-2 text-gray-800 dark:text-gray-200">{{ line.product.name_ar }}</td>
-          <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ line.quantity|floatformat:"0" }}</td>
-          <td class="py-2 text-center text-gray-600 dark:text-gray-400">{{ line.unit_price }}</td>
-          <td class="py-2 text-left font-semibold text-gray-800 dark:text-gray-200">{{ line.line_subtotal }}</td>
+          <td class="py-1 text-center text-muted font-mono">{{ forloop.counter }}</td>
+          <td class="py-1 text-gray-800 dark:text-gray-200 truncate" title="{{ line.product.name_ar }}">{{ line.product.name_ar }}</td>
+          <td class="py-1 text-center text-gray-600 dark:text-gray-400 tabular-nums">{{ line.quantity|floatformat:"-3" }}</td>
+          <td class="py-1 text-center text-gray-600 dark:text-gray-400 tabular-nums">{{ line.unit_price }}</td>
+          <td class="py-1 text-left font-semibold text-gray-800 dark:text-gray-200 tabular-nums">{{ line.line_subtotal }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -52,8 +55,9 @@
       </div>
       {% endif %}
       {% for pay in invoice.payments.all %}
-      <div class="flex justify-between text-xs text-muted py-0.5">
-        <span>{{ pay.get_method_display }}</span><span>{{ pay.amount }} {{ POS_SETTINGS.currency_symbol }}</span>
+      <div class="flex justify-between text-xs text-muted py-0.5 gap-2">
+        <span class="min-w-0">{{ pm_label_map|dict_get:pay.method }}{% if pay.payer_name or pay.payer_phone %}<span class="block text-[10px] text-gray-500">{{ pay.payer_name }}{% if pay.payer_phone %} · {{ pay.payer_phone }}{% endif %}</span>{% endif %}</span>
+        <span class="shrink-0 tabular-nums">{{ pay.amount }} {{ POS_SETTINGS.currency_symbol }}</span>
       </div>
       {% endfor %}
     </div>

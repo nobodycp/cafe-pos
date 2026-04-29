@@ -1,0 +1,113 @@
+<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">طرق الدفع</h1>
+  <div class="flex flex-wrap gap-2">
+    {% if payment_method_url_namespace == "shell" %}
+    <a href="{% url 'shell:payment_method_create' %}"
+       class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      جديد
+    </a>
+    {% else %}
+    <a href="{% url 'core:payment_method_create' %}"
+       class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      جديد
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرمز</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المحاسبة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الترتيب</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الحالة</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for m in page_obj %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+          <td class="p-3">
+            <div class="font-bold text-gray-800 dark:text-gray-100">{{ m.label_ar }}</div>
+            {% if m.label_en %}<div class="text-xs text-muted font-mono mt-0.5" dir="ltr">{{ m.label_en }}</div>{% endif %}
+          </td>
+          <td class="p-3 font-mono text-xs text-gray-600 dark:text-gray-400" dir="ltr">{{ m.code }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ m.get_ledger_display }}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400">{{ m.sort_order }}</td>
+          <td class="p-3">
+            {% if m.is_active %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              نشط
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-200/80 text-gray-600 dark:bg-gray-600 dark:text-gray-300">
+              معطّل
+            </span>
+            {% endif %}
+          </td>
+          <td class="p-3">
+            <div class="flex gap-2 flex-wrap">
+              {% if payment_method_url_namespace == "shell" %}
+              <a href="{% url 'shell:payment_method_update' m.pk %}"
+                 class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold hover:border-primary hover:text-primary transition-colors">
+                تعديل
+              </a>
+              {% if m.code != "cash" %}
+              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-danger/40 text-danger text-xs font-bold hover:bg-danger/10 transition-colors">
+                  حذف
+                </button>
+              </form>
+              {% endif %}
+              {% else %}
+              <a href="{% url 'core:payment_method_update' m.pk %}"
+                 class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold hover:border-primary hover:text-primary transition-colors">
+                تعديل
+              </a>
+              {% if m.code != "cash" %}
+              <form method="post" action="{% url 'core:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-danger/40 text-danger text-xs font-bold hover:bg-danger/10 transition-colors">
+                  حذف
+                </button>
+              </form>
+              {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-12">لا توجد طرق دفع مسجّلة.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-muted">
+  <p>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} سجل</p>
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="text-xs font-semibold">الصفوف</span>
+    {% for n in per_page_choices %}
+    <a href="?tab=payment&per_page={{ n }}&page=1"
+       class="h-8 min-w-[2rem] px-2 inline-flex items-center justify-center rounded-md text-xs font-bold {% if per_page == n %}bg-primary text-white{% else %}border border-gray-200 dark:border-gray-600 hover:border-primary{% endif %}">{{ n }}</a>
+    {% endfor %}
+    <span class="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-1"></span>
+    {% if page_obj.has_previous %}
+    <a href="?tab=payment&page={{ page_obj.previous_page_number }}&per_page={{ per_page }}" class="h-8 px-3 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-bold hover:border-primary">السابقة</a>
+    {% endif %}
+    {% if page_obj.has_next %}
+    <a href="?tab=payment&page={{ page_obj.next_page_number }}&per_page={{ per_page }}" class="h-8 px-3 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-bold hover:border-primary">التالية</a>
+    {% endif %}
+  </div>
+</div>

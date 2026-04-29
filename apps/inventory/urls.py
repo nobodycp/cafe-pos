@@ -11,6 +11,7 @@ urlpatterns = [
     path("raw-materials/", views.raw_material_list, name="raw_materials"),
     path("raw-materials/create/", views.raw_material_create, name="raw_material_create"),
     path("raw-materials/<int:pk>/edit/", views.raw_material_edit, name="raw_material_edit"),
+    path("raw-materials/<int:pk>/delete/", views.raw_material_delete, name="raw_material_delete"),
     path("raw-materials/<int:pk>/card/", views.raw_material_card, name="raw_material_card"),
     path("alerts/", views.low_stock_alerts, name="low_stock_alerts"),
     path("stocktake/", views.stocktake_list, name="stocktake_list"),

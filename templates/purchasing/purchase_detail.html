@@ -9,6 +9,10 @@
   </h1>
   <div class="flex gap-2 flex-wrap no-print">
     <button onclick="window.print()" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">طباعة</button>
+    <form method="post" action="{% url 'purchasing:purchase_delete' invoice.pk %}" class="m-0" onsubmit="return confirm('حذف فاتورة الشراء نهائياً مع كل ما يتبعها من مخزون وقيود وسدادات؟ لا يمكن التراجع.');">
+      {% csrf_token %}
+      <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border-2 border-danger text-danger font-bold text-sm hover:bg-danger/10 active:scale-[0.98] transition-all duration-200">حذف نهائي</button>
+    </form>
     {% if not invoice.is_cancelled %}
     <a href="{% url 'purchasing:purchase_return' invoice.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-danger text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200">مرتجع</a>
     {% endif %}

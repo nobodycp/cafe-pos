@@ -6,10 +6,17 @@ from apps.core.models import TimeStampedModel, WorkSession
 
 
 class Employee(TimeStampedModel):
+    class PayType(models.TextChoices):
+        DAILY = "daily", _("يومي")
+        HOURLY = "hourly", _("بالساعة")
+        MONTHLY = "monthly", _("شهري")
+
     name_ar = models.CharField(_("الاسم"), max_length=200)
     name_en = models.CharField(_("الاسم (إنجليزي)"), max_length=200, blank=True)
+    pay_type = models.CharField(_("آلية العمل"), max_length=16, choices=PayType.choices, default=PayType.DAILY)
     daily_wage = models.DecimalField(_("أجر اليوم"), max_digits=12, decimal_places=2, default=0)
     hourly_wage = models.DecimalField(_("أجر الساعة"), max_digits=12, decimal_places=2, default=0)
+    monthly_salary = models.DecimalField(_("راتب الشهر"), max_digits=12, decimal_places=2, default=0)
     work_days_balance = models.DecimalField(_("أيام مستحقة / رصيد"), max_digits=10, decimal_places=2, default=0)
     work_hours_balance = models.DecimalField(_("ساعات عمل مستحقة"), max_digits=10, decimal_places=2, default=0)
     advance_balance = models.DecimalField(_("سلف معلقة"), max_digits=14, decimal_places=2, default=0)
@@ -24,6 +31,14 @@ class Employee(TimeStampedModel):
 
     def __str__(self):
         return self.name_ar
+
+    @property
+    def pay_amount(self):
+        if self.pay_type == self.PayType.HOURLY:
+            return self.hourly_wage
+        if self.pay_type == self.PayType.MONTHLY:
+            return self.monthly_salary
+        return self.daily_wage
 
 
 class EmployeeAdvance(TimeStampedModel):

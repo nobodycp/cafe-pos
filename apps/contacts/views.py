@@ -3,25 +3,50 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Max, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from apps.contacts.forms import CustomerForm, CustomerPaymentForm
 from apps.contacts.models import Customer, CustomerLedgerEntry
+from apps.contacts.routing import contacts_url_namespace
 from apps.contacts.services import record_customer_payment
+
+
+def _contacts_ctx(request, **kwargs):
+    ctx = {"contacts_ns": contacts_url_namespace(request)}
+    ctx.update(kwargs)
+    return ctx
+
+
+def _contacts_reverse(request, viewname, *args, **kwargs):
+    ns = contacts_url_namespace(request)
+    return reverse(f"{ns}:{viewname}", args=args, kwargs=kwargs)
+
+
+def _contacts_redirect(request, viewname, *args, **kwargs):
+    return redirect(_contacts_reverse(request, viewname, *args, **kwargs))
+
+
+def _contacts_tpl(request, shell_tpl, classic_tpl):
+    return shell_tpl if contacts_url_namespace(request) == "shell" else classic_tpl
 
 
 @login_required
 def customer_list(request):
     qs = Customer.objects.filter(is_active=True).order_by("name_ar")
-    return render(request, "contacts/customers.html", {"customers": qs})
+    tpl = _contacts_tpl(request, "shell/customers_list.html", "contacts/customers.html")
+    return render(request, tpl, _contacts_ctx(request, customers=qs))
 
 
 @login_required
 def customer_detail(request, pk):
     c = get_object_or_404(Customer.objects.select_related("linked_supplier"), pk=pk)
     led = c.ledger_entries.order_by("-created_at")[:200]
-    return render(request, "contacts/customer_detail.html", {"customer": c, "ledger": led})
+    tpl = _contacts_tpl(request, "shell/customers_detail.html", "contacts/customer_detail.html")
+    return render(request, tpl, _contacts_ctx(request, customer=c, ledger=led))
 
 
 @login_required
@@ -43,10 +68,15 @@ def customer_create(request):
                     reference_pk=str(customer.pk),
                 )
             messages.success(request, f"تم إضافة العميل «{customer.name_ar}» بنجاح")
-            return redirect("contacts:customer_detail", pk=customer.pk)
+            return _contacts_redirect(request, "customer_detail", pk=customer.pk)
     else:
         form = CustomerForm()
-    return render(request, "contacts/customer_form.html", {"form": form, "title": "إضافة عميل", "is_new": True})
+    tpl = _contacts_tpl(request, "shell/customers_form.html", "contacts/customer_form.html")
+    return render(
+        request,
+        tpl,
+        _contacts_ctx(request, form=form, title="إضافة عميل", is_new=True),
+    )
 
 
 @login_required
@@ -57,10 +87,43 @@ def customer_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "تم تعديل بيانات العميل بنجاح")
-            return redirect("contacts:customer_detail", pk=customer.pk)
+            return _contacts_redirect(request, "customer_detail", pk=customer.pk)
     else:
         form = CustomerForm(instance=customer)
-    return render(request, "contacts/customer_form.html", {"form": form, "title": "تعديل عميل", "customer": customer})
+    tpl = _contacts_tpl(request, "shell/customers_form.html", "contacts/customer_form.html")
+    return render(
+        request,
+        tpl,
+        _contacts_ctx(request, form=form, title="تعديل عميل", customer=customer),
+    )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def customer_delete(request, pk):
+    from apps.purchasing.models import Supplier
+
+    customer = get_object_or_404(Customer, pk=pk)
+    Supplier.objects.filter(linked_customer=customer).update(linked_customer=None)
+    CustomerLedgerEntry.objects.filter(customer=customer).delete()
+    name = customer.name_ar
+    customer.delete()
+    messages.success(request, f"تم حذف العميل «{name}» نهائياً.")
+    return _contacts_redirect(request, "customers")
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def customer_ledger_delete(request, pk, entry_pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    entry = get_object_or_404(CustomerLedgerEntry, pk=entry_pk, customer=customer)
+    entry.delete()
+    customer.balance = customer.computed_balance
+    customer.save(update_fields=["balance"])
+    messages.success(request, "تم حذف القيد وتحديث رصيد العميل.")
+    return _contacts_redirect(request, "customer_detail", pk=customer.pk)
 
 
 @login_required
@@ -78,12 +141,17 @@ def customer_payment(request, pk):
                     user=request.user,
                 )
                 messages.success(request, "تم تسجيل السداد بنجاح")
-                return redirect("contacts:customer_detail", pk=customer.pk)
+                return _contacts_redirect(request, "customer_detail", pk=customer.pk)
             except Exception as e:
                 messages.error(request, f"حدث خطأ: {e}")
     else:
         form = CustomerPaymentForm()
-    return render(request, "contacts/customer_payment_form.html", {"form": form, "customer": customer})
+    tpl = _contacts_tpl(
+        request,
+        "shell/customers_payment.html",
+        "contacts/customer_payment_form.html",
+    )
+    return render(request, tpl, _contacts_ctx(request, form=form, customer=customer))
 
 
 @login_required
@@ -126,18 +194,30 @@ def customer_statement(request, pk):
             "amount": e.amount,
             "running": running.quantize(Decimal("0.01")),
             "reference": e.note or e.reference_model,
+            "reference_model": e.reference_model,
+            "reference_pk": e.reference_pk,
         })
 
     closing_balance = running.quantize(Decimal("0.01"))
 
-    return render(request, "contacts/customer_statement.html", {
-        "customer": customer,
-        "rows": rows,
-        "opening_balance": opening_balance,
-        "closing_balance": closing_balance,
-        "date_from": date_from,
-        "date_to": date_to,
-    })
+    tpl = _contacts_tpl(
+        request,
+        "shell/customers_statement.html",
+        "contacts/customer_statement.html",
+    )
+    return render(
+        request,
+        tpl,
+        _contacts_ctx(
+            request,
+            customer=customer,
+            rows=rows,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            date_from=date_from,
+            date_to=date_to,
+        ),
+    )
 
 
 @login_required
@@ -160,7 +240,13 @@ def customer_balances(request):
 
     grand_total = grand_total.quantize(Decimal("0.01"))
 
-    return render(request, "contacts/customer_balances.html", {
-        "results": results,
-        "grand_total": grand_total,
-    })
+    tpl = _contacts_tpl(
+        request,
+        "shell/customers_balances.html",
+        "contacts/customer_balances.html",
+    )
+    return render(
+        request,
+        tpl,
+        _contacts_ctx(request, results=results, grand_total=grand_total),
+    )

@@ -1,0 +1,11 @@
+{% extends "shell/base.html" %}
+{% block title %}وحدات القياس{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">وحدات القياس</span><span class="flex-1"></span><a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary">← المنتجات</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="flex justify-between mb-6"><h1>وحدات القياس</h1><a href="{% url 'shell:unit_create' %}" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm inline-flex items-center">وحدة جديدة</a></div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>الرمز</th><th>الاسم</th><th>الإنجليزي</th><th>إجراءات</th></tr></thead><tbody>{% for u in units %}<tr><td>{{ u.code }}</td><td>{{ u.name_ar }}</td><td>{% if u.name_en %}{{ u.name_en }}{% else %}—{% endif %}</td><td><a href="{% url 'shell:unit_edit' u.pk %}">تعديل</a></td></tr>{% empty %}<tr><td colspan="4" class="text-center text-muted p-10">لا توجد وحدات</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

@@ -6,10 +6,13 @@ app_name = "pos"
 
 urlpatterns = [
     path("", views.pos_main, name="main"),
+    path("settings/", views.redirect_pos_settings_to_app, {"tail": ""}, name="settings_redirect"),
+    path("settings/<path:tail>/", views.redirect_pos_settings_to_app, name="settings_redirect_tail"),
     path("tables/", views.tables_floor, name="tables_floor"),
     path("tables/open/", views.table_open, name="table_open"),
     path("tables/quick-create/", views.table_quick_create, name="table_quick_create"),
     path("customers/search/", views.customers_search, name="customers_search"),
+    path("payers/hints/", views.payer_hints_search, name="payer_hints"),
     path("products/search/", views.products_search, name="products_search"),
     path("customers/quick-create/", views.customer_quick_create, name="customer_quick_create"),
     path("order/new/", views.order_new, name="order_new"),

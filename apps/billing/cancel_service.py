@@ -63,7 +63,9 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
             note=f"عكس حركة إلغاء فاتورة {invoice.invoice_number}",
         )
 
-    credit_payments = invoice.payments.filter(method=InvoicePayment.Method.CREDIT)
+    from apps.core.payment_methods import credit_method_codes
+
+    credit_payments = invoice.payments.filter(method__in=credit_method_codes())
     credit_total = sum(_d(p.amount) for p in credit_payments)
     if credit_total > 0 and invoice.customer:
         cust = invoice.customer

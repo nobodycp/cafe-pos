@@ -1,0 +1,123 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}المنتجات{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">المنتجات</span>
+    <span class="pos-shell-toolbar-hint hidden lg:inline">الأصناف، التصنيفات، والوحدات</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← لوحة الطلبات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="mb-2">
+      <form method="get" class="flex gap-1.5 items-center max-w-md">
+        <input type="hidden" name="tab" value="{{ active_tab }}">
+        <input type="text" name="q" value="{{ q }}" placeholder="بحث بالاسم..." class="h-8 text-xs flex-1">
+        <button type="submit" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs">بحث</button>
+      </form>
+    </div>
+    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+      <div class="flex gap-1.5 flex-wrap items-center">
+        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'products' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">المنتجات</a>
+        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'units' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">الوحدات</a>
+        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'categories' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">التصنيفات</a>
+      </div>
+      <div class="flex gap-1.5 flex-wrap items-center">
+      {% if active_tab == "products" %}
+      <a href="{% url 'shell:product_workspace' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">منتج جديد</a>
+      <a href="{% url 'shell:manufactured_product_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تصنيع منتج</a>
+      {% elif active_tab == "units" %}
+      <a href="{% url 'shell:unit_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">وحدة جديدة</a>
+      {% else %}
+      <a href="{% url 'shell:category_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تصنيف جديد</a>
+      {% endif %}
+      </div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        {% if active_tab == "products" %}
+        <table class="w-full text-sm">
+          <thead>
+            <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td><span class="font-bold">{{ p.name_ar }}</span>{% if p.name_en %}<br><span class="text-xs text-muted">{{ p.name_en }}</span>{% endif %}</td>
+              <td>{{ p.category.name_ar|default:"—" }}</td>
+              <td class="font-semibold">{{ p.selling_price|intcomma }}</td>
+              <td>{{ p.get_product_type_display }}</td>
+              <td>{% if p.is_stock_tracked %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-info/15 text-info">نعم</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/20 text-yellow-700">لا</span>{% endif %}</td>
+              <td>{% if p.is_active %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/15 text-success">نشط</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/15 text-danger">معطّل</span>{% endif %}</td>
+              <td>
+                <div class="flex gap-2 items-center">
+                  <a href="{% url 'shell:product_edit' p.pk %}">تعديل</a>
+                  {% if p.product_type == 'manufactured' %}
+                  <a href="{% url 'shell:recipe_list' p.pk %}" class="manufacturing-formula-link">معادلة التصنيع</a>
+                  {% endif %}
+                  <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
+                  <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0" onsubmit="return confirm('حذف المنتج نهائياً؟');">{% csrf_token %}<button type="submit">حذف</button></form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="text-center text-muted p-10">لا توجد منتجات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% elif active_tab == "units" %}
+        <table class="w-full text-sm">
+          <thead><tr><th>الرمز</th><th>الاسم</th><th>الإنجليزي</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            {% for u in units %}
+            <tr>
+              <td>{{ u.code }}</td>
+              <td class="font-semibold">{{ u.name_ar }}</td>
+              <td>{% if u.name_en %}{{ u.name_en }}{% else %}—{% endif %}</td>
+              <td>
+                <div class="flex gap-2 items-center">
+                  <a href="{% url 'shell:unit_edit' u.pk %}">تعديل</a>
+                  <form method="post" action="{% url 'shell:unit_delete' u.pk %}" class="m-0" onsubmit="return confirm('حذف الوحدة «{{ u.name_ar }}»؟');">
+                    {% csrf_token %}
+                    <button type="submit">حذف</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted p-10">لا توجد وحدات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <table class="w-full text-sm">
+          <thead><tr><th>التصنيف</th><th>الرئيسي</th><th>الترتيب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            {% for cat in categories %}
+            <tr>
+              <td><strong>{{ cat.name_ar }}</strong>{% if cat.name_en %}<br><span class="text-xs text-muted">{{ cat.name_en }}</span>{% endif %}</td>
+              <td>{% if cat.parent %}{{ cat.parent.name_ar }}{% else %}—{% endif %}</td>
+              <td>{{ cat.sort_order }}</td>
+              <td>{% if cat.is_active %}نشط{% else %}معطل{% endif %}</td>
+              <td>
+                <div class="flex gap-2 items-center">
+                  <a href="{% url 'shell:category_edit' cat.pk %}">تعديل</a>
+                  <form method="post" action="{% url 'shell:category_delete' cat.pk %}" class="m-0" onsubmit="return confirm('حذف التصنيف «{{ cat.name_ar }}»؟');">
+                    {% csrf_token %}
+                    <button type="submit">حذف</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted p-10">لا توجد تصنيفات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -92,6 +93,8 @@ def reports_dashboard(request):
         "top_products": top_products,
         "chart_labels": chart_labels,
         "chart_data": chart_data,
+        "chart_labels_json": json.dumps(chart_labels, ensure_ascii=False),
+        "chart_data_json": json.dumps(chart_data, ensure_ascii=False),
         "low_stock_count": low_stock,
         "unpaid_customers": unpaid_customers,
         "total_receivable": total_receivable,
@@ -484,3 +487,74 @@ def cash_flow_report(request):
         "total_outflows": total_outflows,
         "net_flow": net_flow,
     })
+
+
+@login_required
+def payment_channels_report(request):
+    """تقرير طرق الدفع + تتبع التحويلات الإلكترونية + ملخص كاش وارد/صادر تقريبي."""
+    from apps.billing.models import InvoicePayment
+
+    today = date.today()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        d_to = today
+
+    inv_pay_base = InvoicePayment.objects.filter(
+        invoice__is_cancelled=False,
+        invoice__created_at__date__gte=d_from,
+        invoice__created_at__date__lte=d_to,
+    )
+
+    payment_rows = list(
+        inv_pay_base.select_related("invoice", "invoice__order").order_by("-invoice__created_at", "pk")
+    )
+
+    by_method = (
+        inv_pay_base.values("method")
+        .annotate(total=Sum("amount"), n=Count("id"))
+        .order_by("-total")
+    )
+
+    cash_in = (
+        inv_pay_base.filter(method="cash").aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    )
+    expense_cash_out = (
+        Expense.objects.filter(
+            expense_date__gte=d_from,
+            expense_date__lte=d_to,
+            payment_method="cash",
+        ).aggregate(s=Sum("amount"))["s"]
+        or Decimal("0")
+    )
+
+    method_label = {
+        "cash": "كاش",
+        "bank": "شبكة عام",
+        "bank_ps": "بنك فلسطين",
+        "palpay": "بال باي",
+        "jawwalpay": "جوال باي",
+        "credit": "آجل",
+    }
+    for row in by_method:
+        row["label"] = method_label.get(row["method"], row["method"])
+
+    return render(
+        request,
+        "reports/payment_channels.html",
+        {
+            "date_from": d_from.isoformat(),
+            "date_to": d_to.isoformat(),
+            "payment_rows": payment_rows,
+            "by_method": by_method,
+            "cash_in": cash_in,
+            "expense_cash_out": expense_cash_out,
+            "cash_net_approx": cash_in - expense_cash_out,
+        },
+    )

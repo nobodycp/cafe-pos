@@ -1,0 +1,89 @@
+{% extends base_template %}
+{% load humanize %}
+{% block title %}طرق الدفع والتتبع{% endblock %}
+{% block content %}
+
+{% include "reports/_reports_nav_tabs.html" %}
+<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير طرق الدفع — تتبع التحويلات الإلكترونية</p>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <form method="get" class="flex gap-2 flex-wrap items-end">
+    <div>
+      <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+    </div>
+    <div>
+      <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+    </div>
+    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
+  </form>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">كاش وارد (مبيعات)</div>
+    <div class="text-sm font-extrabold text-success tabular-nums">{{ cash_in|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">كاش صادر (مصروفات نقدية)</div>
+    <div class="text-sm font-extrabold text-danger tabular-nums">{{ expense_cash_out|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-primary/20 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">فرق كاش تقريبي</div>
+    <div class="text-sm font-extrabold text-primary tabular-nums">{{ cash_net_approx|floatformat:2|intcomma }}</div>
+    <div class="text-[9px] text-muted mt-0.5">لا يشمل سندات الصندوق الأخرى بعد</div>
+  </div>
+</div>
+
+{% if by_method %}
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 mb-3">
+  <h3 class="text-[10px] font-extrabold text-muted mb-1.5">إجمالي حسب طريقة الدفع (فواتير غير ملغاة)</h3>
+  <div class="flex flex-wrap gap-1.5">
+    {% for r in by_method %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-gray-100 dark:bg-gray-700/80 text-[10px] font-bold"><span class="text-muted">{{ r.label }}:</span> <span class="tabular-nums">{{ r.total|floatformat:2|intcomma }}</span> <span class="text-[9px] font-normal text-muted">({{ r.n }})</span></span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2">
+  <h3 class="text-[10px] font-extrabold text-muted mb-1.5">تفاصيل كل دفعة</h3>
+  <div class="overflow-x-auto">
+    <table class="w-full text-[10px]">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-600">
+          <th class="text-start py-1.5 px-1 font-bold text-muted">التاريخ</th>
+          <th class="text-start py-1.5 px-1 font-bold text-muted">فاتورة</th>
+          <th class="text-start py-1.5 px-1 font-bold text-muted">طريقة</th>
+          <th class="text-end py-1.5 px-1 font-bold text-muted">مبلغ</th>
+          <th class="text-start py-1.5 px-1 font-bold text-muted">مصدر</th>
+          <th class="text-start py-1.5 px-1 font-bold text-muted">المحوّل</th>
+          <th class="text-start py-1.5 px-1 font-bold text-muted">جوال</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payment_rows %}
+        <tr class="border-b border-gray-50 dark:border-gray-700/60">
+          <td class="py-1.5 px-1 whitespace-nowrap">{{ p.invoice.created_at|date:"Y-m-d H:i" }}</td>
+          <td class="py-1.5 px-1">
+            {% if billing_ns == 'shell' %}
+            <a href="{% url 'shell:invoice_detail' p.invoice.pk %}" class="text-primary font-bold hover:underline">{{ p.invoice.invoice_number }}</a>
+            {% else %}
+            <a href="{% url 'billing:invoice_detail' p.invoice.pk %}" class="text-primary font-bold hover:underline">{{ p.invoice.invoice_number }}</a>
+            {% endif %}
+          </td>
+          <td class="py-1.5 px-1">{% if p.method == 'cash' %}كاش{% elif p.method == 'bank' %}شبكة عام{% elif p.method == 'bank_ps' %}بنك فلسطين{% elif p.method == 'palpay' %}بال باي{% elif p.method == 'jawwalpay' %}جوال باي{% elif p.method == 'credit' %}آجل{% else %}{{ p.method }}{% endif %}</td>
+          <td class="py-1.5 px-1 text-end font-bold tabular-nums">{{ p.amount|floatformat:2|intcomma }}</td>
+          <td class="py-1.5 px-1">{% if p.payment_source == 'table' %}طاولة{% elif p.payment_source == 'takeaway' %}سفري{% elif p.payment_source == 'delivery' %}توصيل{% elif p.payment_source %} {{ p.payment_source }}{% else %}—{% endif %}</td>
+          <td class="py-1.5 px-1">{{ p.payer_name|default:"—" }}</td>
+          <td class="py-1.5 px-1 font-mono tabular-nums">{{ p.payer_phone|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="py-6 text-center text-muted">لا دفعات في هذه الفترة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

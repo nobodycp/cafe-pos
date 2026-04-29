@@ -18,7 +18,10 @@ urlpatterns = [
         name="logout",
     ),
     path("i18n/", include("django.conf.urls.i18n")),
+    path("app/", include("apps.core.shell_urls")),
     path("pos/", include("apps.pos.urls")),
+    # Legacy module URLs kept temporarily during the shell migration.
+    # New navigation must use /app/... routes; remove these after confirming no old bookmarks/integrations remain.
     path("products/", include("apps.catalog.urls")),
     path("inventory/", include("apps.inventory.urls")),
     path("purchasing/", include("apps.purchasing.urls")),

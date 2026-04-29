@@ -3,14 +3,36 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.db import transaction
+from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Product, RecipeLine
 from apps.core.models import log_audit
 from apps.core.services import SessionService
 from apps.inventory.forms import RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
+from apps.inventory.routing import inventory_url_namespace
 from apps.inventory.services import ensure_stock_balance, adjust_stock, get_unit_cost, receive_purchase_stock
 from apps.purchasing.models import PurchaseLine
+
+
+def _inventory_ctx(request, **kwargs):
+    ctx = {"inventory_ns": inventory_url_namespace(request)}
+    ctx.update(kwargs)
+    return ctx
+
+
+def _inventory_reverse(request, viewname, *args, **kwargs):
+    return reverse(f"{inventory_url_namespace(request)}:{viewname}", args=args, kwargs=kwargs)
+
+
+def _inventory_redirect(request, viewname, *args, **kwargs):
+    return redirect(_inventory_reverse(request, viewname, *args, **kwargs))
+
+
+def _inventory_tpl(request, shell_tpl, classic_tpl):
+    return shell_tpl if inventory_url_namespace(request) == "shell" else classic_tpl
 
 
 @login_required
@@ -28,8 +50,8 @@ def inventory_home(request):
     low = [r for r in rows if r.quantity_on_hand <= (r.product.min_stock_level or 0)]
     return render(
         request,
-        "inventory/home.html",
-        {"balances": rows, "low_stock": low},
+        _inventory_tpl(request, "shell/inventory_home.html", "inventory/home.html"),
+        _inventory_ctx(request, balances=rows, low_stock=low),
     )
 
 
@@ -39,7 +61,7 @@ def movement_list(request):
         StockMovement.objects.select_related("product", "product__unit")
         .order_by("-created_at")[:500]
     )
-    return render(request, "inventory/movements.html", {"movements": mv})
+    return render(request, _inventory_tpl(request, "shell/inventory_movements.html", "inventory/movements.html"), _inventory_ctx(request, movements=mv))
 
 
 @login_required
@@ -64,18 +86,18 @@ def stock_adjust(request):
             product = Product.objects.get(pk=pid, is_active=True)
         except (Product.DoesNotExist, ValueError, TypeError):
             errors.append("اختر منتجاً صالحاً")
-            return render(request, "inventory/adjust.html", {"products": products, "errors": errors})
+            return render(request, _inventory_tpl(request, "shell/inventory_adjust.html", "inventory/adjust.html"), _inventory_ctx(request, products=products, errors=errors))
 
         try:
             qty = Decimal(qty_str)
             cost = Decimal(cost_str) if cost_str else Decimal("0")
         except (InvalidOperation, ValueError):
             errors.append("أدخل كمية صالحة")
-            return render(request, "inventory/adjust.html", {"products": products, "errors": errors})
+            return render(request, _inventory_tpl(request, "shell/inventory_adjust.html", "inventory/adjust.html"), _inventory_ctx(request, products=products, errors=errors))
 
         if qty <= 0:
             errors.append("الكمية يجب أن تكون أكبر من صفر")
-            return render(request, "inventory/adjust.html", {"products": products, "errors": errors})
+            return render(request, _inventory_tpl(request, "shell/inventory_adjust.html", "inventory/adjust.html"), _inventory_ctx(request, products=products, errors=errors))
 
         session = SessionService.get_open_session()
 
@@ -128,12 +150,12 @@ def stock_adjust(request):
                 messages.success(request, f"تم تسجيل هالك {qty} وحدة من «{product.name_ar}»")
 
             log_audit(request.user, f"inventory.{adj_type}", "inventory.StockBalance", str(product.pk), {"qty": str(qty)})
-            return redirect("inventory:home")
+            return _inventory_redirect(request, "home")
 
         except ValueError as e:
             errors.append(str(e))
 
-    return render(request, "inventory/adjust.html", {"products": products, "errors": errors})
+    return render(request, _inventory_tpl(request, "shell/inventory_adjust.html", "inventory/adjust.html"), _inventory_ctx(request, products=products, errors=errors))
 
 
 @login_required
@@ -156,7 +178,7 @@ def raw_material_list(request):
             value = Decimal("0")
         low = on_hand <= (m.min_stock_level or 0)
         enriched.append({"material": m, "on_hand": on_hand, "avg_cost": avg_cost, "value": value, "low": low})
-    return render(request, "inventory/raw_materials.html", {"materials": enriched})
+    return render(request, _inventory_tpl(request, "shell/raw_materials.html", "inventory/raw_materials.html"), _inventory_ctx(request, materials=enriched))
 
 
 @login_required
@@ -168,10 +190,10 @@ def raw_material_create(request):
             ensure_stock_balance(mat)
             log_audit(request.user, "inventory.raw_material.create", "catalog.Product", mat.pk, {})
             messages.success(request, f"تم إضافة المادة الخام «{mat.name_ar}» بنجاح")
-            return redirect("inventory:raw_materials")
+            return _inventory_redirect(request, "raw_materials")
     else:
         form = RawMaterialForm()
-    return render(request, "inventory/raw_material_form.html", {"form": form, "title": "إضافة مادة خام"})
+    return render(request, _inventory_tpl(request, "shell/raw_material_form.html", "inventory/raw_material_form.html"), _inventory_ctx(request, form=form, title="إضافة مادة خام"))
 
 
 @login_required
@@ -182,16 +204,38 @@ def raw_material_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, f"تم تعديل «{material.name_ar}» بنجاح")
-            return redirect("inventory:raw_materials")
+            return _inventory_redirect(request, "raw_materials")
     else:
         form = RawMaterialForm(instance=material)
-    return render(request, "inventory/raw_material_form.html", {"form": form, "title": f"تعديل: {material.name_ar}", "material": material})
+    return render(request, _inventory_tpl(request, "shell/raw_material_form.html", "inventory/raw_material_form.html"), _inventory_ctx(request, form=form, title=f"تعديل: {material.name_ar}", material=material))
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def raw_material_delete(request, pk):
+    material = get_object_or_404(Product, pk=pk, product_type=Product.ProductType.RAW)
+    if PurchaseLine.objects.filter(product=material).exists():
+        messages.error(request, "لا يمكن حذف المادة الخام: مستخدمة في فواتير شراء.")
+        return _inventory_redirect(request, "raw_materials")
+    if RecipeLine.objects.filter(component=material).exists():
+        messages.error(request, "لا يمكن حذف المادة الخام: مستخدمة في معادلات تصنيع.")
+        return _inventory_redirect(request, "raw_materials")
+    if StockTakeLine.objects.filter(product=material).exists():
+        messages.error(request, "لا يمكن حذف المادة الخام: مستخدمة في جرد.")
+        return _inventory_redirect(request, "raw_materials")
+    name = material.name_ar
+    StockMovement.objects.filter(product=material).delete()
+    StockBalance.objects.filter(product=material).delete()
+    material.delete()
+    messages.success(request, f"تم حذف المادة الخام «{name}».")
+    return _inventory_redirect(request, "raw_materials")
 
 
 @login_required
 def stocktake_list(request):
     takes = StockTake.objects.order_by("-created_at")[:50]
-    return render(request, "inventory/stocktake_list.html", {"takes": takes})
+    return render(request, _inventory_tpl(request, "shell/stocktake_list.html", "inventory/stocktake_list.html"), _inventory_ctx(request, takes=takes))
 
 
 @login_required
@@ -222,9 +266,9 @@ def stocktake_create(request):
             )
 
         messages.success(request, f"تم إنشاء جرد جديد ({take.lines.count()} صنف)")
-        return redirect("inventory:stocktake_edit", pk=take.pk)
+        return _inventory_redirect(request, "stocktake_edit", pk=take.pk)
 
-    return render(request, "inventory/stocktake_create.html")
+    return render(request, _inventory_tpl(request, "shell/stocktake_create.html", "inventory/stocktake_create.html"), _inventory_ctx(request))
 
 
 @login_required
@@ -232,7 +276,7 @@ def stocktake_edit(request, pk):
     take = get_object_or_404(StockTake, pk=pk)
     if take.status == StockTake.Status.APPROVED:
         messages.warning(request, "هذا الجرد معتمد ولا يمكن تعديله")
-        return redirect("inventory:stocktake_detail", pk=take.pk)
+        return _inventory_redirect(request, "stocktake_detail", pk=take.pk)
 
     lines = take.lines.select_related("product", "product__unit").order_by("product__name_ar")
 
@@ -250,20 +294,20 @@ def stocktake_edit(request, pk):
                 except (InvalidOperation, ValueError):
                     pass
         messages.success(request, f"تم حفظ {updated} صنف")
-        return redirect("inventory:stocktake_edit", pk=take.pk)
+        return _inventory_redirect(request, "stocktake_edit", pk=take.pk)
 
-    return render(request, "inventory/stocktake_edit.html", {"take": take, "lines": lines})
+    return render(request, _inventory_tpl(request, "shell/stocktake_edit.html", "inventory/stocktake_edit.html"), _inventory_ctx(request, take=take, lines=lines))
 
 
 @login_required
 def stocktake_approve(request, pk):
     if request.method != "POST":
-        return redirect("inventory:stocktake_edit", pk=pk)
+        return _inventory_redirect(request, "stocktake_edit", pk=pk)
 
     take = get_object_or_404(StockTake, pk=pk)
     if take.status == StockTake.Status.APPROVED:
         messages.warning(request, "الجرد معتمد بالفعل")
-        return redirect("inventory:stocktake_detail", pk=take.pk)
+        return _inventory_redirect(request, "stocktake_detail", pk=take.pk)
 
     from django.utils import timezone
 
@@ -287,7 +331,7 @@ def stocktake_approve(request, pk):
 
     log_audit(request.user, "inventory.stocktake.approved", "inventory.StockTake", take.pk, {"lines": lines_with_diff.count()})
     messages.success(request, f"تم اعتماد الجرد — {lines_with_diff.count()} تسوية")
-    return redirect("inventory:stocktake_detail", pk=take.pk)
+    return _inventory_redirect(request, "stocktake_detail", pk=take.pk)
 
 
 @login_required
@@ -296,9 +340,7 @@ def stocktake_detail(request, pk):
     lines = take.lines.select_related("product", "product__unit").order_by("product__name_ar")
     total_diff = sum(abs(l.difference) for l in lines if l.actual_quantity is not None and l.difference != 0)
     diff_count = sum(1 for l in lines if l.actual_quantity is not None and l.difference != 0)
-    return render(request, "inventory/stocktake_detail.html", {
-        "take": take, "lines": lines, "total_diff": total_diff, "diff_count": diff_count,
-    })
+    return render(request, _inventory_tpl(request, "shell/stocktake_detail.html", "inventory/stocktake_detail.html"), _inventory_ctx(request, take=take, lines=lines, total_diff=total_diff, diff_count=diff_count))
 
 
 @login_required
@@ -312,7 +354,7 @@ def low_stock_alerts(request):
     ).select_related("product", "product__unit").order_by("product__name_ar")
     for sb in alerts:
         sb.deficit = sb.quantity_on_hand - sb.product.min_stock_level
-    return render(request, "inventory/low_stock_alerts.html", {"alerts": alerts})
+    return render(request, _inventory_tpl(request, "shell/low_stock_alerts.html", "inventory/low_stock_alerts.html"), _inventory_ctx(request, alerts=alerts))
 
 
 @login_required

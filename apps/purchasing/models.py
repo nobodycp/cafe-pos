@@ -122,11 +122,6 @@ class PurchaseLine(TimeStampedModel):
 
 
 class SupplierPayment(TimeStampedModel):
-    class Method(models.TextChoices):
-        CASH = "cash", _("نقدي")
-        BANK = "bank", _("بنك")
-        CREDIT = "credit", _("من الرصيد / تسوية")
-
     supplier = models.ForeignKey(
         Supplier,
         verbose_name=_("المورد"),
@@ -141,7 +136,7 @@ class SupplierPayment(TimeStampedModel):
         on_delete=models.SET_NULL,
     )
     amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
-    method = models.CharField(_("طريقة الدفع"), max_length=16, choices=Method.choices)
+    method = models.CharField(_("طريقة الدفع"), max_length=32)
     note = models.TextField(_("ملاحظة"), blank=True)
 
     class Meta:

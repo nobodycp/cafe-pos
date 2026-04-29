@@ -75,6 +75,8 @@ TEMPLATES = [
                 "apps.core.context_processors.site_branding",
                 "apps.core.context_processors.ui_labels",
                 "apps.core.context_processors.low_stock_count",
+                "apps.core.context_processors.shell_template_base",
+                "apps.core.context_processors.shell_route_namespaces",
             ],
         },
     },

@@ -1,0 +1,17 @@
+{% extends "shell/base.html" %}
+{% block title %}عميل: {{ customer.name_ar }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block nav_on_customers %}bg-white dark:bg-gray-800 text-primary shadow-sm{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">عميل: {{ customer.name_ar }}</span>
+    <span class="pos-shell-toolbar-hint hidden lg:inline">الرصيد والقيود والإجراءات</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline" title="لوحة الطلبات والبيع">← لوحة الطلبات</a>
+    <a href="{% url 'shell:customers' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← قائمة العملاء</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "contacts/_customer_detail_body.html" %}
+  </div>
+</div>
+{% endblock %}

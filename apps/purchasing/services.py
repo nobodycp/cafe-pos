@@ -7,6 +7,7 @@ from django.db import transaction
 
 from apps.catalog.models import Product
 from apps.core.models import log_audit
+from apps.core.payment_methods import credit_method_codes, get_payment_method_codes, resolve_ledger_account_code
 from apps.core.sequences import next_int
 from apps.core.services import SessionService
 from apps.inventory.services import receive_purchase_stock
@@ -97,7 +98,7 @@ def post_purchase_invoice(
             supplier=supplier,
             work_session=session,
             amount=amt,
-            method=SupplierPayment.Method.CASH if method == "cash" else SupplierPayment.Method.BANK,
+            method=str(method),
             note=f"سداد فاتورة {pur.invoice_number}",
         )
         SupplierLedgerEntry.objects.create(
@@ -109,12 +110,12 @@ def post_purchase_invoice(
             reference_pk=str(pur.pk),
         )
 
-    credit_only = all(m == "credit" for m, a in payments if _d(a) > 0)
+    ar_codes = credit_method_codes()
+    pay_pos = [(m, a) for m, a in payments if _d(a) > 0]
+    credit_only = bool(pay_pos) and all(m in ar_codes for m, _ in pay_pos)
     if credit_only and total > 0:
         pur.payment_status = PurchaseInvoice.PaymentStatus.UNPAID
-    elif any(m == "credit" for m, a in payments if _d(a) > 0) and any(
-        m in ("cash", "bank") for m, a in payments if _d(a) > 0
-    ):
+    elif any(m in ar_codes for m, _ in pay_pos) and any(m not in ar_codes for m, _ in pay_pos):
         pur.payment_status = PurchaseInvoice.PaymentStatus.PARTIAL
     else:
         pur.payment_status = PurchaseInvoice.PaymentStatus.PAID
@@ -125,8 +126,16 @@ def post_purchase_invoice(
     pur_pay_map = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
     for method, amount in payments:
         m = str(method)
-        if m in pur_pay_map:
-            pur_pay_map[m] += _d(amount)
+        amt = _d(amount)
+        if amt <= 0:
+            continue
+        sys = resolve_ledger_account_code(m)
+        if sys == "AR":
+            pur_pay_map["credit"] += amt
+        elif sys == "CASH":
+            pur_pay_map["cash"] += amt
+        else:
+            pur_pay_map["bank"] += amt
     post_purchase_invoice_journal(purchase_invoice=pur, pay_by_method=pur_pay_map, user=user)
 
     log_audit(user, "purchase.post", "purchasing.PurchaseInvoice", pur.pk, {"total": str(total)})
@@ -152,11 +161,15 @@ def record_supplier_payment(
     supplier.balance = (supplier.balance - amt).quantize(Decimal("0.01"))
     supplier.save(update_fields=["balance", "updated_at"])
 
+    m = str(method or "").strip().lower()
+    if m not in get_payment_method_codes():
+        raise ValueError("INVALID_PAYMENT_METHOD")
+
     sp = SupplierPayment.objects.create(
         supplier=supplier,
         work_session=session,
         amount=amt,
-        method=SupplierPayment.Method.CASH if method == "cash" else SupplierPayment.Method.BANK,
+        method=m,
         note=note or "سداد مستقل",
     )
     SupplierLedgerEntry.objects.create(

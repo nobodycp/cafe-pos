@@ -1,0 +1,11 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}ميزان المراجعة{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">ميزان المراجعة</span><span class="flex-1"></span><a href="{% url 'shell:accounting_chart' %}" class="text-xs font-bold text-primary">← دليل الحسابات</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>الرمز</th><th>الحساب</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.account.code }}</td><td>{{ r.account.name_ar }}</td><td>{{ r.total_debit|floatformat:2|intcomma }}</td><td>{{ r.total_credit|floatformat:2|intcomma }}</td><td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td></tr>{% endfor %}</tbody><tfoot><tr><th colspan="2">الإجمالي</th><th>{{ total_debit|floatformat:2|intcomma }}</th><th>{{ total_credit|floatformat:2|intcomma }}</th><th></th></tr></tfoot></table></div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,239 @@
+<h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100 mb-6">الإعدادات</h1>
+
+{# ── Tabs Navigation ── #}
+<div class="flex gap-0 border-b-2 border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto no-scrollbar" id="settingsTabs">
+  <a href="#cafe" data-tab="cafe"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'cafe' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">معلومات المقهى</a>
+  <a href="#currency" data-tab="currency"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'currency' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">العملة</a>
+  <a href="#tax" data-tab="tax"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'tax' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الضريبة والخدمة</a>
+  <a href="#order" data-tab="order"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'order' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">إعدادات الطلب</a>
+  <a href="#printer" data-tab="printer"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'printer' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الطابعات</a>
+  <a href="#receipt" data-tab="receipt"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'receipt' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الإيصال</a>
+  <a href="#payment" data-tab="payment"
+     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'payment' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">طرق الدفع</a>
+</div>
+
+{# ── معلومات المقهى ── #}
+<div class="settings-section {% if active_tab == 'cafe' %}active{% endif %}" id="tab-cafe">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">معلومات المقهى</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="cafe">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_name_ar.label }}</label>
+          {{ cafe.cafe_name_ar }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_name_en.label }}</label>
+          {{ cafe.cafe_name_en }}
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_phone.label }}</label>
+          {{ cafe.cafe_phone }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_tax_number.label }}</label>
+          {{ cafe.cafe_tax_number }}
+        </div>
+      </div>
+      <div class="mt-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_address.label }}</label>
+        {{ cafe.cafe_address }}
+      </div>
+      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ معلومات المقهى</button>
+    </form>
+  </div>
+</div>
+
+{# ── العملة ── #}
+<div class="settings-section {% if active_tab == 'currency' %}active{% endif %}" id="tab-currency">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">إعدادات العملة</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="currency">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ currency.currency_symbol.label }}</label>
+          {{ currency.currency_symbol }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ currency.currency_code.label }}</label>
+          {{ currency.currency_code }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ currency.decimal_places.label }}</label>
+          {{ currency.decimal_places }}
+        </div>
+      </div>
+      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ العملة</button>
+    </form>
+  </div>
+</div>
+
+{# ── الضريبة والخدمة ── #}
+<div class="settings-section {% if active_tab == 'tax' %}active{% endif %}" id="tab-tax">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">الضريبة والخدمة</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="tax">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ tax.default_tax_percent.label }}</label>
+          {{ tax.default_tax_percent }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ tax.default_service_charge_percent.label }}</label>
+          {{ tax.default_service_charge_percent }}
+        </div>
+      </div>
+      <div class="mt-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ tax.tax_included_in_price }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ tax.tax_included_in_price.label }}</span>
+        </label>
+      </div>
+      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+    </form>
+  </div>
+</div>
+
+{# ── إعدادات الطلب ── #}
+<div class="settings-section {% if active_tab == 'order' %}active{% endif %}" id="tab-order">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">إعدادات الطلب والمخزون</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="order">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ order.default_order_type.label }}</label>
+        {{ order.default_order_type }}
+      </div>
+      <div class="mb-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ order.allow_negative_stock }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ order.allow_negative_stock.label }}</span>
+        </label>
+        <p class="text-xs text-muted mt-1.5 mr-7">إذا أُلغي التفعيل، لن يُسمح ببيع منتج مخزونه صفر</p>
+      </div>
+      <div class="mb-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ order.require_customer_for_credit }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ order.require_customer_for_credit.label }}</span>
+        </label>
+        <p class="text-xs text-muted mt-1.5 mr-7">إلزام اختيار عميل عند الدفع الآجل</p>
+      </div>
+      <button type="submit" class="mt-2 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+    </form>
+  </div>
+</div>
+
+{# ── الطابعات ── #}
+<div class="settings-section {% if active_tab == 'printer' %}active{% endif %}" id="tab-printer">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">إعدادات الطابعات</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="printer">
+      <div class="mb-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ printer.kitchen_auto_print }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ printer.kitchen_auto_print.label }}</span>
+        </label>
+        <p class="text-xs text-muted mt-1.5 mr-7">إرسال الطلب تلقائياً للمطبخ عند إضافة أصناف</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ printer.printer_kitchen_label.label }}</label>
+          {{ printer.printer_kitchen_label }}
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-muted mb-1.5">{{ printer.printer_receipt_label.label }}</label>
+          {{ printer.printer_receipt_label }}
+        </div>
+      </div>
+      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+    </form>
+  </div>
+</div>
+
+{# ── الإيصال ── #}
+<div class="settings-section {% if active_tab == 'receipt' %}active{% endif %}" id="tab-receipt">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">تخصيص الإيصال</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="receipt">
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_header.label }}</label>
+        {{ receipt.receipt_header }}
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_footer.label }}</label>
+        {{ receipt.receipt_footer }}
+      </div>
+      <div class="mb-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ receipt.receipt_show_tax_number }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.receipt_show_tax_number.label }}</span>
+        </label>
+      </div>
+      <button type="submit" class="mt-2 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+    </form>
+  </div>
+</div>
+
+{# ── طرق الدفع (قائمة داخل التبويب) ── #}
+<div class="settings-section {% if active_tab == 'payment' %}active{% endif %}" id="tab-payment">
+  {% include "core/_settings_payment_methods_embed.html" %}
+</div>
+
+<style>
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+</style>
+
+<script>
+(function(){
+  const tabs = document.querySelectorAll('#settingsTabs a[data-tab]');
+  const sections = document.querySelectorAll('.settings-section');
+  function activate(tabId){
+    tabs.forEach(t=>{
+      const isActive = t.dataset.tab === tabId;
+      t.classList.toggle('active', isActive);
+      t.classList.toggle('text-primary', isActive);
+      t.classList.toggle('border-primary', isActive);
+      t.classList.toggle('text-muted', !isActive);
+      t.classList.toggle('border-transparent', !isActive);
+    });
+    sections.forEach(s=>{s.classList.toggle('active',s.id==='tab-'+tabId)});
+    const params = new URLSearchParams(location.search);
+    params.set('tab', tabId);
+    if (tabId !== 'payment') {
+      params.delete('page');
+      params.delete('per_page');
+    }
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? location.pathname + '?' + qs : location.pathname);
+  }
+  tabs.forEach(t=>{
+    t.addEventListener('click',e=>{e.preventDefault();activate(t.dataset.tab);});
+  });
+  const qtab = new URLSearchParams(location.search).get('tab');
+  if (qtab && document.getElementById('tab-' + qtab)) {
+    activate(qtab);
+  } else if (!document.querySelector('.settings-section.active')) {
+    activate('cafe');
+  }
+})();
+</script>

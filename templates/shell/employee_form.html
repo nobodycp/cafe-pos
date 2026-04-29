@@ -1,0 +1,64 @@
+{% extends "shell/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">{{ title }}</span>
+    <span class="flex-1"></span>
+    {% if employee %}
+    <a href="{% url 'shell:employee_detail' employee.pk %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← الموظف</a>
+    {% else %}
+    <a href="{% url 'shell:employees' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← الموظفون</a>
+    {% endif %}
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+      <form method="post">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label>الاسم بالعربي</label>
+            {{ form.name_ar }}
+            {% if form.name_ar.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label>الاسم بالإنجليزي</label>
+            {{ form.name_en }}
+            {% if form.name_en.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label>آلية العمل</label>
+            {{ form.pay_type }}
+            {% if form.pay_type.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.pay_type.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label id="salary-amount-label">قيمة الراتب</label>
+            {{ form.salary_amount }}
+            {% if form.salary_amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.salary_amount.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+        {% if form.is_active %}
+        <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer mb-4">{{ form.is_active }}<span>نشط</span></label>
+        {% endif %}
+        <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+(function() {
+  var payType = document.getElementById("{{ form.pay_type.id_for_label }}");
+  var label = document.getElementById("salary-amount-label");
+  if (!payType || !label) return;
+  function syncLabel() {
+    if (payType.value === "hourly") label.textContent = "أجر الساعة";
+    else if (payType.value === "monthly") label.textContent = "راتب الشهر";
+    else label.textContent = "أجر اليوم";
+  }
+  payType.addEventListener("change", syncLabel);
+  syncLabel();
+})();
+</script>
+{% endblock %}

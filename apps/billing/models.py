@@ -88,7 +88,7 @@ class SaleInvoiceLine(TimeStampedModel):
 class InvoicePayment(TimeStampedModel):
     class Method(models.TextChoices):
         CASH = "cash", _("كاش")
-        BANK = "bank", _("شبكة (عام)")  # قديم + جزء «شبكة» من الدفع المختلط
+        BANK = "bank", _("شبكة (عام)")  # قديم
         BANK_PS = "bank_ps", _("بنك فلسطين")
         PALPAY = "palpay", _("بال باي")
         JAWWALPAY = "jawwalpay", _("جوال باي")
@@ -100,8 +100,17 @@ class InvoicePayment(TimeStampedModel):
         related_name="payments",
         on_delete=models.CASCADE,
     )
-    method = models.CharField(_("طريقة الدفع"), max_length=16, choices=Method.choices)
+    method = models.CharField(_("طريقة الدفع"), max_length=32)
     amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
+    payer_name = models.CharField(_("اسم المحوّل (تتبع)"), max_length=120, blank=True, default="")
+    payer_phone = models.CharField(_("جوال المحوّل (تتبع)"), max_length=40, blank=True, default="")
+    payment_source = models.CharField(
+        _("مصدر الدفعة"),
+        max_length=24,
+        blank=True,
+        default="",
+        help_text=_("table / takeaway / delivery — للتقارير"),
+    )
 
     class Meta:
         verbose_name = _("دفعة فاتورة")
@@ -125,9 +134,18 @@ class OrderPayment(TimeStampedModel):
         related_name="tab_payments",
         on_delete=models.CASCADE,
     )
-    method = models.CharField(_("طريقة الدفع"), max_length=16, choices=Method.choices)
+    method = models.CharField(_("طريقة الدفع"), max_length=32)
     amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
     note = models.CharField(_("ملاحظة"), max_length=255, blank=True)
+    payer_name = models.CharField(_("اسم المحوّل (تتبع)"), max_length=120, blank=True, default="")
+    payer_phone = models.CharField(_("جوال المحوّل (تتبع)"), max_length=40, blank=True, default="")
+    payment_source = models.CharField(
+        _("مصدر الدفعة"),
+        max_length=24,
+        blank=True,
+        default="",
+        help_text=_("table / takeaway / delivery"),
+    )
     sale_invoice = models.ForeignKey(
         SaleInvoice,
         verbose_name=_("فاتورة التسوية"),

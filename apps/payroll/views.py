@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -22,6 +23,18 @@ from apps.payroll.forms import (
 from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase, EmployeeSalaryPayout
 
 
+def _payroll_ns(request):
+    return "shell" if (getattr(request.resolver_match, "namespace", "") or "") == "shell" else "payroll"
+
+
+def _payroll_redirect(request, viewname, *args, **kwargs):
+    return redirect(reverse(f"{_payroll_ns(request)}:{viewname}", args=args, kwargs=kwargs))
+
+
+def _payroll_tpl(request, shell_tpl, classic_tpl):
+    return shell_tpl if _payroll_ns(request) == "shell" else classic_tpl
+
+
 def _d(v) -> Decimal:
     if v is None:
         return Decimal("0")
@@ -35,7 +48,12 @@ def _salaries_category():
 
 
 def _recalc_balance(emp):
-    earned = (emp.work_days_balance * _d(emp.daily_wage)) + (emp.work_hours_balance * _d(emp.hourly_wage))
+    if emp.pay_type == Employee.PayType.MONTHLY:
+        earned = _d(emp.monthly_salary)
+    elif emp.pay_type == Employee.PayType.HOURLY:
+        earned = emp.work_hours_balance * _d(emp.hourly_wage)
+    else:
+        earned = emp.work_days_balance * _d(emp.daily_wage)
     emp.net_balance = (earned - _d(emp.advance_balance) - _d(emp.store_purchases_balance)).quantize(Decimal("0.01"))
     emp.save(update_fields=["net_balance", "updated_at"])
 
@@ -68,10 +86,10 @@ def employee_create(request):
         if form.is_valid():
             emp = form.save()
             messages.success(request, f"تم إضافة الموظف «{emp.name_ar}» بنجاح")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeCreateForm()
-    return render(request, "payroll/employee_form.html", {"form": form, "title": "إضافة موظف"})
+    return render(request, _payroll_tpl(request, "shell/employee_form.html", "payroll/employee_form.html"), {"form": form, "title": "إضافة موظف"})
 
 
 @login_required
@@ -82,10 +100,10 @@ def employee_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "تم تعديل بيانات الموظف بنجاح")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeForm(instance=emp)
-    return render(request, "payroll/employee_form.html", {"form": form, "title": "تعديل موظف", "employee": emp})
+    return render(request, _payroll_tpl(request, "shell/employee_form.html", "payroll/employee_form.html"), {"form": form, "title": "تعديل موظف", "employee": emp})
 
 
 @login_required
@@ -106,6 +124,7 @@ def employee_advance_create(request, pk):
                 notes=f"سلفة موظف: {emp.name_ar}" + (f" — {note}" if note else ""),
                 work_session=ws,
                 user=request.user,
+                allow_salary_category=True,
             )
             adv = EmployeeAdvance.objects.create(
                 employee=emp,
@@ -118,7 +137,7 @@ def employee_advance_create(request, pk):
             emp.save(update_fields=["advance_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, "تم تسجيل السلفة وإدراجها ضمن مصروفات «رواتب».")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeAdvanceForm()
     return render(request, "payroll/employee_advance_form.html", {"form": form, "employee": emp})
@@ -140,7 +159,7 @@ def employee_advance_delete(request, pk, advance_id):
     adv.delete()
     _recalc_balance(emp)
     messages.success(request, "تم حذف السلفة والمصروف المرتبط.")
-    return redirect("payroll:employee_detail", pk=emp.pk)
+    return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 
 
 @login_required
@@ -148,22 +167,33 @@ def employee_advance_delete(request, pk, advance_id):
 def employee_payout_create(request, pk):
     emp = get_object_or_404(Employee, pk=pk)
     if request.method == "POST":
-        form = EmployeePayoutForm(request.POST)
+        form = EmployeePayoutForm(request.POST, pay_type=emp.pay_type)
         if form.is_valid():
             days = _d(form.cleaned_data["days_count"])
             hours = _d(form.cleaned_data["hours_count"])
-            amount = (days * _d(emp.daily_wage) + hours * _d(emp.hourly_wage)).quantize(Decimal("0.01"))
+            if emp.pay_type == Employee.PayType.MONTHLY:
+                amount = _d(form.cleaned_data["amount"]).quantize(Decimal("0.01"))
+            elif emp.pay_type == Employee.PayType.HOURLY:
+                amount = (hours * _d(emp.hourly_wage)).quantize(Decimal("0.01"))
+            else:
+                amount = (days * _d(emp.daily_wage)).quantize(Decimal("0.01"))
             if amount <= 0:
-                messages.error(request, "المبلغ المحسوب صفر — أدخل أياماً و/أو ساعات صالحة.")
-            elif days > emp.work_days_balance or hours > emp.work_hours_balance:
-                messages.error(request, "الأيام أو الساعات أكبر من الرصيد المستحق.")
+                messages.error(request, "المبلغ المحسوب صفر.")
+            elif emp.pay_type == Employee.PayType.DAILY and days > emp.work_days_balance:
+                messages.error(request, "الأيام أكبر من الرصيد المستحق.")
+            elif emp.pay_type == Employee.PayType.HOURLY and hours > emp.work_hours_balance:
+                messages.error(request, "الساعات أكبر من الرصيد المستحق.")
+            elif emp.pay_type == Employee.PayType.MONTHLY and amount > emp.net_balance:
+                messages.error(request, "المبلغ أكبر من الرصيد المستحق.")
             else:
                 advance_deduction = Decimal("0")
                 if emp.advance_balance > 0:
                     advance_deduction = min(_d(emp.advance_balance), amount)
                     emp.advance_balance = (_d(emp.advance_balance) - advance_deduction).quantize(Decimal("0.01"))
-                emp.work_days_balance = (_d(emp.work_days_balance) - days).quantize(Decimal("0.01"))
-                emp.work_hours_balance = (_d(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
+                if emp.pay_type == Employee.PayType.DAILY:
+                    emp.work_days_balance = (_d(emp.work_days_balance) - days).quantize(Decimal("0.01"))
+                elif emp.pay_type == Employee.PayType.HOURLY:
+                    emp.work_hours_balance = (_d(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
                 emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
                 _recalc_balance(emp)
                 net_cash = (amount - advance_deduction).quantize(Decimal("0.01"))
@@ -185,6 +215,7 @@ def employee_payout_create(request, pk):
                         ),
                         work_session=ws,
                         user=request.user,
+                        allow_salary_category=True,
                     )
                 EmployeeSalaryPayout.objects.create(
                     employee=emp,
@@ -197,9 +228,9 @@ def employee_payout_create(request, pk):
                     linked_expense=linked,
                 )
                 messages.success(request, f"تم صرف راتب {amount} بنجاح.")
-                return redirect("payroll:employee_detail", pk=emp.pk)
+                return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
-        form = EmployeePayoutForm()
+        form = EmployeePayoutForm(pay_type=emp.pay_type)
     return render(
         request,
         "payroll/employee_payout_form.html",
@@ -227,13 +258,16 @@ def employee_payout_delete(request, pk, payout_id):
     po.delete()
     _recalc_balance(emp)
     messages.success(request, "تم حذف صرف الراتب واسترجاع الأرصدة والمصروف.")
-    return redirect("payroll:employee_detail", pk=emp.pk)
+    return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 
 
 @login_required
 @transaction.atomic
 def employee_add_days(request, pk):
     emp = get_object_or_404(Employee, pk=pk)
+    if emp.pay_type != Employee.PayType.DAILY:
+        messages.error(request, "إضافة الأيام متاحة فقط للموظف اليومي.")
+        return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     if request.method == "POST":
         form = EmployeeWorkDaysForm(request.POST)
         if form.is_valid():
@@ -242,7 +276,7 @@ def employee_add_days(request, pk):
             emp.save(update_fields=["work_days_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, f"تم إضافة {days} يوم عمل بنجاح")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeWorkDaysForm()
     return render(request, "payroll/employee_add_days_form.html", {"form": form, "employee": emp})
@@ -252,6 +286,9 @@ def employee_add_days(request, pk):
 @transaction.atomic
 def employee_add_hours(request, pk):
     emp = get_object_or_404(Employee, pk=pk)
+    if emp.pay_type != Employee.PayType.HOURLY:
+        messages.error(request, "إضافة الساعات متاحة فقط للموظف بالساعة.")
+        return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     if request.method == "POST":
         form = EmployeeWorkHoursForm(request.POST)
         if form.is_valid():
@@ -260,7 +297,7 @@ def employee_add_hours(request, pk):
             emp.save(update_fields=["work_hours_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, f"تم إضافة {hrs} ساعة عمل بنجاح")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeWorkHoursForm()
     return render(request, "payroll/employee_add_hours_form.html", {"form": form, "employee": emp})
@@ -283,7 +320,7 @@ def employee_cafe_purchase(request, pk):
             emp.save(update_fields=["store_purchases_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, "تم تسجيل الشراء بنجاح")
-            return redirect("payroll:employee_detail", pk=emp.pk)
+            return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeCafePurchaseForm()
     return render(request, "payroll/employee_cafe_purchase_form.html", {"form": form, "employee": emp})
@@ -302,4 +339,21 @@ def employee_cafe_purchase_delete(request, pk, purchase_id):
     cp.delete()
     _recalc_balance(emp)
     messages.success(request, "تم حذف سجل الشراء.")
-    return redirect("payroll:employee_detail", pk=emp.pk)
+    return _payroll_redirect(request, "employee_detail", pk=emp.pk)
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def employee_delete(request, pk):
+    emp = get_object_or_404(Employee, pk=pk)
+    for adv in emp.advances.all():
+        if adv.linked_expense_id:
+            delete_expense_permanent(expense=adv.linked_expense, user=request.user)
+    for po in emp.salary_payouts.all():
+        if po.linked_expense_id:
+            delete_expense_permanent(expense=po.linked_expense, user=request.user)
+    name = emp.name_ar
+    emp.delete()
+    messages.success(request, f"تم حذف الموظف «{name}» وجميع سجلاته.")
+    return redirect("payroll:employees")

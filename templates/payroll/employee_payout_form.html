@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}صرف راتب - {{ employee.name_ar }}{% endblock %}
 {% block content %}
@@ -11,24 +11,35 @@
 </div>
 
 <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-3 mb-4 max-w-2xl space-y-1">
-  <div class="text-sm text-muted">أجر اليوم: <strong class="text-gray-800 dark:text-white">{{ daily_wage|floatformat:2|intcomma }}</strong></div>
-  <div class="text-sm text-muted">أجر الساعة: <strong class="text-gray-800 dark:text-white">{{ hourly_wage|floatformat:2|intcomma }}</strong></div>
+  <div class="text-sm text-muted">آلية العمل: <strong class="text-gray-800 dark:text-white">{{ employee.get_pay_type_display }}</strong></div>
+  <div class="text-sm text-muted">{% if employee.pay_type == "hourly" %}أجر الساعة{% elif employee.pay_type == "monthly" %}راتب الشهر{% else %}أجر اليوم{% endif %}: <strong class="text-gray-800 dark:text-white">{{ employee.pay_amount|floatformat:2|intcomma }}</strong></div>
 </div>
 
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
   <form method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}<p class="text-danger text-sm font-semibold mb-3">{{ form.non_field_errors.0 }}</p>{% endif %}
+    {% if employee.pay_type == "daily" %}
     <div class="mb-4">
       <label class="block text-sm font-semibold text-muted mb-1.5">عدد الأيام (اختياري)</label>
       {{ form.days_count }}
       {% if form.days_count.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.days_count.errors.0 }}</p>{% endif %}
     </div>
+    {% endif %}
+    {% if employee.pay_type == "hourly" %}
     <div class="mb-4">
       <label class="block text-sm font-semibold text-muted mb-1.5">عدد الساعات (اختياري)</label>
       {{ form.hours_count }}
       {% if form.hours_count.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.hours_count.errors.0 }}</p>{% endif %}
     </div>
+    {% endif %}
+    {% if employee.pay_type == "monthly" %}
+    <div class="mb-4">
+      <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ</label>
+      {{ form.amount }}
+      {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+    </div>
+    {% endif %}
     <div class="mb-4">
       <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظة</label>
       {{ form.note }}

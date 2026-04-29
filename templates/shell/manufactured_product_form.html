@@ -1,0 +1,52 @@
+{% extends "shell/base.html" %}
+{% block title %}تصنيع منتج{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">تصنيع منتج</span><span class="flex-1"></span>
+    <a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary">← المنتجات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if errors %}<div class="bg-danger/10 border border-danger/20 rounded-lg p-3 mb-3">{% for e in errors %}<p class="text-danger text-sm font-semibold">{{ e }}</p>{% endfor %}</div>{% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <form method="post" class="manufacture-form" data-category-search-url="{% url 'catalog:category_search' %}" data-category-create-url="{% url 'catalog:category_quick_create' %}">
+        {% csrf_token %}
+        <h2>بيانات المنتج المصنع</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+          <div><label>اسم المنتج</label><input type="text" name="name_ar" required></div>
+          <div><label>سعر البيع</label><input type="number" name="selling_price" step="0.01" min="0" value="0.00"></div>
+          <div class="relative overflow-visible z-30">
+            <label>التصنيف</label>
+            <input type="hidden" name="category" class="manufacture-category-id">
+            <input type="text" class="manufacture-category-search w-full" autocomplete="off" placeholder="اكتب اسم التصنيف...">
+            <div class="manufacture-category-hits purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
+            <div class="manufacture-category-new hidden absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-1"><button type="button" class="manufacture-category-create h-8 px-2.5 rounded-sm bg-success/20 text-success text-xs font-bold">+ إضافة تصنيف</button></div>
+          </div>
+          <div><label>الوحدة</label><select name="unit"><option value="">—</option>{% for u in units %}<option value="{{ u.pk }}">{{ u.name_ar }}</option>{% endfor %}</select></div>
+          <div><label>باركود</label><input type="text" name="barcode"></div>
+        </div>
+
+        <h2>معادلة التصنيع</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr><th>#</th><th>المكوّن</th><th>الكمية لكل وحدة</th><th>الوحدة</th><th></th></tr></thead>
+            <tbody>
+              {% for i in range10 %}
+              <tr class="manufacture-line {% if i > 0 %}hidden{% endif %}">
+                <td>{{ forloop.counter }}</td>
+                <td><select name="component_{{ i }}"><option value="">-- اختر مكوّن --</option>{% for c in components %}<option value="{{ c.pk }}">{{ c.name_ar }}{% if c.unit %} — {{ c.unit.name_ar }}{% endif %}</option>{% endfor %}</select></td>
+                <td><input type="number" name="qty_{{ i }}" step="0.0001" min="0" placeholder="0"></td>
+                <td><select name="unit_mode_{{ i }}"><option value="base">أساسية</option><option value="gram">غرام</option><option value="ml">مل</option></select></td>
+                <td><button type="button" class="manufacture-row-add h-7 w-7 rounded-sm bg-success text-white text-sm font-bold">+</button></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ المنتج ومعادلة التصنيع</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% include "shell/_manufacture_form_scripts.html" %}
+{% endblock %}

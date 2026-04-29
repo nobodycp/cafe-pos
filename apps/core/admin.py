@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from apps.core.models import AuditLog, IdSequence, PosSettings, WorkSession
+from apps.core.models import AuditLog, IdSequence, PaymentMethod, PosSettings, WorkSession
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ("code", "label_ar", "ledger", "is_active", "sort_order")
+    list_filter = ("is_active", "ledger")
+    search_fields = ("code", "label_ar", "label_en")
+    ordering = ("sort_order", "pk")
 
 
 @admin.register(PosSettings)

@@ -1,0 +1,34 @@
+{% extends "shell/base.html" %}
+{% block title %}{{ title }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">{{ title }}</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'shell:suppliers' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← قائمة الموردين</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="flex justify-between items-center mb-6 flex-wrap gap-4"><h1>{{ title }}</h1></div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+      <form method="post">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label>الاسم بالعربي</label>{{ form.name_ar }}{% if form.name_ar.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.name_ar.errors.0 }}</p>{% endif %}</div>
+          <div><label>الاسم بالإنجليزي</label>{{ form.name_en }}{% if form.name_en.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.name_en.errors.0 }}</p>{% endif %}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div><label>الهاتف</label>{{ form.phone }}{% if form.phone.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.phone.errors.0 }}</p>{% endif %}</div>
+          <div><label>البريد الإلكتروني</label>{{ form.email }}{% if form.email.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.email.errors.0 }}</p>{% endif %}</div>
+        </div>
+        {% if not supplier %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+          <div><label>رصيد افتتاحي</label>{{ form.opening_balance }}{% if form.opening_balance.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.opening_balance.errors.0 }}</p>{% endif %}<small class="block text-muted text-xs mt-1">إذا عليك مبلغ سابق للمورد، أدخله هنا</small></div>
+          <div class="flex items-center gap-2.5 pt-6">{{ form.also_customer }}<label for="{{ form.also_customer.id_for_label }}" class="cursor-pointer select-none">إنشاء حساب عميل مرتبط</label></div>
+        </div>
+        {% endif %}
+        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

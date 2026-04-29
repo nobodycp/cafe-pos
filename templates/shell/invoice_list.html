@@ -1,0 +1,58 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}أرشيف فواتير البيع{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">الفواتير</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary">← لوحة الطلبات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="mb-3">
+      <form method="get" class="flex gap-1.5 items-center flex-wrap max-w-2xl">
+        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم العميل..." class="h-8 text-xs flex-1 min-w-[220px]">
+        <select name="status" class="h-8 text-xs w-auto">
+          <option value="">الكل</option>
+          <option value="active" {% if status == 'active' %}selected{% endif %}>نشطة</option>
+          <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>ملغاة</option>
+        </select>
+        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">بحث</button>
+      </form>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td><a href="{% url 'shell:invoice_detail' inv.pk %}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
+              <td>{{ inv.created_at|date:"Y-m-d H:i" }}</td>
+              <td>{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
+              <td>{% if inv.customer %}<a href="{% url 'shell:customer_detail' inv.customer.pk %}" class="text-primary hover:underline">{{ inv.customer.name_ar }}</a>{% else %}—{% endif %}</td>
+              <td class="font-bold">{{ inv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
+              <td>{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
+              <td>
+                <div class="flex gap-2 items-center">
+                  <a href="{% url 'shell:invoice_detail' inv.pk %}">عرض</a>
+                  <form method="post" action="{% url 'shell:sale_invoice_delete' inv.pk %}" class="m-0" onsubmit="return confirm('حذف الفاتورة نهائياً؟');">
+                    {% csrf_token %}
+                    <input type="hidden" name="reason" value="حذف نهائي من قائمة الفواتير">
+                    <input type="hidden" name="next" value="{% url 'shell:invoice_list' %}">
+                    <input type="hidden" name="next_success" value="{% url 'shell:invoice_list' %}">
+                    <button type="submit">حذف</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="p-8 text-center text-muted">لا توجد فواتير</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

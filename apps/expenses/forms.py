@@ -1,11 +1,12 @@
 from django import forms
 
-from apps.expenses.models import Expense, ExpenseCategory
+from apps.core.payment_methods import get_payment_method_choices
+from apps.expenses.models import ExpenseCategory
 
 
 class ExpenseForm(forms.Form):
     category = forms.ModelChoiceField(
-        queryset=ExpenseCategory.objects.all(),
+        queryset=ExpenseCategory.objects.none(),
         label="التصنيف",
         widget=forms.Select(attrs={"class": "form-input"}),
     )
@@ -15,7 +16,7 @@ class ExpenseForm(forms.Form):
         widget=forms.NumberInput(attrs={"class": "form-input", "step": "0.01"}),
     )
     payment_method = forms.ChoiceField(
-        choices=Expense.PaymentMethod.choices,
+        choices=[],
         label="طريقة الدفع",
         widget=forms.Select(attrs={"class": "form-input"}),
     )
@@ -28,6 +29,14 @@ class ExpenseForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3, "class": "form-input"}),
         label="ملاحظات",
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # الرواتب والسلف تُسجَّل فقط من شاشة الموظفين (مصروف رواتب تلقائياً)
+        self.fields["category"].queryset = ExpenseCategory.objects.exclude(
+            code=ExpenseCategory.Code.SALARIES
+        ).order_by("code")
+        self.fields["payment_method"].choices = get_payment_method_choices()
 
 
 class ExpenseCategoryForm(forms.ModelForm):

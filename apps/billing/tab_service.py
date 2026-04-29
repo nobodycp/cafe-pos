@@ -2,7 +2,13 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+PaymentLineTuple = Union[
+    Tuple[str, Decimal],
+    Tuple[str, Decimal, str],
+    Tuple[str, Decimal, str, str],
+]
 
 from django.db import transaction
 from django.db.models import Sum
@@ -10,6 +16,7 @@ from django.db.models import Sum
 from apps.billing.models import InvoicePayment, OrderPayment, SaleInvoice, SaleInvoiceLine
 from apps.contacts.models import Customer, CustomerLedgerEntry
 from apps.core.models import get_pos_settings, log_audit
+from apps.core.payment_methods import credit_method_codes, payment_bucket_keys, payments_list_to_dict
 from apps.core.sequences import next_int
 from apps.core.services import SessionService
 from apps.inventory.services import check_stock_available, consume_for_sale, get_unit_cost
@@ -90,6 +97,38 @@ def _discount_amount(order: Order, gross: Decimal) -> Decimal:
     return disc
 
 
+def cart_line_rows_for_template(
+    lines: List[OrderLine],
+    order_totals: Optional[Dict[str, Decimal]],
+) -> List[Dict[str, Any]]:
+    """صفوف عرض السلة: رقم، خصم مخصّص من خصم الطلب، سعر فعّال، صافي السطر."""
+    if not lines:
+        return []
+    gross = _d(order_totals["gross"]) if order_totals else Decimal("0")
+    disc_total = _d(order_totals["discount"]) if order_totals else Decimal("0")
+    out: List[Dict[str, Any]] = []
+    for i, ln in enumerate(lines, start=1):
+        lg = _line_gross(ln)
+        alloc = Decimal("0")
+        if gross > Decimal("0") and disc_total > Decimal("0"):
+            alloc = (disc_total * (lg / gross)).quantize(Decimal("0.01"))
+        eff_unit = (_d(ln.unit_price) + _d(ln.extra_unit_price)).quantize(Decimal("0.01"))
+        net_line = (lg - alloc).quantize(Decimal("0.01"))
+        if net_line < Decimal("0"):
+            net_line = Decimal("0")
+        out.append(
+            {
+                "idx": i,
+                "line": ln,
+                "line_gross": lg,
+                "alloc_discount": alloc,
+                "effective_unit": eff_unit,
+                "line_net": net_line,
+            }
+        )
+    return out
+
+
 def compute_order_totals(order: Order) -> Dict[str, Decimal]:
     gross = sum((_line_gross(ln) for ln in order.lines.all()), Decimal("0")).quantize(Decimal("0.01"))
     disc = _discount_amount(order, gross)
@@ -110,43 +149,42 @@ def sum_tab_payments(order: Order) -> Decimal:
     return _d(s)
 
 
-def payments_list_to_dict(payments: List[Tuple[str, Decimal]]) -> Dict[str, Decimal]:
-    d = {
-        "cash": Decimal("0"),
-        "bank": Decimal("0"),
-        "bank_ps": Decimal("0"),
-        "palpay": Decimal("0"),
-        "jawwalpay": Decimal("0"),
-        "credit": Decimal("0"),
+def order_payment_source(order: Order) -> str:
+    mapping = {
+        Order.OrderType.DINE_IN: "table",
+        Order.OrderType.TAKEAWAY: "takeaway",
+        Order.OrderType.DELIVERY: "delivery",
     }
-    for method, amt in payments:
-        m = str(method)
-        if m in d:
-            d[m] += _d(amt)
-    return d
+    return mapping.get(order.order_type, "table")
 
 
 def _aggregate_tab_payments(order: Order) -> Dict[str, Decimal]:
-    d = {
-        "cash": Decimal("0"),
-        "bank": Decimal("0"),
-        "bank_ps": Decimal("0"),
-        "palpay": Decimal("0"),
-        "jawwalpay": Decimal("0"),
-        "credit": Decimal("0"),
-    }
+    d = {k: Decimal("0") for k in payment_bucket_keys()}
     for p in order.tab_payments.filter(sale_invoice__isnull=True):
         if p.method in d:
             d[p.method] += _d(p.amount)
     return d
 
 
-def record_tab_payments(*, order: Order, user, payments: List[Tuple[str, Decimal]]) -> None:
-    for method, amt in payments:
-        a = _d(amt)
+def record_tab_payments(*, order: Order, user, payments: List[PaymentLineTuple]) -> None:
+    src = order_payment_source(order)
+    for item in payments:
+        if not item:
+            continue
+        method = str(item[0])
+        a = _d(item[1]) if len(item) > 1 else Decimal("0")
+        payer_name = str(item[2]).strip()[:120] if len(item) > 2 else ""
+        payer_phone = str(item[3]).strip()[:40] if len(item) > 3 else ""
         if a <= 0:
             continue
-        OrderPayment.objects.create(order=order, method=method, amount=a)
+        OrderPayment.objects.create(
+            order=order,
+            method=method,
+            amount=a,
+            payer_name=payer_name,
+            payer_phone=payer_phone,
+            payment_source=src,
+        )
     log_audit(user, "pos.tab.payment", "pos.Order", order.pk, {"payments": str(payments)})
 
 
@@ -157,6 +195,7 @@ def create_sale_invoice_core(
     user,
     pay_by_method: Dict[str, Decimal],
     customer: Optional[Customer] = None,
+    payment_rows: Optional[List[Dict[str, Any]]] = None,
 ) -> SaleInvoice:
     """يُنشئ فاتورة + دفعات فاتورة + مخزون + قيد ائتمان. لا يغيّر حالة الطلب."""
     if SaleInvoice.objects.filter(order=order).exists():
@@ -250,12 +289,36 @@ def create_sale_invoice_core(
         raise ValueError("PAYMENT_SUM_MISMATCH")
 
     credit_total = Decimal("0")
-    for method, amount in pay_by_method.items():
-        if amount <= 0:
-            continue
-        InvoicePayment.objects.create(invoice=inv, method=method, amount=amount)
-        if method == InvoicePayment.Method.CREDIT:
-            credit_total += amount
+    if payment_rows is not None:
+        for pr in payment_rows:
+            method = str(pr.get("method") or "")
+            amount = _d(pr.get("amount"))
+            if amount <= 0:
+                continue
+            InvoicePayment.objects.create(
+                invoice=inv,
+                method=method,
+                amount=amount,
+                payer_name=str(pr.get("payer_name") or "")[:120],
+                payer_phone=str(pr.get("payer_phone") or "")[:40],
+                payment_source=str(pr.get("source") or "")[:24],
+            )
+            if method in credit_method_codes():
+                credit_total += amount
+    else:
+        for method, amount in pay_by_method.items():
+            if amount <= 0:
+                continue
+            InvoicePayment.objects.create(
+                invoice=inv,
+                method=method,
+                amount=amount,
+                payer_name="",
+                payer_phone="",
+                payment_source=order_payment_source(order),
+            )
+            if method in credit_method_codes():
+                credit_total += amount
 
     cust = customer or order.customer
     if credit_total > 0:
@@ -329,7 +392,25 @@ def finalize_order_invoice(
         return None
 
     pay_by_method = _aggregate_tab_payments(order)
-    inv = create_sale_invoice_core(order=order, user=user, pay_by_method=pay_by_method, customer=customer)
+    payment_rows = []
+    src_default = order_payment_source(order)
+    for p in order.tab_payments.filter(sale_invoice__isnull=True).order_by("pk"):
+        payment_rows.append(
+            {
+                "method": p.method,
+                "amount": _d(p.amount),
+                "payer_name": (p.payer_name or "").strip()[:120],
+                "payer_phone": (p.payer_phone or "").strip()[:40],
+                "source": (p.payment_source or "").strip()[:24] or src_default,
+            }
+        )
+    inv = create_sale_invoice_core(
+        order=order,
+        user=user,
+        pay_by_method=pay_by_method,
+        customer=customer,
+        payment_rows=payment_rows,
+    )
     order.tab_payments.filter(sale_invoice__isnull=True).update(sale_invoice=inv)
     order.status = Order.Status.CHECKED_OUT
     order.save(update_fields=["status", "updated_at"])
@@ -340,7 +421,7 @@ def finalize_order_invoice(
 
 @transaction.atomic
 def apply_tab_payments_and_maybe_finalize(
-    *, order: Order, user, payments: List[Tuple[str, Decimal]], customer: Optional[Customer] = None
+    *, order: Order, user, payments: List[PaymentLineTuple], customer: Optional[Customer] = None
 ) -> Optional[SaleInvoice]:
     record_tab_payments(order=order, user=user, payments=payments)
     totals = compute_order_totals(order)

@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}إعداد منتج — تصنيف، وحدة، وصنف{% endblock %}
+{% block content %}
+
+<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">إعداد منتج في مكان واحد</h1>
+    <p class="text-sm text-muted mt-1 max-w-2xl">أضف تصنيفاً أو وحدة إن لم تكونا موجودتين، ثم احفظ المنتج — دون الانتقال لقوائم منفصلة. لإدارة التصنيفات والوحدات بالتفصيل استخدم الروابط أسفل الصفحة.</p>
+  </div>
+  <a href="{% url 'catalog:product_list' %}" class="h-11 px-5 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center gap-1">
+    قائمة المنتجات
+  </a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-base font-extrabold text-gray-800 dark:text-white mb-3">تصنيف جديد</h2>
+    <form method="post" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="workspace_action" value="add_category">
+      <div>
+        <label class="block text-xs font-semibold text-muted mb-1" for="{{ quick_cat.name_ar.id_for_label }}">الاسم (عربي)</label>
+        {{ quick_cat.name_ar }}
+        {% for e in quick_cat.name_ar.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-muted mb-1" for="{{ quick_cat.name_en.id_for_label }}">الاسم (إنجليزي)</label>
+        {{ quick_cat.name_en }}
+      </div>
+      <button type="submit" class="h-10 px-4 rounded-lg bg-primary/15 text-primary font-bold text-sm hover:bg-primary/25 transition-colors">حفظ التصنيف</button>
+    </form>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-base font-extrabold text-gray-800 dark:text-white mb-3">وحدة قياس جديدة</h2>
+    <form method="post" class="space-y-3">
+      {% csrf_token %}
+      <input type="hidden" name="workspace_action" value="add_unit">
+      <div>
+        <label class="block text-xs font-semibold text-muted mb-1" for="{{ quick_unit.code.id_for_label }}">الرمز (لاتيني)</label>
+        {{ quick_unit.code }}
+        {% for e in quick_unit.code.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-muted mb-1" for="{{ quick_unit.name_ar.id_for_label }}">الاسم (عربي)</label>
+        {{ quick_unit.name_ar }}
+        {% for e in quick_unit.name_ar.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-muted mb-1" for="{{ quick_unit.name_en.id_for_label }}">الاسم (إنجليزي)</label>
+        {{ quick_unit.name_en }}
+      </div>
+      <button type="submit" class="h-10 px-4 rounded-lg bg-primary/15 text-primary font-bold text-sm hover:bg-primary/25 transition-colors">حفظ الوحدة</button>
+    </form>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+  <h2 class="text-lg font-extrabold text-gray-800 dark:text-white mb-4">بيانات المنتج</h2>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="workspace_action" value="save_product">
+
+    {% if product_form.non_field_errors %}
+      <div class="mb-5 p-4 rounded-lg bg-danger/10 border border-danger/20">
+        {% for error in product_form.non_field_errors %}
+          <p class="text-danger text-sm font-semibold">{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <label for="{{ product_form.name_ar.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">الاسم (عربي)</label>
+        {{ product_form.name_ar }}
+        {% for error in product_form.name_ar.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="mb-4">
+        <label for="{{ product_form.name_en.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">الاسم (إنجليزي)</label>
+        {{ product_form.name_en }}
+        {% for error in product_form.name_en.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <label for="{{ product_form.category.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">التصنيف</label>
+        {{ product_form.category }}
+        {% for error in product_form.category.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="mb-4">
+        <label for="{{ product_form.unit.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">الوحدة</label>
+        {{ product_form.unit }}
+        {% for error in product_form.unit.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <label for="{{ product_form.selling_price.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">سعر البيع</label>
+        {{ product_form.selling_price }}
+        {% for error in product_form.selling_price.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="mb-4">
+        <label for="{{ product_form.product_type.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">نوع المنتج</label>
+        {{ product_form.product_type }}
+        {% for error in product_form.product_type.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="commission-row">
+      <div class="mb-4">
+        <label for="{{ product_form.commission_percentage.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">نسبة العمولة %</label>
+        {{ product_form.commission_percentage }}
+        {% for error in product_form.commission_percentage.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="mb-4">
+        <label for="{{ product_form.commission_vendor.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">بائع النسبة (المورد)</label>
+        {{ product_form.commission_vendor }}
+        {% for error in product_form.commission_vendor.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <label for="{{ product_form.min_stock_level.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">الحد الأدنى للمخزون</label>
+        {{ product_form.min_stock_level }}
+        {% for error in product_form.min_stock_level.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <div class="form-check flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          {{ product_form.is_stock_tracked }}
+          <label for="{{ product_form.is_stock_tracked.id_for_label }}" class="text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">تتبع المخزون</label>
+        </div>
+        {% for error in product_form.is_stock_tracked.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="mb-4">
+        <div class="form-check flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+          {{ product_form.is_active }}
+          <label for="{{ product_form.is_active.id_for_label }}" class="text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">نشط</label>
+        </div>
+        {% for error in product_form.is_active.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="mb-4">
+        <label for="{{ product_form.barcode.id_for_label }}" class="block text-sm font-semibold text-muted mb-1.5">الباركود</label>
+        {{ product_form.barcode }}
+        {% for error in product_form.barcode.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <button type="submit" class="w-full h-12 rounded-lg font-bold text-sm bg-primary text-white hover:bg-primary-dk mt-4 transition-colors">حفظ المنتج</button>
+  </form>
+</div>
+
+<div class="flex flex-wrap gap-3 text-sm">
+  <a href="{% url 'catalog:category_list' %}" class="text-primary font-semibold hover:underline">إدارة التصنيفات</a>
+  <span class="text-muted">·</span>
+  <a href="{% url 'catalog:unit_list' %}" class="text-primary font-semibold hover:underline">إدارة الوحدات</a>
+</div>
+
+<script>
+var typeSel = document.getElementById('{{ product_form.product_type.id_for_label }}');
+var stockCb = document.getElementById('{{ product_form.is_stock_tracked.id_for_label }}');
+var commRow = document.getElementById('commission-row');
+if (typeSel && stockCb && commRow) {
+  function onTypeChange() {
+    var v = typeSel.value;
+    var isMfg = (v === 'manufactured');
+    var isSvc = (v === 'service');
+    var isComm = (v === 'commission');
+    commRow.style.display = isComm ? '' : 'none';
+    if (isMfg || isSvc || isComm) {
+      stockCb.checked = false;
+      var lock = (isSvc || isComm);
+      stockCb.closest('.form-check').style.opacity = lock ? '0.5' : '';
+      stockCb.closest('.form-check').style.pointerEvents = lock ? 'none' : '';
+    } else {
+      stockCb.closest('.form-check').style.opacity = '';
+      stockCb.closest('.form-check').style.pointerEvents = '';
+    }
+  }
+  typeSel.addEventListener('change', onTypeChange);
+  onTypeChange();
+}
+</script>
+{% endblock %}

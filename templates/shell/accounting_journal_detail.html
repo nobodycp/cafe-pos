@@ -1,0 +1,12 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}قيد {{ entry.entry_number }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">{{ entry.entry_number }}</span><span class="flex-1"></span><a href="{% url 'shell:journal_list' %}" class="text-xs font-bold text-primary">← القيود اليومية</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3 text-sm"><div><strong>التاريخ:</strong> {{ entry.date }}</div><div><strong>الوصف:</strong> {{ entry.description }}</div>{% if entry.reference_type %}<div><strong>المرجع:</strong> {% if entry.reference_type == "billing.SaleInvoice" and entry.reference_pk %}<a href="{% url 'shell:invoice_detail' entry.reference_pk %}">فاتورة بيع #{{ entry.reference_pk }}</a>{% elif entry.reference_type == "purchasing.PurchaseInvoice" and entry.reference_pk %}<a href="{% url 'shell:purchase_detail' entry.reference_pk %}">فاتورة شراء #{{ entry.reference_pk }}</a>{% else %}{{ entry.reference_type }} #{{ entry.reference_pk }}{% endif %}</div>{% endif %}</div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead><tbody>{% for ln in lines %}<tr><td class="font-semibold">{{ ln.account.code }} — {{ ln.account.name_ar }}</td><td>{{ ln.description }}</td><td>{% if ln.debit %}{{ ln.debit|floatformat:2|intcomma }}{% endif %}</td><td>{% if ln.credit %}{{ ln.credit|floatformat:2|intcomma }}{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

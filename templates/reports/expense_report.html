@@ -1,73 +1,66 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}تقرير المصروفات{% endblock %}
 {% block content %}
 
-{# ── Page Header ── #}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold">تقرير المصروفات حسب التصنيف</h1>
-  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk transition-colors">← التقارير</a>
-</div>
+{% include "reports/_reports_nav_tabs.html" %}
+<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير المصروفات حسب التصنيف</p>
 
-{# ── Date Filter ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <form method="get" class="flex gap-3 flex-wrap items-end">
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <form method="get" class="flex gap-2 flex-wrap items-end">
     <div>
-      <label class="block text-sm font-semibold mb-1">من تاريخ</label>
-      <input type="date" name="date_from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+      <label class="block text-[11px] font-bold text-muted mb-0.5">من تاريخ</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
     </div>
     <div>
-      <label class="block text-sm font-semibold mb-1">إلى تاريخ</label>
-      <input type="date" name="date_to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700">
+      <label class="block text-[11px] font-bold text-muted mb-0.5">إلى تاريخ</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
     </div>
-    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">عرض</button>
+    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
   </form>
 </div>
 
-{# ── Grand Total ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6 text-center">
-  <div class="text-sm text-muted font-semibold">إجمالي المصروفات</div>
-  <div class="text-2xl font-extrabold text-danger mt-1">{{ grand_total|floatformat:2|intcomma }}</div>
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3 text-center">
+  <div class="text-[11px] text-muted font-bold">إجمالي المصروفات</div>
+  <div class="text-base font-extrabold text-danger mt-0.5 tabular-nums">{{ grand_total|floatformat:2|intcomma }}</div>
 </div>
 
-{# ── By Category ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <h3 class="text-lg font-bold mb-4">حسب التصنيف</h3>
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <h3 class="text-xs font-extrabold mb-2">حسب التصنيف</h3>
   {% if by_category %}
   <div class="overflow-x-auto">
-    <table class="w-full text-sm">
+    <table class="w-full text-xs">
       <thead>
-        <tr>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التصنيف</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">عدد العمليات</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الإجمالي</th>
+        <tr class="border-b border-gray-200 dark:border-gray-600">
+          <th class="text-start py-2 px-2 font-bold text-muted">التصنيف</th>
+          <th class="text-start py-2 px-2 font-bold text-muted">عدد العمليات</th>
+          <th class="text-start py-2 px-2 font-bold text-muted">الإجمالي</th>
         </tr>
       </thead>
       <tbody>
         {% for row in by_category %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 font-semibold">{{ row.category__name_ar }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700">{{ row.count }}</td>
-          <td class="p-3 border-b border-gray-200 dark:border-gray-700 text-danger font-bold">{{ row.total|floatformat:2|intcomma }}</td>
+        <tr class="border-b border-gray-100 dark:border-gray-700/80">
+          <td class="py-2 px-2 font-semibold">{{ row.category__name_ar }}</td>
+          <td class="py-2 px-2 tabular-nums">{{ row.count }}</td>
+          <td class="py-2 px-2 text-danger font-bold tabular-nums">{{ row.total|floatformat:2|intcomma }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% else %}
-  <p class="text-center text-muted py-8">لا توجد مصروفات في هذه الفترة.</p>
+  <p class="text-center text-muted py-6 text-xs">لا توجد مصروفات في هذه الفترة.</p>
   {% endif %}
 </div>
 
-{# ── By Payment Method ── #}
 {% if method_breakdown %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-  <h3 class="text-lg font-bold mb-4">حسب طريقة الدفع</h3>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+  <h3 class="text-xs font-extrabold mb-2">حسب طريقة الدفع</h3>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
     {% for m in method_breakdown %}
-    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
-      <div class="text-xs text-muted font-semibold">{{ m.label }}</div>
-      <div class="text-xl font-bold text-danger mt-1">{{ m.total|floatformat:2|intcomma }}</div>
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center border border-gray-200/80 dark:border-gray-600">
+      <div class="text-[10px] text-muted font-bold">{{ m.label }}</div>
+      <div class="text-sm font-extrabold text-danger mt-0.5 tabular-nums">{{ m.total|floatformat:2|intcomma }}</div>
     </div>
     {% endfor %}
   </div>

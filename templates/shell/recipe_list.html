@@ -1,0 +1,37 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}معادلة التصنيع — {{ product.name_ar }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">معادلة التصنيع — {{ product.name_ar }}</span><span class="flex-1"></span>
+    <a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary">← المنتجات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="flex justify-between mb-3"><h1>معادلة التصنيع</h1><a href="{% url 'shell:recipe_add' product.pk %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تعديل/إضافة مكوّنات</a></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3"><span class="block text-xs text-muted">سعر البيع</span><strong>{{ product.selling_price|floatformat:2|intcomma }}</strong></div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3"><span class="block text-xs text-muted">تكلفة التصنيع</span><strong>{{ bom_cost|floatformat:2|intcomma }}</strong></div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3"><span class="block text-xs text-muted">الربح</span><strong>{% if profit != None %}{{ profit|floatformat:2|intcomma }}{% else %}—{% endif %}</strong></div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3"><span class="block text-xs text-muted">أقصى إنتاج</span><strong>{% if enriched %}{{ max_producible|floatformat:0 }}{% else %}—{% endif %}</strong></div>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr><th>المكوّن</th><th>الوحدة</th><th>الكمية</th><th>تكلفة الوحدة</th><th>تكلفة المكوّن</th><th>المخزون</th><th>يكفي لـ</th><th>إجراءات</th></tr></thead>
+          <tbody>
+            {% for e in enriched %}
+            <tr>
+              <td class="font-bold">{{ e.component.name_ar }}</td><td>{{ e.component.unit.name_ar|default:"—" }}</td><td>{{ e.display_qty }} {{ e.display_unit }}</td><td>{{ e.unit_cost|floatformat:2|intcomma }}</td><td class="font-bold text-danger">{{ e.line_cost|floatformat:2|intcomma }}</td><td>{{ e.on_hand|floatformat:2|intcomma }}</td><td>{{ e.max_units|floatformat:0 }}</td>
+              <td><form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}" onsubmit="return confirm('حذف المكوّن من المعادلة؟');">{% csrf_token %}<button type="submit">حذف</button></form></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted p-10">لا توجد مكوّنات في معادلة التصنيع.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

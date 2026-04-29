@@ -1,72 +1,75 @@
-{% extends "base.html" %}
+{% extends base_template %}
 {% load humanize %}
 {% block title %}تقرير الموظفين{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold">تقرير الموظفين — السلف والصرف والمشتريات</h1>
-  <a href="{% url 'reports:dashboard' %}" class="text-sm text-primary font-semibold hover:text-primary-dk">← التقارير</a>
-</div>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
-  <form method="get" class="flex gap-3 flex-wrap items-end">
+{% include "reports/_reports_nav_tabs.html" %}
+<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير الموظفين — السلف والصرف والمشتريات</p>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <form method="get" class="flex gap-2 flex-wrap items-end">
     <div>
-      <label class="block text-sm font-semibold mb-1">من</label>
-      <input type="date" name="date_from" value="{{ date_from }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-700">
+      <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
     </div>
     <div>
-      <label class="block text-sm font-semibold mb-1">إلى</label>
-      <input type="date" name="date_to" value="{{ date_to }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 px-3 text-sm bg-white dark:bg-gray-700">
+      <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
     </div>
-    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">عرض</button>
+    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
   </form>
 </div>
 
-<div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
-  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <div class="text-xs text-muted font-bold">إجمالي السلف</div>
-    <div class="text-lg font-extrabold text-warning mt-1">{{ grand_advances|floatformat:2|intcomma }}</div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center bg-white dark:bg-gray-800">
+    <div class="text-[10px] text-muted font-bold">إجمالي السلف</div>
+    <div class="text-sm font-extrabold text-warning mt-0.5 tabular-nums">{{ grand_advances|floatformat:2|intcomma }}</div>
   </div>
-  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <div class="text-xs text-muted font-bold">إجمالي صرف الرواتب</div>
-    <div class="text-lg font-extrabold text-success mt-1">{{ grand_payouts|floatformat:2|intcomma }}</div>
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center bg-white dark:bg-gray-800">
+    <div class="text-[10px] text-muted font-bold">صرف الرواتب</div>
+    <div class="text-sm font-extrabold text-success mt-0.5 tabular-nums">{{ grand_payouts|floatformat:2|intcomma }}</div>
   </div>
-  <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <div class="text-xs text-muted font-bold">مشتريات من المقهى</div>
-    <div class="text-lg font-extrabold text-info mt-1">{{ grand_cafe|floatformat:2|intcomma }}</div>
+  <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center bg-white dark:bg-gray-800">
+    <div class="text-[10px] text-muted font-bold">مشتريات المقهى</div>
+    <div class="text-sm font-extrabold text-info mt-0.5 tabular-nums">{{ grand_cafe|floatformat:2|intcomma }}</div>
   </div>
-  <div class="rounded-xl border border-primary/30 bg-primary-soft dark:bg-primary/10 p-4 text-center">
-    <div class="text-xs text-muted font-bold">الإجمالي</div>
-    <div class="text-lg font-extrabold text-primary mt-1">{{ grand_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</div>
+  <div class="rounded-lg border border-primary/30 bg-primary-soft dark:bg-primary/10 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">الإجمالي</div>
+    <div class="text-sm font-extrabold text-primary mt-0.5 tabular-nums">{{ grand_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</div>
   </div>
 </div>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
   <div class="overflow-x-auto">
-    <table class="w-full text-sm">
+    <table class="w-full text-xs">
       <thead>
-        <tr>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">الموظف</th>
-          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">سلف</th>
-          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">صرف رواتب</th>
-          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">شراء مقهى</th>
-          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">المجموع</th>
-          <th class="p-3 bg-gray-50 dark:bg-gray-700"></th>
+        <tr class="border-b border-gray-200 dark:border-gray-600">
+          <th class="text-start py-2 px-2 font-bold text-muted">الموظف</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">سلف</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">صرف رواتب</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">شراء مقهى</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">المجموع</th>
+          <th class="py-2 px-2 font-bold text-muted"></th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ row.employee.name_ar }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.advances|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.payouts|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end">{{ row.cafe|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end font-bold">{{ row.row_total|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-            <a href="{% url 'payroll:employee_detail' row.employee.pk %}" class="text-primary font-semibold text-xs hover:underline">البطاقة</a>
+        <tr class="border-b border-gray-100 dark:border-gray-700/80">
+          <td class="py-2 px-2 font-semibold">{{ row.employee.name_ar }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ row.advances|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ row.payouts|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ row.cafe|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end font-bold tabular-nums">{{ row.row_total|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2">
+            {% if payroll_ns == 'shell' %}
+            <a href="{% url 'shell:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline whitespace-nowrap">البطاقة</a>
+            {% else %}
+            <a href="{% url 'payroll:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline whitespace-nowrap">البطاقة</a>
+            {% endif %}
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="p-8 text-center text-muted">لا موظفين نشطين</td></tr>
+        <tr><td colspan="6" class="p-6 text-center text-muted text-xs">لا موظفين نشطين</td></tr>
         {% endfor %}
       </tbody>
     </table>

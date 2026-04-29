@@ -1,0 +1,49 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}كشف حساب مورد: {{ supplier.name_ar }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">كشف حساب مورد: {{ supplier.name_ar }}</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'shell:supplier_detail' supplier.pk %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← المورد</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
+      <form method="get" class="flex gap-4 flex-wrap items-end">
+        <div><label>من تاريخ</label><input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"></div>
+        <div><label>إلى تاريخ</label><input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"></div>
+        <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">عرض</button>
+      </form>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الرصيد</th><th>المرجع</th></tr></thead>
+        <tbody>
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد افتتاحي</td><td>{{ opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          {% for r in rows %}
+          <tr>
+            <td>{{ r.date|date:"Y-m-d" }}</td>
+            <td><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if r.entry_type == 'purchase' %}bg-info/10 text-info{% elif r.entry_type == 'payment' %}bg-success/10 text-success{% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">{{ r.type }}</span></td>
+            <td class="font-semibold">{{ r.amount|floatformat:2|intcomma }}</td>
+            <td class="font-semibold">{{ r.running|floatformat:2|intcomma }}</td>
+            <td class="text-sm text-muted">
+              {% if r.reference_model == "purchasing.PurchaseInvoice" and r.reference_pk %}
+              <a href="{% url 'shell:purchase_detail' r.reference_pk %}" class="font-bold text-primary hover:underline">{{ r.reference }}</a>
+              {% elif r.reference_model == "billing.SaleInvoice" and r.reference_pk %}
+              <a href="{% url 'shell:invoice_detail' r.reference_pk %}" class="font-bold text-primary hover:underline">{{ r.reference }}</a>
+              {% else %}
+              {{ r.reference }}
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="p-8 text-center text-muted">لا توجد حركات في الفترة المحددة</td></tr>
+          {% endfor %}
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-extrabold"><td colspan="3">الرصيد الختامي</td><td class="{% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

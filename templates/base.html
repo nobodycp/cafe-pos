@@ -8,6 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ CAFE_NAME_AR }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
+  <link rel="stylesheet" href="{% static 'classic-theme.css' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
   tailwind.config = {
@@ -16,7 +17,7 @@
       extend: {
         fontFamily: { sans: ['Cairo', 'sans-serif'] },
         colors: {
-          primary:    { DEFAULT: '#6c5ce7', dk: '#5649c0', soft: '#eef0ff', light: '#a29bfe' },
+          primary:    { DEFAULT: '#1e3a5f', dk: '#163051', soft: '#e2e8f0', light: '#3d5a80' },
           success:    { DEFAULT: '#00b894', light: '#e8f8f5' },
           danger:     { DEFAULT: '#d63031', light: '#ffe5e5' },
           warning:    { DEFAULT: '#fdcb6e', light: '#fff8e1' },
@@ -30,7 +31,7 @@
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="font-sans bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen antialiased"
+<body class="app-classic-shell font-sans bg-[#e8eaed] dark:bg-gray-950 text-gray-800 dark:text-gray-100 min-h-screen antialiased"
       x-data="toastManager()" @toast.window="addToast($event.detail)">
 
   {# ── Toast Container ── #}
@@ -46,26 +47,32 @@
              'bg-primary text-white': t.type === 'info',
              'bg-warning text-gray-800': t.type === 'warning'
            }"
-           class="pointer-events-auto px-5 py-3 rounded-xl font-bold text-sm shadow-lg">
+           class="pointer-events-auto px-5 py-3 rounded-sm font-bold text-sm border border-black/10">
         <span x-text="t.msg"></span>
       </div>
     </template>
   </div>
 
-  {# ── App Shell ── #}
-  <div class="flex min-h-screen">
+  {# هيكل النظام: خارج #app-viewport = الشريط العلوي + القائمة الجانبية (ثابت). داخل #app-viewport = محتوى الصفحة الحالية فقط. #}
+  <div id="app-shell" class="flex min-h-screen flex-col min-h-0">
+    <header class="app-classic-topbar no-print shrink-0 flex items-center gap-2 h-9 px-3 text-[11px] font-semibold text-white bg-[#1e3a5f] dark:bg-[#0c1929] border-b border-black/20">
+      <a href="{% url 'shell:settings' %}" class="shrink-0 font-bold text-white/95 hover:text-white no-underline" title="إعدادات المشروع">إعدادات</a>
+      <span class="truncate flex-1 text-right">{{ CAFE_NAME_AR }}</span>
+    </header>
+
+    <div class="flex flex-1 min-h-0 overflow-hidden">
 
     {# ── Sidebar ── #}
-    <aside class="sticky top-0 h-screen flex flex-col bg-white dark:bg-gray-800 border-s border-gray-200 dark:border-gray-700 shadow-sm transition-all duration-300 no-print"
+    <aside id="app-sidebar" class="flex flex-col bg-[#f0f1f5] dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 transition-all duration-300 no-print h-[calc(100svh-2.25rem)] shrink-0"
            :class="sidebarOpen ? 'w-[230px]' : 'w-[60px]'"
            @mouseenter="sidebarOpen = true">
 
       {# Brand #}
-      <div class="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white font-extrabold text-sm flex-shrink-0">
+      <div class="flex items-center gap-3 px-3 py-3 border-b border-gray-300 dark:border-gray-700">
+        <div class="w-9 h-9 rounded-sm bg-[#1e3a5f] border border-[#163051] flex items-center justify-center text-white font-extrabold text-sm flex-shrink-0">
           {{ CAFE_NAME_AR.0 }}
         </div>
-        <span class="font-extrabold text-primary truncate transition-opacity duration-200"
+        <span class="font-extrabold text-[#1e3a5f] dark:text-sky-300 truncate transition-opacity duration-200"
               :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">{{ CAFE_NAME_AR }}</span>
       </div>
 
@@ -73,73 +80,24 @@
       <nav class="flex-1 flex flex-col gap-0.5 px-2 py-3 overflow-y-auto thin-scroll">
         {% with app=request.resolver_match.app_name %}
         {% url 'pos:main' as url_pos %}
-        {% url 'catalog:product_list' as url_products %}
-        {% url 'inventory:home' as url_inventory %}
-        {% url 'purchasing:suppliers' as url_suppliers %}
-        {% url 'contacts:customers' as url_customers %}
-        {% url 'payroll:employees' as url_payroll %}
-        {% url 'expenses:list' as url_expenses %}
-        {% url 'reports:dashboard' as url_reports %}
-        {% url 'billing:invoice_list' as url_billing %}
-        {% url 'accounting:chart' as url_accounting %}
-        {% url 'core:settings' as url_settings %}
+        {% url 'core:treasury' as url_treasury %}
 
-        <a href="{{ url_pos }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'pos' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
+        <a href="{{ url_pos }}" class="group flex items-center gap-3 px-3 py-2 rounded-sm text-sm font-semibold transition-colors duration-150 {% if app == 'pos' %}app-nav-active{% else %}text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800/80{% endif %}">
           <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/></svg>
           <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">نقطة البيع</span>
         </a>
-        <a href="{{ url_products }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'catalog' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">المنتجات</span>
-        </a>
-        <a href="{{ url_inventory }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'inventory' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">المخزون</span>
-          {% if LOW_STOCK_COUNT %}<span class="ms-auto bg-danger text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0" :class="sidebarOpen ? '' : 'hidden'">{{ LOW_STOCK_COUNT }}</span>{% endif %}
-        </a>
-        <a href="{{ url_suppliers }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'purchasing' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">الموردون</span>
-        </a>
-        <a href="{{ url_customers }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'contacts' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">العملاء</span>
-        </a>
-        <a href="{{ url_payroll }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'payroll' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">الموظفون</span>
-        </a>
-        <a href="{{ url_expenses }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'expenses' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">المصروفات</span>
-        </a>
-        <a href="{{ url_reports }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'reports' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">التقارير</span>
-        </a>
-        <a href="{{ url_billing }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'billing' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">الفواتير</span>
-        </a>
-        <a href="{{ url_accounting }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if app == 'accounting' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20h20"/><path d="M4 18l8-8 4 4 6-6"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">المحاسبة</span>
-        </a>
-
-        <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-
-        <a href="{{ url_settings }}" class="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 {% if request.path == '/settings/' %}bg-primary/10 text-primary{% else %}text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700{% endif %}">
-          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">الإعدادات</span>
+        <a href="{{ url_treasury }}" class="group flex items-center gap-3 px-3 py-2 rounded-sm text-sm font-semibold transition-colors duration-150 {% if app == 'core' and request.resolver_match.url_name == 'treasury' %}app-nav-active{% else %}text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800/80{% endif %}">
+          <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 10h.01M18 10h.01"/></svg>
+          <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'">سندات قبض وصرف</span>
         </a>
         {% endwith %}
       </nav>
 
       {# Footer #}
-      <div class="px-2 py-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+      <div class="px-2 py-3 border-t border-gray-300 dark:border-gray-700 space-y-1">
         {# Dark mode toggle #}
         <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
-                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200">
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800/80 transition-colors duration-150">
           <svg x-show="!darkMode" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
           <svg x-show="darkMode" x-cloak class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <span class="truncate transition-opacity duration-200" :class="sidebarOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'" x-text="darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'"></span>
@@ -148,15 +106,15 @@
         {# Language switchers #}
         <div class="flex gap-1" x-show="sidebarOpen" x-cloak>
           <form action="{% url 'set_language' %}" method="post" class="flex-1">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" name="language" value="ar" class="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-bold hover:border-primary transition-colors">ع</button>
+            <button type="submit" name="language" value="ar" class="w-full h-9 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold hover:border-[#1e3a5f] transition-colors">ع</button>
           </form>
           <form action="{% url 'set_language' %}" method="post" class="flex-1">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" name="language" value="en" class="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-bold hover:border-primary transition-colors">EN</button>
+            <button type="submit" name="language" value="en" class="w-full h-9 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-bold hover:border-[#1e3a5f] transition-colors">EN</button>
           </form>
         </div>
 
         {% if user.is_authenticated %}
-        <a href="{% url 'core:session_summary' %}" class="block w-full text-center py-2.5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors"
+        <a href="{% url 'core:session_summary' %}" class="block w-full text-center py-2.5 rounded-sm bg-[#1e3a5f] text-white font-bold text-sm hover:bg-[#163051] border border-[#163051] transition-colors"
            x-show="sidebarOpen" x-cloak>ملخص وإغلاق الوردية</a>
         <a href="{% url 'logout' %}" class="block text-center text-xs text-muted hover:text-danger transition-colors py-1"
            x-show="sidebarOpen" x-cloak>تسجيل الخروج</a>
@@ -167,13 +125,13 @@
       </div>
     </aside>
 
-    {# ── Main Content ── #}
-    <div class="flex-1 flex flex-col min-h-screen overflow-hidden">
+    {# منطقة العمل بجانب القائمة: الرسائل ثم مساحة الصفحة #}
+    <div id="app-shell-workspace" class="flex-1 flex flex-col min-h-0 overflow-hidden">
       {# Messages (Django messages framework) #}
       {% if messages %}
       <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9998] flex flex-col gap-2" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)">
         {% for m in messages %}
-        <div class="px-6 py-3 rounded-xl font-bold text-sm shadow-lg animate-fade-in
+        <div class="px-6 py-3 rounded-sm font-bold text-sm border border-black/10 animate-fade-in
           {% if 'error' in m.tags %}bg-danger text-white{% elif 'success' in m.tags %}bg-success text-white{% elif 'warning' in m.tags %}bg-warning text-gray-800{% else %}bg-info text-gray-800{% endif %}">
           {{ m }}
         </div>
@@ -181,9 +139,13 @@
       </div>
       {% endif %}
 
-      <main class="flex-1 p-6 lg:p-8 overflow-y-auto">
-        {% block content %}{% endblock %}
+      <main class="flex-1 flex flex-col min-h-0 p-3 lg:p-4 overflow-hidden" role="main">
+        {# #app-viewport = كل ما يخص الصفحة الحالية (بدء إعادة هيكلة تدريجية من هنا) #}
+        <div id="app-viewport" class="app-viewport-surface flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 shadow-sm">
+          {% block content %}{% endblock %}
+        </div>
       </main>
+    </div>
     </div>
   </div>
 

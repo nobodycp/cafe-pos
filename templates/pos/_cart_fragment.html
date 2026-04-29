@@ -1,158 +1,346 @@
-{# Cart body fragment for AJAX updates #}
+{% load l10n %}
+{# Cart fragment — تخطيط كاشير تقليدي: إجمالي علوي، جدول أصناف، شريط أدوات، دفع #}
 <style>
-/* مربع ثابت لسعر الوحدة — Enter يرسل النموذج (زر مخفي) */
-.cart-unit-price-form{flex:0 0 auto;width:auto;max-width:2.35rem}
-.cart-unit-price-form input[name=unit_price]{
-  box-sizing:border-box;width:2.35rem!important;height:2.35rem!important;min-width:2.35rem!important;max-width:2.35rem!important;
-  min-height:2.35rem!important;max-height:2.35rem!important;padding:0!important;margin:0;
-  font-size:0.62rem;line-height:2.35rem;text-align:center;border-radius:0.25rem;
+/* يتجاوز app.css (width:100% على كل الحقول) داخل عمود الكاشير فقط */
+#pos-cart input[type="number"],
+#pos-cart input[type="text"],
+#pos-cart input[type="search"],
+#pos-cart input[type="tel"]{
+  width:auto!important;
+  max-width:100%;
+  box-sizing:border-box;
+  min-height:1.25rem!important;
+  height:1.25rem!important;
+  padding:0 4px!important;
+  font-size:10px!important;
+  line-height:1.2!important;
 }
-.cart-unit-price-form button[type=submit]{position:absolute!important;clip:rect(0,0,0,0)!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;border:0!important;overflow:hidden!important;}
+#pos-cart .pos-ci-disc-amt{width:3.75rem!important;min-width:3.5rem!important;flex:0 0 auto!important;}
+#pos-cart .pos-ci-disc-pct{width:2.75rem!important;min-width:2.5rem!important;flex:0 0 auto!important;}
+#pos-cart .pos-ci-note{flex:1 1 6rem!important;min-width:0!important;width:min(14rem,42vw)!important;max-width:16rem!important;}
+#pos-cart .pos-ci-pay-amt{width:5.25rem!important;min-width:4.75rem!important;flex:0 0 auto!important;}
+#pos-cart #ep-payer-panel input.pos-payer-field{
+  min-height:1.625rem!important;
+  height:1.625rem!important;
+  font-size:11px!important;
+  padding:2px 6px!important;
+}
+/* عمودان متساويان لاسم المحوّل / الجوال */
+#pos-cart #ep-payer-panel .pos-payer-name,
+#pos-cart #ep-payer-panel .pos-payer-phone{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+/* آجل: عميل في نفس صف المحوّل — نصف عرض فقط، العمود الثاني فارغ */
+#pos-cart #pay-ar-customer-panel .pos-ar-cust-wrap{min-width:0}
+#pos-cart #pay-ar-customer-panel input.pos-ar-cust{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  min-height:1.625rem!important;
+  height:1.625rem!important;
+  font-size:11px!important;
+  padding:2px 6px!important;
+  box-sizing:border-box!important;
+}
+#pos-cart .pos-ci-cust{width:min(10rem,32vw)!important;flex:1 1 6rem!important;}
+.pos-cart-lines thead th{padding:2px 4px;font-weight:700;border-bottom:1px solid #cbd5e1;background:#f1f5f9}
+.dark .pos-cart-lines thead th{background:#1e293b;border-color:#475569}
+.pos-cart-lines tbody td{padding:1px 4px;vertical-align:middle;border-bottom:1px solid #e5e7eb}
+.dark .pos-cart-lines tbody td{border-color:#374151}
+.pos-cart-lines .cart-line-item.is-selected{background:rgba(30,58,95,.12)!important}
+.dark .pos-cart-lines .cart-line-item.is-selected{background:rgba(96,165,250,.15)!important}
+.pos-cart-lines input[type=number]{font-size:10px!important;padding:1px 2px!important;min-height:22px!important;height:22px!important;width:2.75rem!important;min-width:2.5rem!important;max-width:3.25rem!important;}
+.pos-cart-toolbar .tb-btn{min-height:26px;padding:0 6px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #d1d5db}
+.dark .pos-cart-toolbar .tb-btn{border-color:#4b5563}
+#pos-cart #cart-discount-note-block form{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+#pos-cart #cart-discount-note-block>summary{list-style:none}
+#pos-cart #cart-discount-note-block>summary::-webkit-details-marker{display:none}
+#pos-cart #cart-discount-note-block>summary .pos-dn-chev{display:inline-block;transition:transform .12s ease;font-size:8px;opacity:.55}
+#pos-cart #cart-discount-note-block[open]>summary .pos-dn-chev{transform:rotate(-90deg)}
+/* شريط إجراءات الدفع: إلغاء | تعليق | دفع | مبلغ */
+#pos-cart #pos-checkout-action-bar{display:flex;flex-direction:row;align-items:stretch;min-height:2.25rem;margin-top:4px;border-radius:6px;overflow:hidden;border:1px solid #0f172a;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.dark #pos-cart #pos-checkout-action-bar{border-color:#e2e8f0}
+#pos-cart #pos-checkout-action-bar .pos-ca-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  margin:0;border:none;border-radius:0;cursor:pointer;font-weight:800;font-size:10px;line-height:1.1;
+  padding:4px 5px;color:#fff;flex:0 0 auto;min-width:3.1rem;font-family:inherit;
+}
+#pos-cart #pos-checkout-action-bar .pos-ca-kbd{font-size:8px;font-weight:600;opacity:.9;font-family:ui-monospace,monospace}
+#pos-cart #pos-checkout-action-bar .pos-ca-cancel{background:#dc2626}
+#pos-cart #pos-checkout-action-bar .pos-ca-cancel:hover{background:#b91c1c}
+#pos-cart #pos-checkout-action-bar .pos-ca-hold{background:#2563eb}
+#pos-cart #pos-checkout-action-bar .pos-ca-hold:hover{background:#1d4ed8}
+#pos-cart #pos-checkout-action-bar .pos-ca-pay{flex:1 1 auto;min-width:0;background:#059669;font-size:11px}
+#pos-cart #pos-checkout-action-bar .pos-ca-pay:hover{background:#047857}
+#pos-cart #pos-ca-amt-wrap{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;
+  background:#fde68a;padding:2px 5px;border-inline-start:1px solid #ca8a04;min-width:0;
+}
+.dark #pos-cart #pos-ca-amt-wrap{background:rgba(253,224,71,.22);border-color:#eab308}
+#pos-cart #pos-ca-amt-wrap input.pos-ci-pay-amt{
+  min-height:1.75rem!important;height:1.75rem!important;font-size:11px!important;
+  width:7.25rem!important;min-width:7rem!important;max-width:9rem!important;
+}
+/* شريط ملخص الطلب — بدون فراغ وسطي؛ الشرائح تملأ العرض دون تداخل */
+#pos-cart .pos-cart-total-bar{
+  display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;
+  gap:10px 14px;background:#0a0a0a;border-bottom:2px solid #404040;padding:8px 10px;width:100%;box-sizing:border-box;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;
+}
+.dark #pos-cart .pos-cart-total-bar{background:#000;border-bottom-color:#525252}
+#pos-cart .pos-ctb-hero{
+  display:flex;flex-direction:row;align-items:baseline;flex-wrap:nowrap;gap:8px 12px;
+  flex:0 0 auto;min-width:fit-content;max-width:100%;
+}
+#pos-cart .pos-ctb-hero-label{font-size:18px;font-weight:800;color:#a3a3a3;white-space:nowrap;line-height:1.1}
+#pos-cart .pos-ctb-hero-amt{font-size:clamp(2.1rem,5.6vw,2.75rem);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+#pos-cart .pos-ctb-hero-amt .pos-ctb-cur{font-size:62%;font-weight:700;color:#d4d4d4;margin-inline-start:4px}
+#pos-cart .pos-ctb-stats{
+  display:flex;flex-direction:row;flex-wrap:wrap;align-items:stretch;justify-content:space-evenly;
+  flex:1 1 0%;gap:8px 10px;min-width:0;align-self:stretch;
+}
+#pos-cart .pos-ctb-seg{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px 0;
+  flex:1 1 5.75rem;min-width:5.25rem;max-width:100%;flex-shrink:0;
+  padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.06);box-sizing:border-box;
+  font-size:18px;line-height:1.15;
+}
+#pos-cart .pos-ctb-seg-lbl{font-weight:700;color:#737373;font-size:14px;line-height:1.1;white-space:normal;max-width:100%}
+#pos-cart .pos-ctb-seg-val{font-weight:800;font-size:18px;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap}
+#pos-cart .pos-ctb-seg--disc .pos-ctb-seg-val{color:#fda4af}
+#pos-cart .pos-ctb-seg--muted .pos-ctb-seg-val{color:#d4d4d4}
+#pos-cart .pos-ctb-netseg .pos-ctb-seg-lbl{color:#737373}
+#pos-cart .pos-ctb-netseg .pos-ctb-seg-val{color:#a3a3a3;font-size:16px}
+#pos-cart .pos-ctb-extras-inline{
+  flex:1 1 100%;min-width:100%;text-align:center;font-size:14px;font-weight:600;color:#737373;
+  padding:4px 6px;box-sizing:border-box;
+}
 </style>
 {% if not current_order %}
 <div class="flex items-center justify-center text-muted text-xs py-6">لا يوجد طلب نشط</div>
 {% else %}
-<div class="flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-200 dark:border-gray-700">
-  <div class="flex-1 min-w-0 leading-tight">
-    <span class="text-xs font-bold text-primary">#{{ current_order.pk }}</span>
-    <span class="text-[10px] text-muted truncate block">{{ current_order.get_order_type_display }}{% if current_order.table %} · {{ current_order.table.name_ar }}{% endif %}</span>
+<div class="pos-cart-inner flex flex-col min-h-0 h-full text-xs" dir="rtl">
+
+  <div class="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1.5 py-1 border-b border-gray-200 dark:border-gray-700 text-[10px]">
+    <span class="font-bold text-primary">#{{ current_order.pk }}</span>
+    <span class="text-muted truncate">{{ current_order.get_order_type_display }}{% if current_order.table %} · {{ current_order.table.name_ar }}{% endif %}</span>
+    <span class="ms-auto flex flex-wrap gap-0.5">
+      <a href="{% url 'pos:order_split' current_order.pk %}" class="tb-btn no-underline inline-flex items-center text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">تقسيم</a>
+      <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="هل أنت متأكد من إلغاء هذا الطلب بالكامل؟">{% csrf_token %}
+        <button type="submit" class="tb-btn text-danger border-danger/40 hover:bg-danger/10">إلغاء</button>
+      </form>
+    </span>
   </div>
-  <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" style="display:contents" class="ajax-cart-form">
-    {% csrf_token %}
-    <button type="submit" class="hold-btn h-7 px-2 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 transition" title="Esc">تعليق</button>
-  </form>
-  <a href="{% url 'pos:order_split' current_order.pk %}" class="hold-btn h-7 px-2 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-gray-100 dark:hover:bg-gray-700 no-underline inline-flex items-center justify-center" title="تقسيم">تقسيم</a>
-  <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" style="display:contents" onsubmit="return confirm('هل أنت متأكد من إلغاء هذا الطلب بالكامل؟')">
-    {% csrf_token %}
-    <button type="submit" class="hold-btn h-7 px-2 rounded-md border border-danger text-[10px] font-semibold text-danger hover:bg-danger/10 transition" title="إلغاء">إلغاء</button>
-  </form>
-</div>
 
-{% if current_order.customer %}
-<div class="flex items-center gap-1.5 px-2 py-1 border-b border-gray-200 dark:border-gray-700 bg-primary-soft/40 dark:bg-primary/10">
-  <span class="text-xs font-semibold truncate">{{ current_order.customer.name_ar }}</span>
-  <span class="text-[10px] text-muted truncate">{{ current_order.customer.phone }}</span>
-</div>
-{% endif %}
+  {% if current_order.customer %}
+  <div class="shrink-0 flex items-center gap-1.5 px-1.5 py-0.5 border-b border-gray-200 dark:border-gray-700 bg-primary-soft/30 dark:bg-primary/10 text-[10px]">
+    <span class="font-semibold truncate">{{ current_order.customer.name_ar }}</span>
+    <span class="text-muted truncate">{{ current_order.customer.phone }}</span>
+  </div>
+  {% endif %}
 
-<div class="flex-1 overflow-y-auto px-2 py-1 space-y-1 min-h-0">
-  {% for line in lines %}
-  <div class="cart-line-item bg-gray-50 dark:bg-gray-700/40 rounded-md px-1 py-0.5 transition-all duration-200 cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-gray-600{% if forloop.last %} ring-1 ring-primary/30{% endif %}" data-line-idx="{{ forloop.counter0 }}">
-    <div class="flex flex-nowrap items-center gap-0.5 min-w-0 w-full">
-      <div class="min-w-0 flex-1 flex flex-nowrap items-center gap-0.5 overflow-hidden">
-        <span class="text-[10px] font-semibold truncate min-w-0 basis-0 grow leading-tight"
-          title="{{ line.product.name_ar }}{% if line.modifiers_json %} — {% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}{% endif %}{% if line.line_note %} — {{ line.line_note }}{% endif %}">{{ line.product.name_ar }}{% if line.modifiers_json %}<span class="text-muted font-normal">+</span>{% endif %}</span>
-        <div class="cl-qty flex items-center gap-0 shrink-0">
-          <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
-            <input type="hidden" name="qty_delta" value="-1">
-            <button type="submit" class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-600 text-[10px] font-bold leading-none hover:bg-danger hover:text-white transition flex items-center justify-center p-0">−</button>
-          </form>
-          <span class="w-4 text-center text-[10px] font-bold">{{ line.quantity|floatformat:"0" }}</span>
-          <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
-            <input type="hidden" name="qty_delta" value="1">
-            <button type="submit" class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-600 text-[10px] font-bold leading-none hover:bg-success hover:text-white transition flex items-center justify-center p-0">+</button>
-          </form>
-        </div>
-        <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form cart-unit-price-form relative inline-flex items-center justify-center shrink-0" title="سعر الوحدة — Enter — قائمة {{ line.product.selling_price }}">
+  {% if order_totals %}
+  <div class="pos-cart-total-bar shrink-0" dir="rtl">
+    <div class="pos-ctb-hero">
+      <span class="pos-ctb-hero-label">المتبقي للدفع</span>
+      <span class="pos-ctb-hero-amt text-emerald-400"><span id="live-balance">{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}</span><span class="pos-ctb-cur">{{ POS_SETTINGS.currency_symbol }}</span></span>
+    </div>
+    <div class="pos-ctb-stats">
+      <span class="pos-ctb-seg">
+        <span class="pos-ctb-seg-lbl">{% if order_totals.discount > 0 %}قبل الخصم{% else %}الإجمالي{% endif %}</span>
+        <span class="pos-ctb-seg-val text-neutral-100">{% if order_totals.discount > 0 %}{{ order_totals.gross }}{% else %}{{ order_totals.grand }}{% endif %}</span>
+      </span>
+      <span class="pos-ctb-seg pos-ctb-seg--disc">
+        <span class="pos-ctb-seg-lbl">الخصم</span>
+        <span class="pos-ctb-seg-val">{% if order_totals.discount > 0 %}−{{ order_totals.discount }}{% else %}0.00{% endif %}</span>
+      </span>
+      <span class="pos-ctb-seg pos-ctb-seg--muted">
+        <span class="pos-ctb-seg-lbl">المدفوع</span>
+        <span class="pos-ctb-seg-val">{{ tab_paid }}</span>
+      </span>
+      {% if order_totals.discount > 0 %}
+      <span class="pos-ctb-seg pos-ctb-netseg">
+        <span class="pos-ctb-seg-lbl">صافي الفاتورة</span>
+        <span class="pos-ctb-seg-val">{{ order_totals.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </span>
+      {% endif %}
+      {% if order_totals.service > 0 or order_totals.tax > 0 %}
+      <span class="pos-ctb-extras-inline">
+        {% if order_totals.service > 0 %}خدمة {{ order_totals.service }}{% endif %}
+        {% if order_totals.service > 0 and order_totals.tax > 0 %} · {% endif %}
+        {% if order_totals.tax > 0 %}ضريبة {{ order_totals.tax }}{% endif %}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="flex-1 min-h-0 overflow-auto border-b border-gray-200 dark:border-gray-700">
+    {% if cart_line_rows %}
+    <table class="pos-cart-lines w-full border-collapse table-fixed text-[10px]">
+      <thead>
+        <tr>
+          <th class="w-6 text-center">#</th>
+          <th class="text-start min-w-0">الاسم</th>
+          <th class="w-[5.5rem] text-center">كمية</th>
+          <th class="w-16 text-center">سعر</th>
+          <th class="w-12 text-center">خصم</th>
+          <th class="w-14 text-end">مجموع</th>
+          <th class="w-7 text-center"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for crow in cart_line_rows %}
+        {% with line=crow.line %}
+        <tr class="cart-line-item cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50{% if forloop.last %} is-selected{% endif %}"
+            data-line-idx="{{ forloop.counter0 }}"
+            data-line-id="{{ line.pk }}"
+            data-unit-price="{{ line.unit_price }}"
+            data-qty="{{ line.quantity }}">
+          <td class="text-center text-muted font-mono relative">
+            <span class="js-line-note sr-only">{{ line.line_note }}</span>{{ crow.idx }}</td>
+          <td class="min-w-0 text-start">
+            <div class="truncate font-semibold text-gray-900 dark:text-gray-100 leading-tight" title="{{ line.product.name_ar }}">{{ line.product.name_ar }}</div>
+            {% if line.modifiers_json %}
+            <div class="text-[9px] text-muted truncate">{% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>
+            {% endif %}
+            {% if line.line_note %}<div class="text-[9px] text-primary italic truncate">{{ line.line_note }}</div>{% endif %}
+          </td>
+          <td class="text-center">
+            <div class="inline-flex items-center gap-px justify-center">
+              <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+                <input type="hidden" name="qty_delta" value="-1">
+                <button type="submit" class="w-5 h-5 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold leading-none hover:bg-rose-600 hover:text-white p-0">−</button>
+              </form>
+              <span class="min-w-[1.25rem] text-center font-bold tabular-nums">{{ line.quantity|floatformat:"-3" }}</span>
+              <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+                <input type="hidden" name="qty_delta" value="1">
+                <button type="submit" class="w-5 h-5 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold leading-none hover:bg-emerald-600 hover:text-white p-0">+</button>
+              </form>
+            </div>
+          </td>
+          <td class="text-center">
+            <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form inline-block w-full max-w-[4.5rem] mx-auto" title="سعر الوحدة">
+              {% csrf_token %}
+              <input type="number" name="unit_price" step="0.01" min="0" inputmode="decimal" value="{{ line.unit_price }}"
+                class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center font-semibold">
+              <button type="submit" class="sr-only">ok</button>
+            </form>
+            {% if line.extra_unit_price %}
+            <div class="text-[8px] text-muted leading-none mt-px">+{{ line.extra_unit_price }}</div>
+            {% endif %}
+          </td>
+          <td class="text-center text-muted tabular-nums">{% if crow.alloc_discount > 0 %}{{ crow.alloc_discount }}{% else %}—{% endif %}</td>
+          <td class="text-end font-bold text-primary tabular-nums leading-none">{{ crow.line_net }}</td>
+          <td class="text-center">
+            <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="حذف السطر؟">{% csrf_token %}
+              <button type="submit" class="w-5 h-5 p-0 text-[11px] leading-none text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded" title="حذف">×</button>
+            </form>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="flex items-center justify-center text-muted text-[11px] py-8">السلة فارغة</div>
+    {% endif %}
+  </div>
+
+  <div class="shrink-0 pos-cart-toolbar flex flex-wrap gap-0.5 px-1 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/80">
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-delete" title="Del">حذف</button>
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-note" title="F4">ملاحظة</button>
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-price" title="F3">سعر</button>
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-qty" title="F2">كمية</button>
+    <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" style="display:contents" id="tb-hold-form">{% csrf_token %}
+      <button type="submit" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" title="تعليق الطلب">تعليق</button>
+    </form>
+    <a href="{% url 'pos:tables_floor' %}" class="tb-btn no-underline inline-flex items-center bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100">طاولات</a>
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-new-invoice" title="تعليق ثم شاشة جديدة">جديد</button>
+    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-open-drawer">درج</button>
+  </div>
+
+  <details class="shrink-0 border-b border-gray-200 dark:border-gray-700 text-[10px] leading-tight group" id="cart-discount-note-block">
+    <summary class="cursor-pointer px-1 py-0.5 font-semibold text-muted hover:text-primary flex items-center gap-0.5 select-none">
+      <span class="pos-dn-chev" aria-hidden="true">▶</span>
+      <span>خصم الطلب · ملاحظة</span>
+      {% if current_order.discount_amount or current_order.discount_percent or current_order.order_note %}
+      <span class="text-[9px] font-normal text-primary/70 shrink-0">· نشط</span>
+      {% endif %}
+    </summary>
+    <div class="px-1 pb-0.5 pt-0 border-t border-gray-100 dark:border-gray-800/80">
+      <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        <form method="post" action="{% url 'pos:order_discount' current_order.pk %}" class="ajax-cart-form items-center gap-1">
           {% csrf_token %}
-          <input type="number" name="unit_price" step="0.01" min="0" inputmode="decimal" autocomplete="off" value="{{ line.unit_price }}"
-            class="border border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 font-semibold text-gray-800 dark:text-gray-100 focus:ring-1 focus:ring-primary focus:border-primary outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-          <button type="submit" tabindex="-1" aria-hidden="true">.</button>
+          <span class="text-muted font-semibold shrink-0">خصم:</span>
+          <input type="number" step="0.01" name="discount_amount" value="{{ current_order.discount_amount }}" title="مبلغ الخصم"
+            class="pos-ci-disc-amt rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+          <span class="text-muted shrink-0">%</span>
+          <input type="number" step="0.01" name="discount_percent" value="{{ current_order.discount_percent }}" title="نسبة الخصم"
+            class="pos-ci-disc-pct rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+          <button type="submit" class="h-5 shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 text-[9px] font-bold text-primary hover:bg-primary hover:text-white leading-none">تطبيق</button>
         </form>
-      </div>
-      <span class="text-[10px] font-bold text-primary whitespace-nowrap shrink-0 leading-none">{{ line.line_total }} {{ POS_SETTINGS.currency_symbol }}</span>
-      <div class="flex items-center shrink-0">
-        <button type="button" class="line-note-btn w-5 h-5 rounded text-muted hover:bg-primary hover:text-white text-[9px] transition flex items-center justify-center shrink-0" title="ملاحظة" data-line-id="{{ line.pk }}" data-note="{{ line.line_note|default:'' }}">📝</button>
-        <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form shrink-0" data-confirm="حذف {{ line.product.name_ar }}؟">{% csrf_token %}
-          <button type="submit" class="cl-del w-5 h-5 rounded text-danger/70 hover:bg-danger hover:text-white text-[9px] transition flex items-center justify-center" title="حذف">✕</button>
+        <form method="post" action="{% url 'pos:order_note' current_order.pk %}" id="order-note-form-compact" class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-[min(100%,20rem)]">
+          {% csrf_token %}
+          <span class="text-muted font-semibold shrink-0">ملاحظة:</span>
+          <input type="text" name="order_note" id="order-note-compact" maxlength="2000" placeholder="…" autocomplete="off"
+            value="{{ current_order.order_note }}"
+            class="pos-ci-note min-w-0 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <button type="button" id="order-note-save-btn" class="h-5 w-5 shrink-0 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold text-primary hover:bg-primary hover:text-white leading-none p-0" title="حفظ">✓</button>
         </form>
       </div>
     </div>
-  </div>
-  {% empty %}
-  <div class="flex items-center justify-center text-muted text-xs py-6">السلة فارغة</div>
-  {% endfor %}
-
-  <details class="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
-    <summary class="cursor-pointer text-[11px] font-semibold text-muted hover:text-primary py-0.5 select-none list-none [&::-webkit-details-marker]:hidden">خصم وملاحظات</summary>
-    <form method="post" action="{% url 'pos:order_discount' current_order.pk %}" class="ajax-cart-form mt-2 space-y-1.5">
-      {% csrf_token %}
-      <div class="flex items-center gap-1.5">
-        <label class="text-[10px] font-semibold text-muted whitespace-nowrap">خصم</label>
-        <input type="number" step="0.01" name="discount_amount" value="{{ current_order.discount_amount }}" class="flex-1 h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-1.5 text-xs focus:ring-1 focus:ring-primary outline-none">
-      </div>
-      <div class="flex items-center gap-1.5">
-        <label class="text-[10px] font-semibold text-muted whitespace-nowrap">%</label>
-        <input type="number" step="0.01" name="discount_percent" value="{{ current_order.discount_percent }}" class="flex-1 h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-1.5 text-xs focus:ring-1 focus:ring-primary outline-none">
-      </div>
-      <button type="submit" class="h-7 w-full rounded-md bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary hover:text-white transition">تطبيق خصم</button>
-    </form>
-    <form method="post" action="{% url 'pos:order_note' current_order.pk %}" class="ajax-cart-form mt-2 space-y-1">
-      {% csrf_token %}
-      <textarea name="order_note" rows="2" placeholder="ملاحظة الطلب…" class="w-full rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 py-1 text-xs focus:ring-1 focus:ring-primary outline-none resize-none">{{ current_order.order_note }}</textarea>
-      <button type="submit" class="h-7 w-full rounded-md bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary hover:text-white transition">حفظ</button>
-    </form>
   </details>
 
-</div>
+  {% if order_totals %}
+  <div class="shrink-0 px-1 py-1 space-y-1" id="cart-footer">
+    <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}" data-grand="{% localize off %}{{ order_totals.grand|floatformat:2 }}{% endlocalize %}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
+      {% csrf_token %}
+      <div class="flex flex-wrap gap-0.5" id="pay-methods" dir="rtl">
+        {% for row in POS_SETTINGS.payment_method_rows %}
+        <button type="button" class="pm-btn flex-1 min-w-[3.5rem] h-8 rounded border border-gray-300 dark:border-gray-600 text-[9px] sm:text-[10px] font-bold transition hover:border-primary bg-white dark:bg-gray-800 px-0.5 leading-tight"
+          data-m="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="payment_mode" id="pay-mode-val" value="">
+      <p class="text-[8px] text-muted leading-tight">دفعات جزئية: عدّل «مبلغ الدفعة» دون إغلاق الطاولة.</p>
 
-{% if order_totals %}
-<div class="border-t border-gray-200 dark:border-gray-700 px-2 py-1.5" id="cart-footer">
-  <div class="space-y-0.5 mb-2 text-[11px]">
-    {% if order_totals.discount > 0 %}
-    <div class="flex justify-between gap-2"><span class="text-muted truncate">قبل الخصم</span><span class="shrink-0">{{ order_totals.gross }} {{ POS_SETTINGS.currency_symbol }}</span></div>
-    <div class="flex justify-between gap-2"><span class="text-muted">خصم</span><span class="text-danger font-semibold shrink-0">-{{ order_totals.discount }} {{ POS_SETTINGS.currency_symbol }}</span></div>
-    {% endif %}
-    {% if order_totals.service > 0 %}<div class="flex justify-between"><span class="text-muted">خدمة</span><span>{{ order_totals.service }}</span></div>{% endif %}
-    {% if order_totals.tax > 0 %}<div class="flex justify-between"><span class="text-muted">ضريبة</span><span>{{ order_totals.tax }}</span></div>{% endif %}
-    <div class="flex justify-between font-bold text-xs pt-1 border-t border-gray-200 dark:border-gray-700"><span>إجمالي</span><span>{{ order_totals.grand }} {{ POS_SETTINGS.currency_symbol }}</span></div>
-    {% if tab_paid > 0 %}<div class="flex justify-between"><span class="text-muted">مدفوع</span><span class="text-success font-semibold">{{ tab_paid }} {{ POS_SETTINGS.currency_symbol }}</span></div>{% endif %}
-    <div class="flex justify-between font-bold text-primary text-xs"><span>متبقي</span><span id="live-balance">{{ tab_balance }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+      <div class="hidden mb-0.5 grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="ep-payer-panel">
+        <div class="relative min-w-0">
+          <input type="text" name="payer_name" id="pay-payer-name" maxlength="120" autocomplete="off" placeholder="اسم المحوّل"
+            class="pos-payer-field pos-payer-name rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <div id="pay-payer-hits" class="absolute top-full start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b max-h-[100px] overflow-y-auto shadow text-[10px]" style="display:none"></div>
+        </div>
+        <input type="tel" name="payer_phone" id="pay-payer-phone" maxlength="40" inputmode="tel" placeholder="جوال"
+          class="pos-payer-field pos-payer-phone rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums">
+      </div>
+
+      <div class="hidden mb-0.5 grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="pay-ar-customer-panel">
+        <div class="relative min-w-0 pos-ar-cust-wrap">
+          <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
+          <input type="search" id="pay-cust-search" placeholder="اسم العميل…" autocomplete="off" aria-label="اختيار عميل للدفع الآجل"
+            value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
+            class="pos-ar-cust rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <div id="pay-cust-hits" class="absolute top-full start-0 end-0 z-50 mt-px bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-b max-h-[120px] overflow-y-auto shadow-lg text-[10px]" style="display:none"></div>
+        </div>
+        <div class="min-w-0 min-h-[1.625rem]" aria-hidden="true"></div>
+      </div>
+
+      <div id="pos-checkout-action-bar" dir="ltr" class="flex flex-row items-stretch gap-0">
+        <button type="button" class="pos-ca-btn pos-ca-cancel" id="pos-btn-cancel-order" title="إلغاء الطلب كاملاً">إلغاء الطلب<span class="pos-ca-kbd">F9</span></button>
+        <button type="button" class="pos-ca-btn pos-ca-hold" id="pos-btn-hold-order" title="تعليق الطلب">تعليق<span class="pos-ca-kbd">Esc</span></button>
+        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع">دفع<span class="pos-ca-kbd">Enter</span></button>
+        <div id="pos-ca-amt-wrap" class="shrink-0">
+          <label for="pay-amt" class="sr-only">مبلغ الدفعة</label>
+          <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+        </div>
+      </div>
+    </form>
+    <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" id="pos-cancel-order-form" class="hidden" aria-hidden="true">{% csrf_token %}</form>
   </div>
-
-  <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{{ tab_balance }}" data-grand="{{ order_totals.grand }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
-    {% csrf_token %}
-    <div class="flex flex-row flex-nowrap gap-0.5 mb-2 min-w-0" id="pay-methods" dir="rtl">
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="cash">كاش</button>
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="bank_ps">بنك فلسطين</button>
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="palpay">بال باي</button>
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="jawwalpay">جوال باي</button>
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="credit">آجل</button>
-      <button type="button" class="pm-btn flex-1 min-w-0 basis-0 h-9 rounded-md border border-gray-200 dark:border-gray-600 text-[8px] sm:text-[9px] font-semibold transition hover:border-primary flex items-center justify-center text-center leading-tight px-0.5" data-m="mixed">مختلط</button>
-    </div>
-    <input type="hidden" name="payment_mode" id="pay-mode-val" value="">
-
-    <div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md mb-2 text-[10px]" id="mixed-panel">
-      <label class="font-semibold text-muted">كاش</label>
-      <input type="number" step="0.01" name="pay_cash" id="mx-cash" value="0" class="h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-xs focus:ring-1 focus:ring-primary outline-none">
-      <label class="font-semibold text-muted">شبكة</label>
-      <input type="number" step="0.01" name="pay_bank" id="mx-bank" value="0" class="h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-xs focus:ring-1 focus:ring-primary outline-none">
-      <label class="font-semibold text-muted">آجل</label>
-      <input type="number" step="0.01" name="pay_credit" id="mx-credit" value="0" class="h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-xs focus:ring-1 focus:ring-primary outline-none">
-      <div class="col-span-2 text-center font-bold text-primary text-[10px]" id="mx-remaining">متبقي: {{ tab_balance }} {{ POS_SETTINGS.currency_symbol }}</div>
-    </div>
-
-    <div class="flex flex-wrap gap-1 mb-2" id="quick-amounts">
-      <button type="button" data-amt="exact" class="flex-1 min-w-0 h-7 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-primary/10 hover:border-primary transition">ضبط</button>
-      <button type="button" data-amt="5" class="h-7 w-8 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-primary/10 transition">+5</button>
-      <button type="button" data-amt="10" class="h-7 w-8 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-primary/10 transition">+10</button>
-      <button type="button" data-amt="20" class="h-7 w-8 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-primary/10 transition">+20</button>
-      <button type="button" data-amt="50" class="h-7 w-8 rounded-md border border-gray-200 dark:border-gray-600 text-[10px] font-semibold hover:bg-primary/10 transition">+50</button>
-    </div>
-
-    <label class="text-[10px] font-semibold text-muted block mb-0.5">عميل (آجل)</label>
-    <div class="relative mb-2">
-      <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
-      <input type="search" id="pay-cust-search" placeholder="بحث…" autocomplete="off"
-        value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
-        class="w-full h-7 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-2 text-xs focus:ring-1 focus:ring-primary outline-none">
-      <div id="pay-cust-hits" class="absolute top-full start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b-md max-h-[140px] overflow-y-auto shadow-lg text-xs" style="display:none"></div>
-    </div>
-
-    <button type="submit" class="w-full h-9 rounded-lg bg-success hover:brightness-105 text-white font-bold text-xs transition flex items-center justify-center gap-1.5" id="pay-btn">
-      دفع / إتمام <span class="text-[9px] px-1 py-0.5 bg-white/20 rounded">⏎</span>
-    </button>
-  </form>
+  {% endif %}
 </div>
-{% endif %}
 {% endif %}

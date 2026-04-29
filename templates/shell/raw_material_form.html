@@ -1,0 +1,20 @@
+{% extends "shell/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">{{ title }}</span><span class="flex-1"></span><a href="{% url 'shell:raw_materials' %}" class="text-xs font-bold text-primary">← المواد الخام</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
+      <form method="post">{% csrf_token %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div><label>الاسم (عربي)</label>{{ form.name_ar }}{% for error in form.name_ar.errors %}<p class="text-danger text-xs mt-1">{{ error }}</p>{% endfor %}</div>
+          <div><label>الاسم (إنجليزي)</label>{{ form.name_en }}{% for error in form.name_en.errors %}<p class="text-danger text-xs mt-1">{{ error }}</p>{% endfor %}</div>
+          <div><label>الوحدة</label>{{ form.unit }}{% for error in form.unit.errors %}<p class="text-danger text-xs mt-1">{{ error }}</p>{% endfor %}</div>
+          <div><label>الحد الأدنى للمخزون</label>{{ form.min_stock_level }}{% for error in form.min_stock_level.errors %}<p class="text-danger text-xs mt-1">{{ error }}</p>{% endfor %}</div>
+        </div>
+        <button type="submit" class="w-full h-11 rounded-lg bg-primary text-white font-bold text-sm">حفظ</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

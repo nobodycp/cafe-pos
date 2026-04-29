@@ -1,0 +1,17 @@
+{% extends "shell/base.html" %}
+{% block title %}تعديل معادلة التصنيع — {{ product.name_ar }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">تعديل معادلة التصنيع — {{ product.name_ar }}</span><span class="flex-1"></span><a href="{% url 'shell:recipe_list' product.pk %}" class="text-xs font-bold text-primary">← المعادلة</a></div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if errors %}<div class="bg-danger/10 border border-danger/20 rounded-lg p-3 mb-3">{% for e in errors %}<p class="text-danger text-sm font-semibold">{{ e }}</p>{% endfor %}</div>{% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <form method="post" class="manufacture-form">{% csrf_token %}
+        <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>#</th><th>المكوّن</th><th>الكمية</th><th>الوحدة</th><th></th></tr></thead><tbody>{% for i in range10 %}<tr class="manufacture-line {% if i > 0 %}hidden{% endif %}"><td>{{ forloop.counter }}</td><td><select name="component_{{ i }}"><option value="">-- اختر مكوّن --</option>{% for c in components %}<option value="{{ c.pk }}">{{ c.name_ar }}{% if c.unit %} — {{ c.unit.name_ar }}{% endif %}</option>{% endfor %}</select></td><td><input type="number" name="qty_{{ i }}" step="0.0001" min="0"></td><td><select name="unit_mode_{{ i }}"><option value="base">أساسية</option><option value="gram">غرام</option><option value="ml">مل</option></select></td><td><button type="button" class="manufacture-row-add h-7 w-7 rounded-sm bg-success text-white text-sm font-bold">+</button></td></tr>{% endfor %}</tbody></table></div>
+        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ المعادلة</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% include "shell/_manufacture_form_scripts.html" %}
+{% endblock %}

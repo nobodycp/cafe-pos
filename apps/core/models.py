@@ -1,7 +1,12 @@
 from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+PAYMENT_METHOD_CODE_VALIDATOR = RegexValidator(
+    r"^[a-z][a-z0-9_]{0,31}$",
+    _("رمز لاتيني صغير: يبدأ بحرف ثم أرقام أو _."),
+)
 
 
 class TimeStampedModel(models.Model):
@@ -106,6 +111,41 @@ class IdSequence(models.Model):
         verbose_name_plural = _("تسلسلات المعرفات")
 
 
+class PaymentMethod(models.Model):
+    """طرق الدفع/التحصيل — تظهر كأزرار في الكاشير والسندات والقوائم."""
+
+    class Ledger(models.TextChoices):
+        CASH = "cash", _("صندوق نقدي")
+        BANK = "bank", _("بنك / شبكة")
+        AR = "ar", _("آجل / ذمم")
+
+    code = models.CharField(
+        _("رمز النظام"),
+        max_length=32,
+        unique=True,
+        validators=[PAYMENT_METHOD_CODE_VALIDATOR],
+        help_text=_("لاتيني صغير، للاستخدام الداخلي (مثل cash، bank_ps)."),
+    )
+    label_ar = models.CharField(_("الاسم المعروض"), max_length=120)
+    label_en = models.CharField(_("الاسم (إنجليزي)"), max_length=120, blank=True)
+    ledger = models.CharField(
+        _("نوع الحساب المحاسبي"),
+        max_length=8,
+        choices=Ledger.choices,
+        default=Ledger.BANK,
+    )
+    is_active = models.BooleanField(_("نشط"), default=True)
+    sort_order = models.PositiveSmallIntegerField(_("الترتيب"), default=0)
+
+    class Meta:
+        verbose_name = _("طريقة دفع")
+        verbose_name_plural = _("طرق الدفع")
+        ordering = ("sort_order", "pk")
+
+    def __str__(self):
+        return f"{self.label_ar} ({self.code})"
+
+
 class PosSettings(models.Model):
     """Singleton row pk=1 — all system settings."""
 
@@ -166,6 +206,12 @@ class PosSettings(models.Model):
 
     def __str__(self):
         return "System Settings"
+
+    @property
+    def payment_method_rows(self):
+        from apps.core import payment_methods
+
+        return payment_methods.load_payment_method_rows()
 
 
 def log_audit(user, action: str, model_label: str = "", object_pk: str = "", payload=None):

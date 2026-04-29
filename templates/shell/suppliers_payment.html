@@ -1,0 +1,33 @@
+{% extends "shell/base.html" %}
+{% block title %}تسجيل سداد - {{ supplier.name_ar }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">تسجيل سداد - {{ supplier.name_ar }}</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'shell:supplier_detail' supplier.pk %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← المورد</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if supplier.linked_customer and supplier.linked_customer.balance > 0 %}
+    <div class="bg-warning/10 border border-warning rounded-xl p-4 mb-5 text-sm">
+      <strong class="text-yellow-700 dark:text-warning">تنبيه:</strong>
+      هذا المورد عميل مرتبط ({{ supplier.linked_customer.name_ar }}) — رصيده كعميل <strong>{{ supplier.linked_customer.balance|floatformat:2 }}</strong>.
+      رصيد المورد: <strong>{{ supplier.balance|floatformat:2 }}</strong> — الصافي: <strong>{{ net_balance|floatformat:2 }}</strong>
+    </div>
+    {% endif %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+      <form method="post">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div><label>المبلغ</label>{{ form.amount }}{% if form.amount.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.amount.errors.0 }}</p>{% endif %}</div>
+          <div><label>طريقة الدفع</label>{{ form.method }}{% if form.method.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.method.errors.0 }}</p>{% endif %}</div>
+        </div>
+        <div class="grid grid-cols-1 gap-5 mt-5">
+          <div><label>ملاحظة</label>{{ form.note }}{% if form.note.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.note.errors.0 }}</p>{% endif %}</div>
+        </div>
+        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

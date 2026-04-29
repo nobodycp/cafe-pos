@@ -1,31 +1,136 @@
 from decimal import Decimal, InvalidOperation
+from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
+from django.db.models import Q, Sum
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
+from django.urls import Resolver404, resolve, reverse
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import InvoicePayment, SaleInvoice
-from apps.core.forms import (
-    CafeInfoForm,
-    CurrencyForm,
-    OrderSettingsForm,
-    PrinterForm,
-    ReceiptForm,
-    TaxServiceForm,
+from apps.contacts.models import Customer
+from apps.core.forms import TreasuryVoucherForm
+from apps.core.settings_handlers import resolve_settings_request
+from apps.core.treasury_services import submit_treasury_voucher
+from apps.core.payment_method_pages import (
+    payment_method_create_page as payment_method_create,
+    payment_method_delete_page as payment_method_delete,
+    payment_method_list_page as payment_method_list,
+    payment_method_update_page as payment_method_update,
 )
-from apps.core.models import PosSettings
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
+from apps.payroll.models import Employee
 from apps.pos.forms import DiningTableForm
 from apps.pos.models import DiningTable, Order, TableSession
 from apps.pos.table_service import prepare_work_session_for_shift_close
+from apps.purchasing.models import Supplier
 
 
 @login_required
 def home(request):
     return redirect("pos:main")
+
+
+def _safe_treasury_redirect_next(request) -> Optional[str]:
+    """يسمح بإعادة التوجيه الداخلية فقط (مثلاً الكاشير) بعد تسجيل سند."""
+    raw = (request.POST.get("next") or "").strip()
+    if not raw or "\n" in raw or "\r" in raw or ".." in raw or raw.startswith("//"):
+        return None
+    if not raw.startswith("/"):
+        return None
+    path_only = raw.split("?", 1)[0]
+    if not path_only.startswith("/pos"):
+        return None
+    try:
+        resolve(path_only)
+    except Resolver404:
+        return None
+    return raw
+
+
+@login_required
+def treasury(request):
+    """سند موحّد: نوع السند قبض/صرف، وتصنيف الجهة منفصل."""
+    ws = SessionService.get_open_session()
+    voucher_form = TreasuryVoucherForm(prefix="tv")
+    if request.method == "POST":
+        next_url = _safe_treasury_redirect_next(request)
+        voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        if voucher_form.is_valid():
+            vt = voucher_form.cleaned_data["voucher_type"]
+            try:
+                submit_treasury_voucher(
+                    voucher_type=vt,
+                    cleaned=voucher_form.cleaned_data,
+                    user=request.user,
+                    work_session=ws,
+                )
+                if vt == TreasuryVoucherForm.VT_RECEIPT:
+                    messages.success(request, "تم تسجيل سند القبض بنجاح.")
+                else:
+                    messages.success(request, "تم تسجيل سند الصرف بنجاح.")
+                if next_url:
+                    return redirect(next_url)
+                return redirect("core:treasury")
+            except ValueError as e:
+                if str(e) == "UNKNOWN_VOUCHER_TYPE":
+                    messages.error(request, "نوع السند غير معروف.")
+                else:
+                    messages.error(request, "المبلغ غير صالح.")
+            except Exception as e:
+                messages.error(request, f"تعذّر التسجيل: {e}")
+        else:
+            messages.error(request, "راجع بيانات السند.")
+    return render(
+        request,
+        "core/treasury.html",
+        {
+            "voucher_form": voucher_form,
+            "work_session": ws,
+        },
+    )
+
+
+@login_required
+@require_GET
+def treasury_party_search(request):
+    """اقتراحات عميل / مورد / موظف لحقل «اسم صاحب السند» في سند الصندوق."""
+    q = (request.GET.get("q") or "").strip()
+    party_type = (request.GET.get("party_type") or "").strip()
+    if len(q) < 1 or party_type not in (
+        TreasuryVoucherForm.PARTY_CUSTOMER,
+        TreasuryVoucherForm.PARTY_SUPPLIER,
+        TreasuryVoucherForm.PARTY_EMPLOYEE,
+    ):
+        return JsonResponse({"results": []})
+
+    limit = 24
+    results = []
+    if party_type == TreasuryVoucherForm.PARTY_CUSTOMER:
+        qs = (
+            Customer.objects.filter(is_active=True)
+            .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
+            .order_by("name_ar")[:limit]
+        )
+        results = [{"id": c.pk, "label": c.name_ar} for c in qs]
+    elif party_type == TreasuryVoucherForm.PARTY_SUPPLIER:
+        qs = (
+            Supplier.objects.filter(is_active=True)
+            .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
+            .order_by("name_ar")[:limit]
+        )
+        results = [{"id": s.pk, "label": s.name_ar} for s in qs]
+    elif party_type == TreasuryVoucherForm.PARTY_EMPLOYEE:
+        qs = (
+            Employee.objects.filter(is_active=True)
+            .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
+            .order_by("name_ar")[:limit]
+        )
+        results = [{"id": e.pk, "label": e.name_ar} for e in qs]
+    return JsonResponse({"results": results})
 
 
 @login_required
@@ -81,27 +186,14 @@ def close_session_view(request):
 
 @login_required
 def settings_page(request):
-    obj, _ = PosSettings.objects.get_or_create(pk=1)
-    section = request.POST.get("section", request.GET.get("tab", ""))
-
-    form_map = {
-        "cafe": CafeInfoForm,
-        "currency": CurrencyForm,
-        "tax": TaxServiceForm,
-        "order": OrderSettingsForm,
-        "printer": PrinterForm,
-        "receipt": ReceiptForm,
-    }
-
-    if request.method == "POST" and section in form_map:
-        form = form_map[section](request.POST, instance=obj)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "تم حفظ الإعدادات بنجاح.")
-            return redirect(f"{request.path}?tab={section}")
-    ctx = {k: cls(instance=obj) for k, cls in form_map.items()}
-    ctx["active_tab"] = section or "cafe"
-    return render(request, "core/settings.html", ctx)
+    result = resolve_settings_request(
+        request,
+        redirect_after_save=reverse("core:settings"),
+        payment_method_url_namespace="core",
+    )
+    if isinstance(result, HttpResponse):
+        return result
+    return render(request, "core/settings.html", result)
 
 
 @login_required

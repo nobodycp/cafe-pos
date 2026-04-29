@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounting.models import Account, JournalEntry, JournalLine
+from apps.core.payment_methods import resolve_cash_bank_line_code, resolve_ledger_account_code
 from apps.core.sequences import next_int
 
 
@@ -65,16 +66,6 @@ def _add_line(entry: JournalEntry, account: Account, debit: Decimal = Decimal("0
     )
 
 
-PAYMENT_ACCOUNT_MAP = {
-    "cash": "CASH",
-    "bank": "BANK",
-    "bank_ps": "BANK",
-    "palpay": "BANK",
-    "jawwalpay": "BANK",
-    "credit": "AR",
-}
-
-
 @transaction.atomic
 def post_sale_invoice_journal(
     *,
@@ -116,7 +107,7 @@ def post_sale_invoice_journal(
         amt = _d(amount)
         if amt <= 0:
             continue
-        sys_code = PAYMENT_ACCOUNT_MAP.get(method)
+        sys_code = resolve_ledger_account_code(method)
         if not sys_code:
             continue
         _add_line(entry, _get_account(sys_code), debit=amt, desc=f"تحصيل {method}")
@@ -241,7 +232,7 @@ def post_expense_journal(
 
     _add_line(entry, exp_account, debit=amount, desc=expense.notes[:255] if expense.notes else "")
 
-    pay_sys = "CASH" if expense.payment_method == "cash" else "BANK"
+    pay_sys = resolve_cash_bank_line_code(expense.payment_method)
     _add_line(entry, _get_account(pay_sys), credit=amount, desc="دفع مصروف")
 
     return entry
@@ -272,7 +263,7 @@ def post_customer_payment_journal(
     )
     entry.save()
 
-    pay_sys = "CASH" if method == "cash" else "BANK"
+    pay_sys = resolve_cash_bank_line_code(method)
     _add_line(entry, _get_account(pay_sys), debit=amt, desc="تحصيل")
     _add_line(entry, _get_account("AR"), credit=amt, desc=f"خصم ذمم {customer.name_ar}")
 
@@ -305,7 +296,7 @@ def post_supplier_payment_journal(
     entry.save()
 
     _add_line(entry, _get_account("AP"), debit=amt, desc=f"تسوية ذمم {supplier.name_ar}")
-    pay_sys = "CASH" if method == "cash" else "BANK"
+    pay_sys = resolve_cash_bank_line_code(method)
     _add_line(entry, _get_account(pay_sys), credit=amt, desc="سداد")
 
     return entry

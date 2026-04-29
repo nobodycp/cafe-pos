@@ -29,10 +29,6 @@ class ExpenseCategory(TimeStampedModel):
 
 
 class Expense(TimeStampedModel):
-    class PaymentMethod(models.TextChoices):
-        CASH = "cash", _("نقدي")
-        BANK = "bank", _("بنك")
-
     work_session = models.ForeignKey(
         WorkSession,
         verbose_name=_("الوردية"),
@@ -48,7 +44,7 @@ class Expense(TimeStampedModel):
     )
     expense_date = models.DateField(_("تاريخ المصروف"))
     amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
-    payment_method = models.CharField(_("طريقة الدفع"), max_length=16, choices=PaymentMethod.choices)
+    payment_method = models.CharField(_("طريقة الدفع"), max_length=32)
     notes = models.TextField(_("ملاحظات"), blank=True)
 
     class Meta:

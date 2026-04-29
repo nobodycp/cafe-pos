@@ -1,0 +1,105 @@
+{
+  "project": {
+    "name": "cafe-pos",
+    "description_ar": "نظام نقاط بيع ومخزون ومحاسبة لمقهى/مطعم — واجهة عربية RTL",
+    "django_version": "4.2",
+    "python": ">=3.8",
+    "frontend": "Django templates + Tailwind CDN + Alpine.js (لا React/Vue منفصل)"
+  },
+  "session_note_ar": "اليوم: نسخة تجريبية للعميل — بانتظار الفيدباك قبل توسيع النطاق.",
+  "repository": {
+    "remote_example": "https://github.com/nobodycp/cafe-pos.git",
+    "install_one_liner": "git clone <repo> && cd cafe-pos && bash install.sh",
+    "update": "cd cafe-pos && bash update.sh"
+  },
+  "layout": {
+    "settings": "config/settings.py",
+    "urls_root": "config/urls.py",
+    "templates": "templates/",
+    "static": "static/",
+    "apps_root": "apps/"
+  },
+  "django_apps": [
+    {
+      "name": "core",
+      "path": "apps/core",
+      "notes": "WorkSession، PosSettings، AuditLog، seed_demo، setup_system، إغلاق الوردية"
+    },
+    {
+      "name": "pos",
+      "path": "apps/pos",
+      "notes": "الكاشير، الطاولات، الطلبات، table_service (جلسات + floor_rows)، views كثيرة"
+    },
+    {
+      "name": "billing",
+      "path": "apps/billing",
+      "notes": "فواتير البيع، تبويبات الدفع، tab_service، إلغاء"
+    },
+    {
+      "name": "catalog",
+      "path": "apps/catalog",
+      "notes": "منتجات، RAW منفصل في الواجهات، وصفات، commission_vendor"
+    },
+    {
+      "name": "inventory",
+      "path": "apps/inventory",
+      "notes": "StockBalance، consume_for_sale، check_stock_available، stocktake"
+    },
+    {
+      "name": "accounting",
+      "path": "apps/accounting",
+      "notes": "قيود يومية، COA من migrations، post_sale/purchase journal، idempotency"
+    },
+    {
+      "name": "contacts",
+      "path": "apps/contacts",
+      "notes": "عملاء، أرصدة، ربط مورد-عميل OneToOne"
+    },
+    {
+      "name": "purchasing",
+      "path": "apps/purchasing",
+      "notes": "موردين، فواتير شراء، تقارير عمولة"
+    },
+    {
+      "name": "payroll",
+      "path": "apps/payroll",
+      "notes": "موظفين، سلف، صرف رواتب — _post_advance_journal مرة واحدة فقط"
+    },
+    {
+      "name": "expenses",
+      "path": "apps/expenses",
+      "notes": "مصروفات + تصنيفات"
+    },
+    {
+      "name": "reports",
+      "path": "apps/reports",
+      "notes": "لوحة، مبيعات يومية، أسبوعي، تدفق نقدي، حركة أصناف"
+    }
+  ],
+  "key_urls_namespaces": {
+    "pos": "pos:* — main، tables_floor، order_*، cart_fragment، products_search",
+    "core": "core:* — session_open/close/summary، settings",
+    "billing": "billing:* — فواتير، مرتجعات",
+    "catalog": "catalog:* — product_card (ليس product_detail)"
+  },
+  "production": {
+    "server": "gunicorn + systemd unit cafe-pos",
+    "static": "whitenoise middleware في settings",
+    "env_critical": [
+      "DEBUG=False على السيرفر",
+      "ALLOWED_HOSTS + CSRF_TRUSTED_ORIGINS مع http://IP:PORT عند الدخول بالـ IP",
+      "SECURE_SSL_REDIRECT=False إلا مع HTTPS حقيقي",
+      "فتح TCP في لوحة السحابة + UFW؛ لا تغلق 22 قبل السماح بـ OpenSSH"
+    ],
+    "database_default": "SQLite؛ DATABASE_URL لـ PostgreSQL"
+  },
+  "conventions": {
+    "admin": "واجهة المستخدم الرئيسية ليست Django Admin — لوحات مخصصة",
+    "money": "Decimal في Python؛ لا float للمال",
+    "rtl": "قوالب عربية أولاً"
+  },
+  "tests_and_checks": {
+    "django_check": "python manage.py check",
+    "local_dev": "pip install -r requirements.txt ثم python manage.py runserver"
+  }
+}

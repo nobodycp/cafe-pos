@@ -19,6 +19,12 @@ def expense_list(request):
 @login_required
 def expense_edit(request, pk):
     expense = get_object_or_404(Expense.objects.select_related("category"), pk=pk)
+    if expense.category.code == ExpenseCategory.Code.SALARIES:
+        messages.error(
+            request,
+            "مصروف «رواتب» لا يُعدَّل يدوياً — يُدار من الموظفين (سلفة أو صرف راتب). يمكنك حذف السطر من قائمة المصروفات إن لزم.",
+        )
+        return redirect("expenses:list")
     if request.method == "POST":
         form = ExpenseForm(request.POST)
         if form.is_valid():
@@ -38,7 +44,10 @@ def expense_edit(request, pk):
                 messages.success(request, "تم تحديث المصروف.")
                 return redirect("expenses:list")
             except ValueError as e:
-                messages.error(request, str(e))
+                msg = str(e)
+                if msg == "SALARIES_VIA_PAYROLL_ONLY":
+                    msg = "تصنيف الرواتب غير متاح هنا — سجّل السلفة أو صرف الراتب من «الموظفون»."
+                messages.error(request, msg)
     else:
         form = ExpenseForm(initial={
             "category": expense.category_id,
@@ -81,7 +90,10 @@ def expense_create(request):
                 messages.success(request, "تم إضافة المصروف بنجاح.")
                 return redirect("expenses:list")
             except ValueError as e:
-                messages.error(request, str(e))
+                msg = str(e)
+                if msg == "SALARIES_VIA_PAYROLL_ONLY":
+                    msg = "تصنيف الرواتب غير متاح هنا — سجّل السلفة أو صرف الراتب من «الموظفون»."
+                messages.error(request, msg)
     else:
         form = ExpenseForm()
     return render(request, "expenses/expense_form.html", {"form": form, "edit_expense": None})
