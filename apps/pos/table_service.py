@@ -13,12 +13,6 @@ from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, TableSession
 
 
-def _d(v):
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
-
-
 @transaction.atomic
 def open_or_resume_table_session(
     *,

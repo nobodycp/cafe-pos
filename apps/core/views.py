@@ -4,22 +4,15 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import InvoicePayment, SaleInvoice
-from apps.contacts.models import Customer
+from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.core.forms import TreasuryVoucherForm
-from apps.core.settings_handlers import resolve_settings_request
 from apps.core.treasury_services import submit_treasury_voucher
-from apps.core.payment_method_pages import (
-    payment_method_create_page as payment_method_create,
-    payment_method_delete_page as payment_method_delete,
-    payment_method_list_page as payment_method_list,
-    payment_method_update_page as payment_method_update,
-)
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.payroll.models import Employee
@@ -74,7 +67,7 @@ def treasury(request):
                     messages.success(request, "تم تسجيل سند الصرف بنجاح.")
                 if next_url:
                     return redirect(next_url)
-                return redirect("core:treasury")
+                return redirect("shell:accounting_treasury")
             except ValueError as e:
                 if str(e) == "UNKNOWN_VOUCHER_TYPE":
                     messages.error(request, "نوع السند غير معروف.")
@@ -86,7 +79,7 @@ def treasury(request):
             messages.error(request, "راجع بيانات السند.")
     return render(
         request,
-        "core/treasury.html",
+        "shell/treasury.html",
         {
             "voucher_form": voucher_form,
             "work_session": ws,
@@ -110,12 +103,7 @@ def treasury_party_search(request):
     limit = 24
     results = []
     if party_type == TreasuryVoucherForm.PARTY_CUSTOMER:
-        qs = (
-            Customer.objects.filter(is_active=True)
-            .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
-            .order_by("name_ar")[:limit]
-        )
-        results = [{"id": c.pk, "label": c.name_ar} for c in qs]
+        results = [{"id": c.pk, "label": c.name_ar} for c in active_customers_search_qs(q, limit=limit)]
     elif party_type == TreasuryVoucherForm.PARTY_SUPPLIER:
         qs = (
             Supplier.objects.filter(is_active=True)
@@ -185,18 +173,6 @@ def close_session_view(request):
 
 
 @login_required
-def settings_page(request):
-    result = resolve_settings_request(
-        request,
-        redirect_after_save=reverse("core:settings"),
-        payment_method_url_namespace="core",
-    )
-    if isinstance(result, HttpResponse):
-        return result
-    return render(request, "core/settings.html", result)
-
-
-@login_required
 def tables_list(request):
     tables = DiningTable.objects.order_by("sort_order", "name_ar")
     return render(request, "core/tables_list.html", {"tables": tables})
@@ -209,7 +185,7 @@ def table_create(request):
         if form.is_valid():
             form.save()
             messages.success(request, "تم إضافة الطاولة بنجاح.")
-            return redirect("core:tables_list")
+            return redirect("shell:tables_list")
     else:
         form = DiningTableForm()
     return render(request, "core/table_form.html", {"form": form, "edit": False})
@@ -223,7 +199,7 @@ def table_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "تم تعديل الطاولة بنجاح.")
-            return redirect("core:tables_list")
+            return redirect("shell:tables_list")
     else:
         form = DiningTableForm(instance=table)
     return render(request, "core/table_form.html", {"form": form, "edit": True})
@@ -237,7 +213,7 @@ def table_toggle(request, pk):
     table.save(update_fields=["is_active", "updated_at"])
     status = "تفعيل" if table.is_active else "إلغاء تفعيل"
     messages.success(request, f"تم {status} الطاولة «{table.name_ar}».")
-    return redirect("core:tables_list")
+    return redirect("shell:tables_list")
 
 
 @login_required

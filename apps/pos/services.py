@@ -9,15 +9,10 @@ from django.db.models import F
 
 from apps.catalog.models import Product, ProductModifierOption
 from apps.contacts.models import Customer
+from apps.core.decimalutil import as_decimal
 from apps.core.models import log_audit
 from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
-
-
-def _d(v):
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 def _modifiers_payload(options: Sequence[ProductModifierOption]) -> list:
@@ -51,7 +46,7 @@ def resolve_modifier_options(
         n = len(picked)
         if n < g.min_select or n > g.max_select:
             raise ValueError("MODIFIER_COUNT_INVALID")
-    extra = sum((_d(o.price_delta) for o in opts), Decimal("0")).quantize(Decimal("0.01"))
+    extra = sum((as_decimal(o.price_delta) for o in opts), Decimal("0")).quantize(Decimal("0.01"))
     return opts, extra, _modifiers_payload(opts)
 
 
@@ -93,7 +88,7 @@ def add_or_update_line(
         raise ValueError("ORDER_NOT_OPEN")
     if order.is_held:
         raise ValueError("ORDER_HELD")
-    qty_delta = _d(quantity_delta)
+    qty_delta = as_decimal(quantity_delta)
     _opts, extra_unit, mod_json = resolve_modifier_options(
         product=product, option_ids=modifier_option_ids or ()
     )
@@ -113,7 +108,7 @@ def add_or_update_line(
             break
 
     if line:
-        new_q = _d(line.quantity) + qty_delta
+        new_q = as_decimal(line.quantity) + qty_delta
         if new_q <= 0:
             line.delete()
             log_audit(user, "pos.line.remove", "pos.Order", order.pk, {"product": product.pk})
@@ -154,7 +149,7 @@ def add_or_update_line(
 def set_line_quantity(*, order: Order, line_id: int, quantity: Decimal, user) -> Optional[OrderLine]:
     if order.status != Order.Status.OPEN or order.is_held:
         raise ValueError("ORDER_NOT_OPEN")
-    new_q = _d(quantity).quantize(Decimal("0.001"))
+    new_q = as_decimal(quantity).quantize(Decimal("0.001"))
     line = OrderLine.objects.filter(pk=line_id, order=order).first()
     if not line:
         raise ValueError("LINE_NOT_FOUND")
@@ -172,11 +167,11 @@ def set_line_quantity(*, order: Order, line_id: int, quantity: Decimal, user) ->
 def adjust_line_quantity(*, order: Order, line_id: int, quantity_delta: Decimal, user) -> Optional[OrderLine]:
     if order.status != Order.Status.OPEN or order.is_held:
         raise ValueError("ORDER_NOT_OPEN")
-    qty_delta = _d(quantity_delta)
+    qty_delta = as_decimal(quantity_delta)
     line = OrderLine.objects.filter(pk=line_id, order=order).first()
     if not line:
         raise ValueError("LINE_NOT_FOUND")
-    new_q = _d(line.quantity) + qty_delta
+    new_q = as_decimal(line.quantity) + qty_delta
     if new_q <= 0:
         line.delete()
         log_audit(user, "pos.line.remove", "pos.Order", order.pk, {"line": line_id})
@@ -213,7 +208,7 @@ def set_line_unit_price(*, order: Order, line_id: int, unit_price: Decimal, user
     line = OrderLine.objects.select_for_update().filter(pk=line_id, order=order).first()
     if not line:
         raise ValueError("LINE_NOT_FOUND")
-    up = _d(unit_price).quantize(Decimal("0.01"))
+    up = as_decimal(unit_price).quantize(Decimal("0.01"))
     if up < 0:
         raise ValueError("INVALID_UNIT_PRICE")
     line.unit_price = up

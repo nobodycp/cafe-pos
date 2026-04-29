@@ -3,10 +3,22 @@
 {% block title %}الأرباح والخسائر{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">الأرباح والخسائر</span><span class="flex-1"></span><a href="{% url 'shell:accounting_chart' %}" class="text-xs font-bold text-primary">← دليل الحسابات</a></div>
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">المحاسبة</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">الأرباح والخسائر</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+  </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_accounting_tabs.html" with accounting_tab="pnl" %}
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
-      <form method="get" class="flex gap-2 flex-wrap items-end"><div><label>من</label><input type="date" name="from" value="{{ date_from }}"></div><div><label>إلى</label><input type="date" name="to" value="{{ date_to }}"></div><button class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button></form>
+      <form method="get" class="flex gap-2 flex-wrap items-end">
+        <div><label>من</label><input type="date" name="from" value="{{ date_from }}"></div>
+        <div><label>إلى</label><input type="date" name="to" value="{{ date_to }}"></div>
+        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
+      </form>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3"><span class="text-xs text-muted">الإيرادات</span><div class="font-extrabold text-success">{{ pnl.revenue|floatformat:2|intcomma }}</div></div>

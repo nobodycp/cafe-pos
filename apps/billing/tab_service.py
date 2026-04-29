@@ -15,20 +15,13 @@ from django.db.models import Sum
 
 from apps.billing.models import InvoicePayment, OrderPayment, SaleInvoice, SaleInvoiceLine
 from apps.contacts.models import Customer, CustomerLedgerEntry
+from apps.core.decimalutil import as_decimal
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.payment_methods import credit_method_codes, payment_bucket_keys, payments_list_to_dict
 from apps.core.sequences import next_int
 from apps.core.services import SessionService
 from apps.inventory.services import check_stock_available, consume_for_sale, get_unit_cost
 from apps.pos.models import Order, OrderLine, TableSession
-
-
-def _d(v) -> Decimal:
-    if v is None:
-        return Decimal("0")
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 def next_invoice_number() -> str:
@@ -44,7 +37,7 @@ def _record_commission_vendor_payables(invoice: SaleInvoice) -> None:
         p = sil.product
         if p.product_type != p.ProductType.COMMISSION or not p.commission_vendor_id:
             continue
-        pct = _d(p.commission_percentage or 0)
+        pct = as_decimal(p.commission_percentage or 0)
         vendor_payable = (sil.line_subtotal - sil.line_subtotal * pct / Decimal("100")).quantize(Decimal("0.01"))
         vendor_totals[p.commission_vendor_id] = vendor_totals.get(p.commission_vendor_id, Decimal("0")) + vendor_payable
 
@@ -52,7 +45,7 @@ def _record_commission_vendor_payables(invoice: SaleInvoice) -> None:
         if total <= 0:
             continue
         supplier = Supplier.objects.select_for_update().get(pk=vendor_id)
-        supplier.balance = (_d(supplier.balance) + total).quantize(Decimal("0.01"))
+        supplier.balance = (as_decimal(supplier.balance) + total).quantize(Decimal("0.01"))
         supplier.save(update_fields=["balance", "updated_at"])
         SupplierLedgerEntry.objects.create(
             supplier=supplier,
@@ -84,12 +77,12 @@ def _deduct_linked_supplier(customer: Customer, credit_amount: Decimal, invoice)
 
 
 def _line_gross(line: OrderLine) -> Decimal:
-    return (_d(line.quantity) * (_d(line.unit_price) + _d(line.extra_unit_price))).quantize(Decimal("0.01"))
+    return (as_decimal(line.quantity) * (as_decimal(line.unit_price) + as_decimal(line.extra_unit_price))).quantize(Decimal("0.01"))
 
 
 def _discount_amount(order: Order, gross: Decimal) -> Decimal:
-    pct = _d(order.discount_percent)
-    amt = _d(order.discount_amount)
+    pct = as_decimal(order.discount_percent)
+    amt = as_decimal(order.discount_amount)
     from_pct = (gross * pct / Decimal("100")).quantize(Decimal("0.01")) if pct else Decimal("0")
     disc = (amt + from_pct).quantize(Decimal("0.01"))
     if disc > gross:
@@ -104,15 +97,15 @@ def cart_line_rows_for_template(
     """صفوف عرض السلة: رقم، خصم مخصّص من خصم الطلب، سعر فعّال، صافي السطر."""
     if not lines:
         return []
-    gross = _d(order_totals["gross"]) if order_totals else Decimal("0")
-    disc_total = _d(order_totals["discount"]) if order_totals else Decimal("0")
+    gross = as_decimal(order_totals["gross"]) if order_totals else Decimal("0")
+    disc_total = as_decimal(order_totals["discount"]) if order_totals else Decimal("0")
     out: List[Dict[str, Any]] = []
     for i, ln in enumerate(lines, start=1):
         lg = _line_gross(ln)
         alloc = Decimal("0")
         if gross > Decimal("0") and disc_total > Decimal("0"):
             alloc = (disc_total * (lg / gross)).quantize(Decimal("0.01"))
-        eff_unit = (_d(ln.unit_price) + _d(ln.extra_unit_price)).quantize(Decimal("0.01"))
+        eff_unit = (as_decimal(ln.unit_price) + as_decimal(ln.extra_unit_price)).quantize(Decimal("0.01"))
         net_line = (lg - alloc).quantize(Decimal("0.01"))
         if net_line < Decimal("0"):
             net_line = Decimal("0")
@@ -136,8 +129,8 @@ def compute_order_totals(order: Order) -> Dict[str, Decimal]:
     if net < 0:
         net = Decimal("0")
     pos = get_pos_settings()
-    svc_pct = _d(order.service_charge_percent_override) if order.service_charge_percent_override is not None else _d(pos.default_service_charge_percent)
-    tax_pct = _d(order.tax_percent_override) if order.tax_percent_override is not None else _d(pos.default_tax_percent)
+    svc_pct = as_decimal(order.service_charge_percent_override) if order.service_charge_percent_override is not None else as_decimal(pos.default_service_charge_percent)
+    tax_pct = as_decimal(order.tax_percent_override) if order.tax_percent_override is not None else as_decimal(pos.default_tax_percent)
     svc = (net * svc_pct / Decimal("100")).quantize(Decimal("0.01"))
     tax = ((net + svc) * tax_pct / Decimal("100")).quantize(Decimal("0.01"))
     grand = (net + svc + tax).quantize(Decimal("0.01"))
@@ -146,7 +139,7 @@ def compute_order_totals(order: Order) -> Dict[str, Decimal]:
 
 def sum_tab_payments(order: Order) -> Decimal:
     s = order.tab_payments.filter(sale_invoice__isnull=True).aggregate(s=Sum("amount"))["s"]
-    return _d(s)
+    return as_decimal(s)
 
 
 def order_payment_source(order: Order) -> str:
@@ -162,7 +155,7 @@ def _aggregate_tab_payments(order: Order) -> Dict[str, Decimal]:
     d = {k: Decimal("0") for k in payment_bucket_keys()}
     for p in order.tab_payments.filter(sale_invoice__isnull=True):
         if p.method in d:
-            d[p.method] += _d(p.amount)
+            d[p.method] += as_decimal(p.amount)
     return d
 
 
@@ -172,7 +165,7 @@ def record_tab_payments(*, order: Order, user, payments: List[PaymentLineTuple])
         if not item:
             continue
         method = str(item[0])
-        a = _d(item[1]) if len(item) > 1 else Decimal("0")
+        a = as_decimal(item[1]) if len(item) > 1 else Decimal("0")
         payer_name = str(item[2]).strip()[:120] if len(item) > 2 else ""
         payer_phone = str(item[3]).strip()[:40] if len(item) > 3 else ""
         if a <= 0:
@@ -209,7 +202,7 @@ def create_sale_invoice_core(
         raise ValueError("ORDER_EMPTY")
 
     for line in order.lines.select_related("product"):
-        check_stock_available(line.product, _d(line.quantity))
+        check_stock_available(line.product, as_decimal(line.quantity))
 
     totals = compute_order_totals(order)
     gross = totals["gross"]
@@ -245,12 +238,12 @@ def create_sale_invoice_core(
         adjusted_line_sub = (lg - line_discount).quantize(Decimal("0.01"))
         if adjusted_line_sub < 0:
             adjusted_line_sub = Decimal("0")
-        qty = _d(line.quantity)
+        qty = as_decimal(line.quantity)
         uc = get_unit_cost(line.product)
         line_cost = (qty * uc).quantize(Decimal("0.01"))
         p = line.product
         if p.product_type == p.ProductType.COMMISSION:
-            pct = _d(p.commission_percentage or 0)
+            pct = as_decimal(p.commission_percentage or 0)
             recognized = (adjusted_line_sub * pct / Decimal("100")).quantize(Decimal("0.01"))
             line_cost = Decimal("0")
             line_profit = recognized
@@ -261,7 +254,7 @@ def create_sale_invoice_core(
             invoice=inv,
             product=line.product,
             quantity=qty,
-            unit_price=_d(line.unit_price) + _d(line.extra_unit_price),
+            unit_price=as_decimal(line.unit_price) + as_decimal(line.extra_unit_price),
             line_subtotal=adjusted_line_sub,
             unit_cost_snapshot=uc,
             line_cost_total=line_cost,
@@ -292,7 +285,7 @@ def create_sale_invoice_core(
     if payment_rows is not None:
         for pr in payment_rows:
             method = str(pr.get("method") or "")
-            amount = _d(pr.get("amount"))
+            amount = as_decimal(pr.get("amount"))
             if amount <= 0:
                 continue
             InvoicePayment.objects.create(
@@ -337,7 +330,7 @@ def create_sale_invoice_core(
         _deduct_linked_supplier(cust, credit_total, inv)
 
     for line in order.lines.select_related("product"):
-        consume_for_sale(product=line.product, quantity=_d(line.quantity), session=session, invoice_pk=inv.pk)
+        consume_for_sale(product=line.product, quantity=as_decimal(line.quantity), session=session, invoice_pk=inv.pk)
 
     from apps.accounting.services import post_sale_invoice_journal
 
@@ -398,7 +391,7 @@ def finalize_order_invoice(
         payment_rows.append(
             {
                 "method": p.method,
-                "amount": _d(p.amount),
+                "amount": as_decimal(p.amount),
                 "payer_name": (p.payer_name or "").strip()[:120],
                 "payer_phone": (p.payer_phone or "").strip()[:40],
                 "source": (p.payment_source or "").strip()[:24] or src_default,

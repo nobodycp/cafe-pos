@@ -1,11 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}التقرير الأسبوعي{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-1 m-0">التقرير الأسبوعي</p>
-<p class="text-[11px] text-muted mb-3 m-0">آخر 4 أسابيع</p>
+{% block title %}التقرير الأسبوعي{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="التقرير الأسبوعي" toolbar_hint="آخر 4 أسابيع" %}
 
 <div class="space-y-2">
 {% for w in weeks %}
@@ -47,4 +44,5 @@
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center text-xs text-muted">لا توجد بيانات.</div>
 {% endfor %}
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

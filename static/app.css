@@ -1,9 +1,8 @@
 /* ── Minimal custom CSS (Tailwind CDN handles the rest) ── */
 /*
-  هيكل التطبيق (إعادة هيكلة تدريجية):
-  - base.html: #app-shell → header + صف (#app-sidebar | #app-shell-workspace)
-  - #app-viewport (.app-viewport-surface): مساحة الصفحة البيضاء/الداكنة — ضع هنا كل ما يتبدّل بين المسارات
+  هيكل التطبيق:
   - shell/base.html: #app-shell → شريط أيقونات + عمود؛ #app-viewport = شاشة التشغيل
+  - #app-viewport (.app-viewport-surface): مساحة الصفحة الحالية
 */
 
 .app-viewport-surface {
@@ -148,9 +147,6 @@ select {
   background-position: left 0.75rem center;
   cursor: pointer;
 }
-[dir="ltr"] select {
-  background-position: right 0.75rem center;
-}
 
 /* ── Checkbox / Radio ── */
 input[type="checkbox"],
@@ -231,7 +227,7 @@ button:active, .btn:active, [type="submit"]:active {
 }
 
 /*
- * شاشات التطبيق (base.html — المحتوى داخل main): عرض منطقي للحقول
+ * صفحات تستخدم .app-classic-shell (مثل تسجيل الدخول): عرض منطقي للحقول
  * وأزرار حفظ مضغوطة بدل الشريط العريض في الشبكات.
  */
 .app-classic-shell main input[type="text"],
@@ -364,6 +360,23 @@ button:active, .btn:active, [type="submit"]:active {
   color: #64748b;
   font-size: .625rem;
   font-weight: 600;
+}
+/* روابط الرجوع في شريط الغلاف — بديل عن تكرار Tailwind في القوالب */
+.shell-toolbar-link {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  text-decoration: none;
+}
+.shell-toolbar-link:hover {
+  color: #163051;
+}
+.dark .shell-toolbar-link {
+  color: #93c5fd;
+}
+.dark .shell-toolbar-link:hover {
+  color: #bfdbfe;
 }
 .pos-shell-content > .flex:first-child > h1:only-child,
 .pos-shell-content > .flex:first-child > h1:first-child {
@@ -761,4 +774,186 @@ button:active, .btn:active, [type="submit"]:active {
 .pos-shell-content .bg-white.dark\:bg-gray-800,
 .pos-shell-content .bg-white {
   box-shadow: none !important;
+}
+
+/* ── Classic POS / كاشير (كانت classic-theme.css) ── */
+:root {
+  --classic-navy: #1e3a5f;
+  --classic-navy-dk: #163051;
+  --classic-bg: #e8eaed;
+  --classic-sidebar: #f0f1f5;
+}
+
+.pos-practical-shell .pos-side-nav a.on {
+  background: #fff;
+  color: var(--classic-navy);
+  box-shadow: inset 0 0 0 2px var(--classic-navy);
+}
+.dark .pos-practical-shell .pos-side-nav a.on {
+  background: #1e293b;
+  color: #93c5fd;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+}
+
+.dark .pos-cat-btn.on {
+  background-color: #0c1929;
+  color: #fff;
+  border-color: var(--classic-navy);
+}
+
+#pos-home-root input[type="text"],
+#pos-home-root input[type="number"],
+#pos-home-root input[type="email"],
+#pos-home-root input[type="tel"],
+#pos-home-root input[type="search"],
+#pos-home-root input[type="password"],
+#pos-home-root input[type="date"],
+#pos-home-root input[type="time"],
+#pos-home-root input[type="datetime-local"],
+#pos-home-root select,
+#pos-home-root textarea,
+.pos-start-shell input[type="text"],
+.pos-start-shell input[type="number"],
+.pos-start-shell select,
+.pos-start-shell textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  height: auto;
+  min-height: 1.625rem;
+  max-height: none;
+  margin: 0;
+  padding: 0.125rem 0.4rem;
+  font-family: "Cairo", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #111827;
+  background-color: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.125rem;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#pos-home-root select,
+.pos-start-shell select {
+  padding-inline-end: 1.35rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 10px 10px;
+  background-position: left 0.3rem center;
+}
+
+#pos-home-root textarea,
+.pos-start-shell textarea {
+  min-height: 2rem;
+  max-height: 5rem;
+  resize: vertical;
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+}
+
+#pos-home-root input:hover,
+#pos-home-root select:hover,
+#pos-home-root textarea:hover,
+.pos-start-shell input:hover,
+.pos-start-shell select:hover,
+.pos-start-shell textarea:hover {
+  border-color: #94a3b8;
+}
+
+#pos-home-root input:focus,
+#pos-home-root select:focus,
+#pos-home-root textarea:focus,
+.pos-start-shell input:focus,
+.pos-start-shell select:focus,
+.pos-start-shell textarea:focus {
+  border-color: var(--classic-navy);
+  box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.18);
+}
+
+#pos-home-root input::placeholder,
+#pos-home-root textarea::placeholder,
+.pos-start-shell input::placeholder,
+.pos-start-shell textarea::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+  opacity: 1;
+}
+
+.dark #pos-home-root input::placeholder,
+.dark #pos-home-root textarea::placeholder,
+.dark .pos-start-shell input::placeholder,
+.dark .pos-start-shell textarea::placeholder {
+  color: #64748b;
+}
+
+.dark #pos-home-root input[type="text"],
+.dark #pos-home-root input[type="number"],
+.dark #pos-home-root input[type="email"],
+.dark #pos-home-root input[type="tel"],
+.dark #pos-home-root input[type="search"],
+.dark #pos-home-root input[type="password"],
+.dark #pos-home-root input[type="date"],
+.dark #pos-home-root input[type="time"],
+.dark #pos-home-root input[type="datetime-local"],
+.dark #pos-home-root select,
+.dark #pos-home-root textarea,
+.dark .pos-start-shell input[type="text"],
+.dark .pos-start-shell input[type="number"],
+.dark .pos-start-shell select,
+.dark .pos-start-shell textarea {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.dark #pos-home-root select,
+.dark .pos-start-shell select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.dark #pos-home-root input:hover,
+.dark #pos-home-root select:hover,
+.dark #pos-home-root textarea:hover,
+.dark .pos-start-shell input:hover,
+.dark .pos-start-shell select:hover,
+.dark .pos-start-shell textarea:hover {
+  border-color: #64748b;
+}
+
+.dark #pos-home-root input:focus,
+.dark #pos-home-root select:focus,
+.dark #pos-home-root textarea:focus,
+.dark .pos-start-shell input:focus,
+.dark .pos-start-shell select:focus,
+.dark .pos-start-shell textarea:focus {
+  border-color: #3d5a80;
+  box-shadow: 0 0 0 2px rgba(61, 90, 128, 0.28);
+}
+
+#pos-home-root #pos-vouchers-col #treasury-voucher-form.treasury-voucher-form--dense button[type="submit"] {
+  min-height: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  font-size: 0.6875rem;
+  line-height: 1;
+  border-radius: 0.125rem;
+}
+
+.app-classic-shell aside nav a.app-nav-active {
+  background: #fff;
+  color: var(--classic-navy);
+  box-shadow: inset 0 0 0 2px var(--classic-navy);
+  font-weight: 700;
+}
+.dark .app-classic-shell aside nav a.app-nav-active {
+  background: #1e293b;
+  color: #93c5fd;
+  box-shadow: inset 0 0 0 2px #3b82f6;
 }

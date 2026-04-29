@@ -31,7 +31,7 @@
     {% if contacts_ns == 'shell' %}
     <a href="{% url 'shell:customer_statement' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
     {% else %}
-    <a href="{% url 'contacts:customer_statement' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
+    <a href="{% url 'shell:customer_statement' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
     {% endif %}
     {% if customer.linked_supplier %}
     <a href="{% url 'shell:supplier_detail' customer.linked_supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:brightness-90 active:scale-[0.98] transition-all duration-200">حساب المورد</a>
@@ -75,7 +75,7 @@
               {% if contacts_ns == 'shell' %}
               <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
               {% else %}
-              <form method="post" action="{% url 'contacts:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
+              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
               {% endif %}
                 {% csrf_token %}
                 <button type="submit" class="text-xs font-bold text-danger hover:underline bg-transparent border-none cursor-pointer p-0">حذف</button>

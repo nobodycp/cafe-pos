@@ -28,9 +28,7 @@ def sale_invoice_list(request):
         qs = qs.filter(is_cancelled=(status == "cancelled"))
 
     invoices = qs[:200]
-    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
-    template_name = "shell/invoice_list.html" if ns == "shell" else "billing/invoice_list.html"
-    return render(request, template_name, {
+    return render(request, "shell/invoice_list.html", {
         "invoices": invoices,
         "q": q,
         "status": status or "",
@@ -42,7 +40,7 @@ def sale_invoice_list(request):
 def sale_invoice_delete(request, pk):
     invoice = get_object_or_404(SaleInvoice.objects.select_related("customer", "order"), pk=pk)
     reason = (request.POST.get("reason") or "").strip()
-    fallback = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("billing:invoice_list")
+    fallback = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("shell:invoice_list")
     if not reason:
         messages.error(request, "اكتب سبب الحذف (مطلوب).")
         return redirect(fallback)
@@ -67,7 +65,7 @@ def sale_invoice_delete(request, pk):
     messages.success(request, f"تم حذف الفاتورة {inv_num} نهائياً من النظام (مع عكس المخزون والقيود).")
     if success_next.startswith("/") and not success_next.startswith("//") and "\n" not in success_next and "\r" not in success_next:
         return redirect(success_next)
-    return redirect("billing:invoice_list")
+    return redirect("shell:invoice_list")
 
 
 @login_required
@@ -81,9 +79,7 @@ def sale_invoice_detail(request, pk):
     )
     lines = invoice.lines.select_related("product").order_by("pk")
     payments = invoice.payments.all()
-    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
-    template_name = "shell/invoice_detail.html" if ns == "shell" else "billing/invoice_detail.html"
-    return render(request, template_name, {
+    return render(request, "shell/invoice_detail.html", {
         "invoice": invoice,
         "lines": lines,
         "payments": payments,
@@ -99,9 +95,7 @@ def customer_invoices(request, customer_id):
     ).select_related(
         "order__table_session__dining_table", "work_session",
     ).order_by("-created_at")[:200]
-    ns = (getattr(request.resolver_match, "namespace", None) or "").strip()
-    template_name = "shell/customer_invoices.html" if ns == "shell" else "billing/customer_invoices.html"
-    return render(request, template_name, {
+    return render(request, "shell/customer_invoices.html", {
         "customer": customer,
         "invoices": invoices,
     })
@@ -121,7 +115,7 @@ def sale_return_create(request, invoice_pk):
     if invoice.is_cancelled:
         from django.contrib import messages
         messages.error(request, "لا يمكن إرجاع فاتورة ملغاة")
-        return redirect("billing:invoice_detail", pk=invoice.pk)
+        return redirect("shell:invoice_detail", pk=invoice.pk)
 
     inv_lines = invoice.lines.select_related("product").order_by("pk")
     errors = []
@@ -203,7 +197,7 @@ def sale_return_create(request, invoice_pk):
 
                 from django.contrib import messages
                 messages.success(request, f"تم تسجيل مرتجع {ret.return_number} بمبلغ {total_refund}")
-                return redirect("billing:invoice_detail", pk=invoice.pk)
+                return redirect("shell:invoice_detail", pk=invoice.pk)
 
     return render(request, "billing/sale_return_form.html", {
         "invoice": invoice,

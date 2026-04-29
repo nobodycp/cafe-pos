@@ -3,10 +3,46 @@
 {% block title %}كشف حساب — {{ account.name_ar }}{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">{{ account.code }} — {{ account.name_ar }}</span><span class="flex-1"></span><a href="{% url 'shell:accounting_chart' %}" class="text-xs font-bold text-primary">← دليل الحسابات</a></div>
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0 truncate max-w-[min(100%,28rem)]">{{ account.code }} — {{ account.name_ar }}</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">كشف حساب</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'shell:accounting_chart' %}" class="shell-toolbar-link whitespace-nowrap">← دليل الحسابات</a>
+    <span class="select-none text-muted/70 dark:text-gray-500" aria-hidden="true">·</span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+  </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3"><form method="get" class="flex gap-2 flex-wrap items-end"><div><label>من</label><input type="date" name="from" value="{{ date_from }}"></div><div><label>إلى</label><input type="date" name="to" value="{{ date_to }}"></div><button class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button></form></div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.date }}</td><td><a href="{% url 'shell:journal_detail' r.entry_pk %}">{{ r.entry_number }}</a></td><td>{{ r.description }}</td><td>{% if r.debit %}{{ r.debit|floatformat:2|intcomma }}{% endif %}</td><td>{% if r.credit %}{{ r.credit|floatformat:2|intcomma }}{% endif %}</td><td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td></tr>{% empty %}<tr><td colspan="6" class="p-8 text-center text-muted">لا توجد حركات</td></tr>{% endfor %}</tbody></table></div></div>
+    {% include "shell/_accounting_tabs.html" with accounting_tab="ledger" %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
+      <form method="get" class="flex gap-2 flex-wrap items-end">
+        <div><label>من</label><input type="date" name="from" value="{{ date_from }}"></div>
+        <div><label>إلى</label><input type="date" name="to" value="{{ date_to }}"></div>
+        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
+      </form>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.date }}</td>
+              <td><a href="{% url 'shell:journal_detail' r.entry_pk %}" class="text-primary font-semibold hover:underline">{{ r.entry_number }}</a></td>
+              <td>{{ r.description }}</td>
+              <td>{% if r.debit %}{{ r.debit|floatformat:2|intcomma }}{% endif %}</td>
+              <td>{% if r.credit %}{{ r.credit|floatformat:2|intcomma }}{% endif %}</td>
+              <td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="p-8 text-center text-muted">لا توجد حركات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

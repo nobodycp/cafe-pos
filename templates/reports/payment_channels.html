@@ -1,10 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}طرق الدفع والتتبع{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير طرق الدفع — تتبع التحويلات الإلكترونية</p>
+{% block title %}طرق الدفع والتتبع{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="طرق الدفع والتتبع" toolbar_hint="تحويلات إلكترونية وكاش" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <form method="get" class="flex gap-2 flex-wrap items-end">
@@ -67,11 +65,7 @@
         <tr class="border-b border-gray-50 dark:border-gray-700/60">
           <td class="py-1.5 px-1 whitespace-nowrap">{{ p.invoice.created_at|date:"Y-m-d H:i" }}</td>
           <td class="py-1.5 px-1">
-            {% if billing_ns == 'shell' %}
             <a href="{% url 'shell:invoice_detail' p.invoice.pk %}" class="text-primary font-bold hover:underline">{{ p.invoice.invoice_number }}</a>
-            {% else %}
-            <a href="{% url 'billing:invoice_detail' p.invoice.pk %}" class="text-primary font-bold hover:underline">{{ p.invoice.invoice_number }}</a>
-            {% endif %}
           </td>
           <td class="py-1.5 px-1">{% if p.method == 'cash' %}كاش{% elif p.method == 'bank' %}شبكة عام{% elif p.method == 'bank_ps' %}بنك فلسطين{% elif p.method == 'palpay' %}بال باي{% elif p.method == 'jawwalpay' %}جوال باي{% elif p.method == 'credit' %}آجل{% else %}{{ p.method }}{% endif %}</td>
           <td class="py-1.5 px-1 text-end font-bold tabular-nums">{{ p.amount|floatformat:2|intcomma }}</td>
@@ -86,4 +80,5 @@
     </table>
   </div>
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

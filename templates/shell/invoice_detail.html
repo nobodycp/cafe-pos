@@ -8,9 +8,9 @@
     <span class="pos-shell-toolbar-hint hidden lg:inline">تفاصيل فاتورة البيع داخل الغلاف</span>
     <span class="flex-1"></span>
     {% if invoice.customer %}
-    <a href="{% url 'shell:customer_detail' invoice.customer.pk %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← العميل</a>
+    <a href="{% url 'shell:customer_detail' invoice.customer.pk %}" class="shell-toolbar-link">← العميل</a>
     {% endif %}
-    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← لوحة الطلبات</a>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="flex justify-end items-center mb-6 flex-wrap gap-4">
@@ -19,7 +19,7 @@
         {% if invoice.is_cancelled %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/10 text-danger align-middle ms-2">ملغاة</span>{% endif %}
       </h1>
       <div class="flex gap-2 flex-wrap no-print items-center">
-        <form method="post" action="{% url 'billing:sale_invoice_delete' invoice.pk %}" class="m-0"
+        <form method="post" action="{% url 'shell:sale_invoice_delete' invoice.pk %}" class="m-0"
           onsubmit="return confirm('سيتم حذف الفاتورة نهائياً بعد عكس المخزون والقيود والذمم. لا يمكن التراجع. متابعة؟');">
           {% csrf_token %}
           <input type="hidden" name="next" value="{% url 'shell:invoice_detail' invoice.pk %}">

@@ -25,6 +25,7 @@ def ui_labels(request):
         "nav_expenses": "المصروفات",
         "nav_reports": "التقارير",
         "nav_close_session": "إغلاق الوردية",
+        "nav_session_summary": "ملخص وإغلاق الوردية",
         "nav_login": "دخول",
         "nav_logout": "خروج",
         "session_open": "فتح وردية",
@@ -47,6 +48,7 @@ def ui_labels(request):
         "nav_expenses": "Expenses",
         "nav_reports": "Reports",
         "nav_close_session": "Close session",
+        "nav_session_summary": "Session summary & close",
         "nav_login": "Login",
         "nav_logout": "Logout",
         "session_open": "Open session",
@@ -77,21 +79,22 @@ def low_stock_count(request):
     return {"LOW_STOCK_COUNT": count}
 
 
-def shell_template_base(request):
-    namespace = (getattr(getattr(request, "resolver_match", None), "namespace", "") or "").strip()
-    return {
-        "base_template": "shell/base.html" if namespace == "shell" else "base.html",
-    }
+def open_work_session(request):
+    """وردية الكاشير المفتوحة (إن وجدت) لعرض روابط الملخص/الفتح في شريط الغلاف."""
+    if not hasattr(request, "user") or not request.user.is_authenticated:
+        return {"open_work_session": None}
+    from apps.core.services import SessionService
+
+    return {"open_work_session": SessionService.get_open_session()}
 
 
 def shell_route_namespaces(request):
-    """When the request is under the shell URLconf, reverse module URLs on shell:*."""
-    shell = (getattr(getattr(request, "resolver_match", None), "namespace", "") or "").strip() == "shell"
+    """مسارات الوحدات (فواتير، مخزون، …) تُعاد فقط عبر الغلاف /app/."""
     return {
-        "reports_ns": "shell" if shell else "reports",
-        "billing_ns": "shell" if shell else "billing",
-        "inventory_ns": "shell" if shell else "inventory",
-        "accounting_ns": "shell" if shell else "accounting",
-        "payroll_ns": "shell" if shell else "payroll",
-        "catalog_ns": "shell" if shell else "catalog",
+        "reports_ns": "shell",
+        "billing_ns": "shell",
+        "inventory_ns": "shell",
+        "accounting_ns": "shell",
+        "payroll_ns": "shell",
+        "catalog_ns": "shell",
     }

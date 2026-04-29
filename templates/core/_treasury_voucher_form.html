@@ -1,8 +1,14 @@
-{# نموذج سند موحّد — treasury أو كاشير (voucher_layout=wide) #}
-{% url 'core:treasury_party_search' as treasury_party_search_url %}
-<div class="{% if voucher_layout == 'wide' %}bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-2 max-w-none mx-0 h-full min-h-0 flex flex-col{% else %}bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl mx-auto{% endif %}">
-  <form method="post" action="{% url 'core:treasury' %}" id="treasury-voucher-form"
-        class="{% if voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% else %}space-y-3{% endif %}"
+{# نموذج سند موحّد — wide: كاشير | shell: محاسبة shell (عرض كامل داخل اللوحة) | افتراضي: بطاقة مستقلة #}
+{% url 'shell:treasury_party_search' as treasury_party_search_url %}
+{% if voucher_layout == 'shell' %}
+<div class="w-full max-w-full">
+{% elif voucher_layout == 'wide' %}
+<div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-2 max-w-none mx-0 h-full min-h-0 flex flex-col">
+{% else %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl mx-auto">
+{% endif %}
+  <form method="post" action="{% url 'shell:accounting_treasury' %}" id="treasury-voucher-form"
+        class="{% if voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}"
         data-party-search-url="{{ treasury_party_search_url }}"
         data-vt-receipt="{{ voucher_form.VT_RECEIPT }}"
         data-vt-disbursement="{{ voucher_form.VT_DISBURSEMENT }}"
@@ -20,7 +26,7 @@
     {% for e in voucher_form.party_type.errors %}<p class="text-danger text-xs lg:col-span-2">{{ e }}</p>{% endfor %}
 
     {# صف 1: نوع السند (قبض/صرف) | الحساب/الجهة #}
-    <div class="tv-type-col {% if voucher_layout == 'wide' %}lg:col-span-1{% endif %}">
+    <div class="tv-type-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
       <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">نوع السند</span>
       <div class="tv-type-btns flex flex-row flex-nowrap gap-0.5 min-w-0 w-full" role="group" aria-label="نوع السند" dir="rtl">
         <button type="button" class="tv-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-vt="{{ voucher_form.VT_RECEIPT }}">سند قبض</button>
@@ -28,7 +34,7 @@
       </div>
     </div>
 
-    <div class="tv-party-type-col {% if voucher_layout == 'wide' %}lg:col-span-1{% endif %}">
+    <div class="tv-party-type-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
       <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">الحساب / الجهة</span>
       <div class="tv-party-type-btns flex flex-row flex-nowrap gap-0.5 min-w-0 w-full" role="group" aria-label="الحساب أو الجهة" dir="rtl">
         <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_CUSTOMER }}">عميل</button>
@@ -38,7 +44,7 @@
       </div>
     </div>
 
-    <div class="tv-party-col {% if voucher_layout == 'wide' %}lg:col-span-1{% endif %} relative">
+    <div class="tv-party-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %} relative">
       <label class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="tv-party-search">اسم الحساب / الجهة</label>
       <input type="text" id="tv-party-search" autocomplete="off" placeholder=""
            class="{% if voucher_layout == 'wide' %}w-full{% else %}form-input w-full{% endif %}">
@@ -53,12 +59,12 @@
       <p id="tv-expense-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">سيُسجَّل كمصروف عام. استخدم الملاحظة لتحديد السبب.</p>
     </div>
 
-    <div class="{% if voucher_layout == 'wide' %}lg:col-span-1{% endif %}">
+    <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
       <label class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="{{ voucher_form.amount.id_for_label }}">المبلغ</label>
       {{ voucher_form.amount }}
       {% for e in voucher_form.amount.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
     </div>
-    <div class="{% if voucher_layout == 'wide' %}lg:col-span-1{% endif %} tv-method-cell">
+    <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %} tv-method-cell">
       <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">طريقة الدفع / التحصيل</span>
       {{ voucher_form.method }}
       <div class="flex flex-row flex-nowrap gap-0.5 {% if voucher_layout == 'wide' %}mt-0.5{% else %}mt-1{% endif %} min-w-0 tv-pay-strip" id="tv-pay-methods" dir="rtl">
@@ -69,7 +75,7 @@
       {% for e in voucher_form.method.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
     </div>
 
-    <details class="tv-note-details {% if voucher_layout == 'wide' %}lg:col-span-2{% endif %} group">
+    <details class="tv-note-details {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %} group">
       <summary class="{% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 cursor-pointer list-none py-0.5 hover:text-[#1e3a5f] dark:hover:text-sky-400 marker:content-none flex items-center gap-1">
         <span class="inline-block transition-transform group-open:rotate-90 text-muted text-[10px] rtl:rotate-180">›</span>
         ملاحظة <span class="text-muted font-normal">(اختياري)</span>
@@ -80,12 +86,12 @@
     </details>
 
     {% if voucher_form.non_field_errors %}
-      <div class="{% if voucher_layout == 'wide' %}lg:col-span-2{% endif %} p-2 rounded-sm bg-danger/10 border border-danger/30 text-danger text-xs font-semibold">
+      <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %} p-2 rounded-sm bg-danger/10 border border-danger/30 text-danger text-xs font-semibold">
         {% for e in voucher_form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
       </div>
     {% endif %}
 
-    <div class="{% if voucher_layout == 'wide' %}lg:col-span-2 mt-auto pt-1{% endif %}">
+    <div class="{% if voucher_layout == 'wide' %}lg:col-span-2 mt-auto pt-1{% elif voucher_layout == 'shell' %}lg:col-span-2 pt-2{% endif %}">
       {% if voucher_layout == "wide" %}
       <button type="submit" class="w-full h-7 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-[11px] border border-[#163051] leading-none">تسجيل السند</button>
       {% else %}

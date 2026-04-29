@@ -1,22 +1,14 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}حركة الأصناف{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">حركة الأصناف</p>
+{% block title %}حركة الأصناف{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="حركة الأصناف" toolbar_hint="الأكثر مبيعاً والراكد" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <div class="flex flex-wrap gap-1.5 items-center">
-    {% if reports_ns == 'shell' %}
     <a href="{% url 'shell:product_movement' %}?period=week" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'week' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">أسبوع</a>
     <a href="{% url 'shell:product_movement' %}?period=month" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'month' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">شهر</a>
     <a href="{% url 'shell:product_movement' %}?period=year" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'year' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">سنة</a>
-    {% else %}
-    <a href="{% url 'reports:product_movement' %}?period=week" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'week' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">أسبوع</a>
-    <a href="{% url 'reports:product_movement' %}?period=month" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'month' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">شهر</a>
-    <a href="{% url 'reports:product_movement' %}?period=year" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'year' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">سنة</a>
-    {% endif %}
   </div>
   <p class="text-[11px] text-muted mt-2 mb-0">من {{ date_from }}</p>
 </div>
@@ -71,11 +63,7 @@
           <td class="py-2 px-2">{{ forloop.counter }}</td>
           <td class="py-2 px-2 font-semibold">{{ p.name_ar }}</td>
           <td class="py-2 px-2">
-            {% if catalog_ns == 'shell' %}
-            <a href="{% url 'shell:product_edit' p.pk %}" class="text-primary font-bold text-[10px] hover:underline">تعديل الصنف</a>
-            {% else %}
-            <a href="{% url 'catalog:product_card' p.pk %}" class="text-primary font-bold text-[10px] hover:underline">بطاقة الصنف</a>
-            {% endif %}
+            <a href="{% url 'shell:product_card' p.pk %}" class="text-primary font-bold text-[10px] hover:underline">بطاقة الصنف</a>
           </td>
         </tr>
         {% endfor %}
@@ -86,4 +74,5 @@
   <p class="text-center text-muted py-6 text-xs">لا توجد أصناف راكدة.</p>
   {% endif %}
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

@@ -1,60 +1,61 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}المصروفات{% endblock %}
-{% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">المصروفات</h1>
-  <div class="flex gap-2 flex-wrap">
-    <a href="{% url 'expenses:create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">
-      <svg class="w-4 h-4 me-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      إضافة مصروف
-    </a>
-    <a href="{% url 'expenses:categories' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-bold text-sm hover:border-primary hover:text-primary transition-colors">
-      التصنيفات
-    </a>
+{% block title %}المصروفات{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">المصروفات</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">قائمة المصروفات المسجّلة</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
   </div>
-</div>
-
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التصنيف</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطريقة</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">ملاحظات</th>
-          <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase w-36">إجراءات</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in expenses %}
-          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.expense_date }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.category.name_ar }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold {% if e.payment_method == 'cash' %}bg-success-light text-success{% else %}bg-info-light text-info{% endif %}">{{ e.get_payment_method_display }}</span>
-            </td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ e.notes|truncatechars:60 }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <div class="flex flex-wrap gap-2 items-center">
-                <a href="{% url 'expenses:edit' e.pk %}" class="text-xs font-bold text-primary hover:underline">تعديل</a>
-                <form method="post" action="{% url 'expenses:delete' e.pk %}" class="inline" onsubmit="return confirm('حذف المصروف وقيوده نهائياً؟');">
-                  {% csrf_token %}
-                  <button type="submit" class="text-xs font-bold text-danger hover:underline">حذف</button>
-                </form>
-              </div>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="6" class="p-8 text-center text-muted">لا توجد مصروفات</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap gap-1.5 items-center min-w-0">
+        {% include "shell/_expenses_tabs.html" with expenses_tab="list" %}
+      </div>
+      <a href="{% url 'shell:expense_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center whitespace-nowrap shrink-0">إضافة مصروف</a>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">التاريخ</th>
+              <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">التصنيف</th>
+              <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">المبلغ</th>
+              <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">طريقة الدفع</th>
+              <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">ملاحظات</th>
+              <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in expenses %}
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.expense_date }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.category.name_ar }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.payment_method_label_ar }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted">{{ e.notes|truncatechars:60 }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+                <div class="flex flex-wrap items-center gap-2">
+                  <a href="{% url 'shell:expense_edit' e.pk %}" class="text-primary font-semibold hover:underline">تعديل</a>
+                  <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="inline m-0" onsubmit="return confirm('حذف المصروف وقيوده نهائياً؟');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-danger font-semibold hover:underline bg-transparent border-0 cursor-pointer p-0 text-sm">حذف</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="p-8 text-center text-muted">لا توجد مصروفات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

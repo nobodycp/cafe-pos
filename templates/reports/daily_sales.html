@@ -1,10 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}تقرير المبيعات اليومي{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير المبيعات اليومي</p>
+{% block title %}تقرير المبيعات اليومي{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="مبيعات يومية" toolbar_hint="فواتير وإجماليات حسب الفترة" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <form method="get" class="flex gap-2 flex-wrap items-end">
@@ -56,11 +54,7 @@
         {% for row in invoices %}
         <tr class="border-b border-gray-100 dark:border-gray-700/80">
           <td class="py-2 px-2">
-            {% if billing_ns == 'shell' %}
             <a href="{% url 'shell:invoice_detail' row.invoice.pk %}" class="text-primary font-bold hover:underline">{{ row.invoice.invoice_number }}</a>
-            {% else %}
-            <a href="{% url 'billing:invoice_detail' row.invoice.pk %}" class="text-primary font-bold hover:underline">{{ row.invoice.invoice_number }}</a>
-            {% endif %}
           </td>
           <td class="py-2 px-2">{{ row.table_name|default:"—" }}</td>
           <td class="py-2 px-2 tabular-nums">{{ row.invoice.total|floatformat:2|intcomma }}</td>
@@ -78,7 +72,6 @@
           </td>
           <td class="py-2 px-2">
             <div class="flex flex-wrap gap-1.5 items-center justify-end">
-              {% if billing_ns == 'shell' %}
               <a href="{% url 'shell:invoice_detail' row.invoice.pk %}" class="text-[10px] font-bold text-primary hover:underline">عرض</a>
               <form method="post" action="{% url 'shell:sale_invoice_delete' row.invoice.pk %}" class="inline" onsubmit="return confirm('حذف الفاتورة نهائياً من النظام؟');">
                 {% csrf_token %}
@@ -86,15 +79,6 @@
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="text-[10px] font-bold text-danger hover:underline bg-transparent border-0 cursor-pointer p-0">حذف</button>
               </form>
-              {% else %}
-              <a href="{% url 'billing:invoice_detail' row.invoice.pk %}" class="text-[10px] font-bold text-primary hover:underline">عرض</a>
-              <form method="post" action="{% url 'billing:sale_invoice_delete' row.invoice.pk %}" class="inline" onsubmit="var r=prompt('سبب الحذف (مطلوب):'); if(!r||!r.trim()){return false;} this.reason.value=r.trim(); return confirm('حذف الفاتورة نهائياً من النظام؟');">
-                {% csrf_token %}
-                <input type="hidden" name="reason" value="">
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <button type="submit" class="text-[10px] font-bold text-danger hover:underline bg-transparent border-0 cursor-pointer p-0">حذف</button>
-              </form>
-              {% endif %}
             </div>
           </td>
         </tr>
@@ -106,4 +90,5 @@
   <p class="text-center text-muted py-6 text-xs">لا توجد فواتير في هذه الفترة.</p>
   {% endif %}
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

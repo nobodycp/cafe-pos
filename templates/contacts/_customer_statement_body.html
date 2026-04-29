@@ -4,7 +4,7 @@
   {% if contacts_ns == 'shell' %}
   <a href="{% url 'shell:customer_detail' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">رجوع للعميل</a>
   {% else %}
-  <a href="{% url 'contacts:customer_detail' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">رجوع للعميل</a>
+  <a href="{% url 'shell:customer_detail' customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">رجوع للعميل</a>
   {% endif %}
 </div>
 

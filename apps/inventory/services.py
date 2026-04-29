@@ -6,15 +6,8 @@ from typing import Optional
 from django.db import transaction
 from apps.catalog.models import Product, RecipeLine
 from apps.core.models import WorkSession, get_pos_settings
+from apps.core.decimalutil import as_decimal
 from apps.inventory.models import StockBalance, StockMovement
-
-
-def _d(val) -> Decimal:
-    if val is None:
-        return Decimal("0")
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val))
 
 
 def ensure_stock_balance(product: Product) -> StockBalance:
@@ -41,11 +34,11 @@ def get_unit_cost(product: Product, _seen: Optional[set] = None) -> Decimal:
         for line in RecipeLine.objects.filter(manufactured_product=product).select_related("component"):
             comp = line.component
             comp_cost = get_unit_cost(comp, _seen)
-            total += _d(line.quantity_per_unit) * comp_cost
+            total += as_decimal(line.quantity_per_unit) * comp_cost
         return total.quantize(Decimal("0.000001"))
     if product.is_stock_tracked:
         try:
-            return _d(product.stock_balance.average_cost)
+            return as_decimal(product.stock_balance.average_cost)
         except StockBalance.DoesNotExist:
             return Decimal("0")
     return Decimal("0")
@@ -64,13 +57,13 @@ def receive_purchase_stock(
 ) -> StockMovement:
     if not product.is_stock_tracked:
         raise ValueError("PRODUCT_NOT_STOCK_TRACKED")
-    qty = _d(quantity)
-    cost = _d(unit_cost)
+    qty = as_decimal(quantity)
+    cost = as_decimal(unit_cost)
     if qty <= 0:
         raise ValueError("INVALID_QTY")
     sb = ensure_stock_balance(product)
-    old_q = _d(sb.quantity_on_hand)
-    old_avg = _d(sb.average_cost)
+    old_q = as_decimal(sb.quantity_on_hand)
+    old_avg = as_decimal(sb.average_cost)
     new_q = old_q + qty
     if new_q > 0:
         new_avg = ((old_q * old_avg) + (qty * cost)) / new_q
@@ -106,7 +99,7 @@ def adjust_stock(
     if not product.is_stock_tracked:
         raise ValueError("PRODUCT_NOT_STOCK_TRACKED")
     sb = ensure_stock_balance(product)
-    new_q = _d(sb.quantity_on_hand) + _d(quantity_delta)
+    new_q = as_decimal(sb.quantity_on_hand) + as_decimal(quantity_delta)
     if new_q < 0 and not get_pos_settings().allow_negative_stock:
         raise ValueError("INSUFFICIENT_STOCK")
     sb.quantity_on_hand = new_q
@@ -114,8 +107,8 @@ def adjust_stock(
     return StockMovement.objects.create(
         product=product,
         movement_type=movement_type,
-        quantity_delta=_d(quantity_delta),
-        unit_cost=_d(sb.average_cost),
+        quantity_delta=as_decimal(quantity_delta),
+        unit_cost=as_decimal(sb.average_cost),
         work_session=session,
         reference_model=reference_model,
         reference_pk=str(reference_pk),
@@ -131,7 +124,7 @@ def consume_for_sale(
     session: WorkSession,
     invoice_pk: int,
 ) -> None:
-    qty = _d(quantity)
+    qty = as_decimal(quantity)
     if qty <= 0:
         return
     ptype = product.product_type
@@ -143,7 +136,7 @@ def consume_for_sale(
             if not line.component.is_stock_tracked:
                 continue
             cid = line.component_id
-            comp_qty = _d(line.quantity_per_unit) * qty
+            comp_qty = as_decimal(line.quantity_per_unit) * qty
             aggregated[cid] = aggregated.get(cid, Decimal("0")) + comp_qty
         for cid, total_qty in aggregated.items():
             comp = Product.objects.get(pk=cid)
@@ -172,7 +165,7 @@ def consume_for_sale(
 def check_stock_available(product: Product, quantity: Decimal) -> None:
     if get_pos_settings().allow_negative_stock:
         return
-    qty = _d(quantity)
+    qty = as_decimal(quantity)
     ptype = product.product_type
     if ptype == Product.ProductType.SERVICE or ptype == Product.ProductType.COMMISSION:
         return
@@ -181,15 +174,15 @@ def check_stock_available(product: Product, quantity: Decimal) -> None:
         for line in RecipeLine.objects.filter(manufactured_product=product).select_related("component"):
             if line.component.is_stock_tracked:
                 cid = line.component_id
-                aggregated[cid] = aggregated.get(cid, Decimal("0")) + _d(line.quantity_per_unit) * qty
+                aggregated[cid] = aggregated.get(cid, Decimal("0")) + as_decimal(line.quantity_per_unit) * qty
         for cid, need in aggregated.items():
             sb = StockBalance.objects.select_for_update().filter(product_id=cid).first()
-            on_hand = _d(sb.quantity_on_hand) if sb else Decimal("0")
+            on_hand = as_decimal(sb.quantity_on_hand) if sb else Decimal("0")
             if on_hand < need:
                 raise ValueError(f"INSUFFICIENT_STOCK:{cid}")
         return
     if product.is_stock_tracked:
         sb = StockBalance.objects.select_for_update().filter(product=product).first()
-        on_hand = _d(sb.quantity_on_hand) if sb else Decimal("0")
+        on_hand = as_decimal(sb.quantity_on_hand) if sb else Decimal("0")
         if on_hand < qty:
             raise ValueError(f"INSUFFICIENT_STOCK:{product.pk}")

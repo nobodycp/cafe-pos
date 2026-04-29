@@ -27,8 +27,8 @@ def resolve_settings_request(
 ) -> Union[HttpResponse, Dict[str, Any]]:
     """
     يعالج GET/POST للإعدادات.
-    redirect_after_save: مسار إعادة التوجيه بعد حفظ ناجح (مثل reverse('shell:settings') أو reverse('core:settings')).
-    payment_method_url_namespace: «shell» (/app/settings/) أو «core» (/settings/) لروابط طرق الدفع داخل التبويب.
+    redirect_after_save: مسار إعادة التوجيه بعد حفظ ناجح (مثل reverse('shell:settings')).
+    payment_method_url_namespace: «shell» فقط — طرق الدفع من /app/settings/.
     يُرجع Redirect أو سياق القالب.
     """
     from apps.core.payment_method_pages import build_payment_methods_list_context

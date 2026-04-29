@@ -17,7 +17,6 @@ from apps.catalog.forms import (
     UnitForm,
 )
 from apps.catalog.models import Category, Product, RecipeLine, Unit
-from apps.catalog.routing import catalog_url_namespace
 from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
 from apps.inventory.services import get_unit_cost
 from apps.billing.models import SaleInvoiceLine
@@ -42,13 +41,13 @@ def _is_volume_unit(product: Product) -> bool:
 
 
 def _catalog_ctx(request, **kwargs):
-    ctx = {"catalog_ns": catalog_url_namespace(request)}
+    ctx = {"catalog_ns": "shell"}
     ctx.update(kwargs)
     return ctx
 
 
 def _catalog_reverse(request, viewname, *args, **kwargs):
-    return reverse(f"{catalog_url_namespace(request)}:{viewname}", args=args, kwargs=kwargs)
+    return reverse(f"shell:{viewname}", args=args, kwargs=kwargs)
 
 
 def _catalog_redirect(request, viewname, *args, **kwargs):
@@ -56,7 +55,7 @@ def _catalog_redirect(request, viewname, *args, **kwargs):
 
 
 def _catalog_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl if catalog_url_namespace(request) == "shell" else classic_tpl
+    return shell_tpl
 
 
 @login_required

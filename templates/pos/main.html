@@ -1,4 +1,5 @@
 {% extends "shell/base.html" %}
+{% load static %}
 {% block title %}الكاشير — {{ cafe_name }}{% endblock %}
 {% block nav_on_orders %}on{% endblock %}
 {% block cashier_body %}
@@ -54,10 +55,10 @@
     <div class="lg:col-span-8 flex flex-col gap-3 min-h-0 p-3 lg:pe-2 overflow-y-auto lg:overflow-hidden border-b lg:border-b-0 lg:border-e border-gray-300 dark:border-gray-700">
       <section class="shrink-0">
         <h2 class="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">نوع الطلب</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 min-h-[11rem]">
-          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2">
             <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">صالة</h3>
-            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-2 flex-1 justify-end mt-auto">
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-2">
               {% csrf_token %}
               <input type="hidden" name="order_type" value="dine_in">
               <select name="table_id" required class="w-full">
@@ -67,17 +68,17 @@
               <button class="w-full h-9 rounded-sm bg-[#1e3a5f] text-white font-bold text-sm border border-[#163051]" type="submit">بدء طلب صالة</button>
             </form>
           </div>
-          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2">
             <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">سفري</h3>
-            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col flex-1 justify-end mt-auto">
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-2">
               {% csrf_token %}
               <input type="hidden" name="order_type" value="takeaway">
               <button class="w-full h-9 rounded-sm bg-amber-400 text-gray-900 font-bold text-sm border border-amber-600" type="submit">بدء سفري</button>
             </form>
           </div>
-          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2 min-h-[10rem]">
+          <div class="bg-white dark:bg-gray-800 rounded-sm p-3 border border-gray-300 dark:border-gray-600 flex flex-col gap-2">
             <h3 class="text-sm font-bold text-center border-b border-gray-200 dark:border-gray-600 pb-2">توصيل</h3>
-            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col flex-1 justify-end mt-auto">
+            <form method="post" action="{% url 'pos:order_new' %}" class="w-full flex flex-col gap-2">
               {% csrf_token %}
               <input type="hidden" name="order_type" value="delivery">
               <button class="w-full h-9 rounded-sm bg-sky-600 text-white font-bold text-sm border border-sky-800" type="submit">بدء توصيل</button>
@@ -247,6 +248,8 @@
 {% endblock %}
 
 {% block cashier_scripts %}
+<script src="{% static 'js/money_parse.js' %}"></script>
+<script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
 <script>
 (function(){
   var CART_URL='{% url "pos:cart_fragment" %}';
@@ -687,29 +690,19 @@
     var arCustPanel=document.getElementById('pay-ar-customer-panel');
     var payAmt=document.getElementById('pay-amt');
 
-    function parseMoneyStr(s){
-      if(s==null||s==='')return NaN;
-      var t=String(s).trim().replace(/\u00a0/g,'').replace(/\s/g,'');
-      t=t.replace(/٬/g,'').replace(/'/g,'');
-      var ar='٠١٢٣٤٥٦٧٨٩';var en='0123456789';
-      for(var i=0;i<10;i++)t=t.split(ar[i]).join(en[i]);
-      t=t.replace(/٫/g,'.').replace(/,/g,'.');
-      var n=parseFloat(t);
-      return isNaN(n)?NaN:n;
-    }
-    function formatPayAmt(n){
-      if(isNaN(n)||n<0)return'0.00';
-      return(Math.round(n*100)/100).toFixed(2);
-    }
     function syncPayAmountDefault(opts){
       opts=opts||{};
       if(!payAmt||!cf)return;
-      var bal=parseMoneyStr(cf.getAttribute('data-balance'));
+      var M=(typeof CafeMoney!=='undefined'&&CafeMoney&&CafeMoney.parse)?CafeMoney:{
+        parse:function(s){if(s==null||s==='')return NaN;var t=String(s).trim().replace(/,/g,'.');return parseFloat(t);},
+        format2:function(n){if(isNaN(n)||n<0)return'0.00';return(Math.round(n*100)/100).toFixed(2);}
+      };
+      var bal=M.parse(cf.getAttribute('data-balance'));
       if(isNaN(bal)||bal<0)bal=0;
       var force=opts.force===true;
-      var cur=parseMoneyStr(payAmt.value);
+      var cur=M.parse(payAmt.value);
       if(force||!String(payAmt.value||'').trim()||isNaN(cur)||cur<=0)
-        payAmt.value=formatPayAmt(bal);
+        payAmt.value=M.format2(bal);
     }
 
     function setMode(m){
@@ -838,65 +831,25 @@
     setupPayerHints();
   }
 
-  /* ── Customer autocomplete ── */
+  /* ── Customer autocomplete (مشترك مع static/js/customer_search_autocomplete.js) ── */
   function initCustomerAutocomplete(){
-    function setup(searchId,hitsId,hiddenId,opts){
-      opts=opts||{};
-      var inp=document.getElementById(searchId),hits=document.getElementById(hitsId),hidden=document.getElementById(hiddenId);
-      if(!inp||!hits||!hidden)return;
-      var tmo;
-      inp.addEventListener('input',function(){
-        clearTimeout(tmo);
-        var q=inp.value.trim();
-        if(q.length<1){hits.style.display='none';return;}
-        tmo=setTimeout(function(){
-          fetch(SEARCH_URL+'?q='+encodeURIComponent(q))
-          .then(function(r){return r.json()})
-          .then(function(data){
-            hits.innerHTML='';
-            if(!data.results||!data.results.length){
-              hits.innerHTML='<div style="padding:8px 12px;color:var(--c-muted);font-size:.85rem">لا توجد نتائج</div>';
-              hits.style.display='block';return;
-            }
-            data.results.forEach(function(c){
-              var btn=document.createElement('button');
-              btn.type='button';
-              btn.textContent=opts.nameOnlyHits?(c.name_ar||''):(c.name_ar+(c.phone?' — '+c.phone:''));
-              btn.className='cust-ac-hit';
-              btn.onclick=function(){hidden.value=c.id;inp.value=c.name_ar;hits.style.display='none'};
-              hits.appendChild(btn);
-            });
-            hits.style.display='block';
-          });
-        },200);
-      });
-      inp.addEventListener('keydown',function(e){
-        if(e.key==='Tab'&&hits.style.display!=='none'){
-          var first=hits.querySelector('.cust-ac-hit');
-          if(first){e.preventDefault();first.click();}
-        }
-        if(e.key==='ArrowDown'||e.key==='ArrowUp'){
-          e.preventDefault();
-          var items=hits.querySelectorAll('.cust-ac-hit');
-          if(!items.length)return;
-          var cur=-1;
-          items.forEach(function(it,i){if(it.classList.contains('ac-active'))cur=i;});
-          items.forEach(function(it){it.classList.remove('ac-active');it.style.background='';});
-          if(e.key==='ArrowDown')cur=cur<items.length-1?cur+1:0;
-          else cur=cur>0?cur-1:items.length-1;
-          items[cur].classList.add('ac-active');
-          items[cur].style.background='rgba(108,92,231,0.1)';
-          items[cur].scrollIntoView({block:'nearest'});
-        }
-        if(e.key==='Enter'&&hits.style.display!=='none'){
-          var active=hits.querySelector('.ac-active')||hits.querySelector('.cust-ac-hit');
-          if(active){e.preventDefault();active.click();}
-        }
-      });
-      inp.addEventListener('blur',function(){setTimeout(function(){hits.style.display='none'},200)});
-      inp.addEventListener('focus',function(){if(hits.childElementCount>0)hits.style.display='block'});
-    }
-    setup('pay-cust-search','pay-cust-hits','pay-cust-id',{nameOnlyHits:true});
+    if(typeof CafeCustomerAutocomplete==='undefined')return;
+    var inp=document.getElementById('pay-cust-search');
+    var hits=document.getElementById('pay-cust-hits');
+    var hid=document.getElementById('pay-cust-id');
+    if(!inp||!hits||!hid)return;
+    CafeCustomerAutocomplete.bind({
+      searchUrl: SEARCH_URL,
+      input: inp,
+      hits: hits,
+      hidden: hid,
+      debounce: 200,
+      nameOnlyHits: true,
+      hitClass: 'cust-ac-hit',
+      noResultsHtml: '<div style="padding:8px 12px;color:var(--c-muted);font-size:.85rem">لا توجد نتائج</div>',
+      arrowNav: true,
+      useDisplayNone: true
+    });
   }
 
   /* ── Category tabs ── */

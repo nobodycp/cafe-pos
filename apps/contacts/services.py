@@ -3,11 +3,8 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.contacts.models import Customer, CustomerLedgerEntry
+from apps.core.decimalutil import as_decimal
 from apps.core.models import log_audit
-
-
-def _d(v):
-    return v if isinstance(v, Decimal) else Decimal(str(v))
 
 
 @transaction.atomic
@@ -15,7 +12,7 @@ def record_customer_payment(
     *, customer: Customer, amount: Decimal, user, method: str = "cash", note: str = "",
     work_session=None,
 ) -> CustomerLedgerEntry:
-    amt = _d(amount)
+    amt = as_decimal(amount)
     if amt <= 0:
         raise ValueError("INVALID_AMOUNT")
     customer.balance = (customer.balance - amt).quantize(Decimal("0.01"))

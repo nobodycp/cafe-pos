@@ -3,20 +3,16 @@
 {% block title %}دليل الحسابات{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
-    <span class="pos-shell-toolbar-title">دليل الحسابات</span>
-    <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary">← لوحة الطلبات</a>
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">المحاسبة</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">دليل الحسابات — أرصدة مجمّعة</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-      <h1>دليل الحسابات</h1>
-      <div class="flex gap-1.5 flex-wrap">
-        <a href="{% url 'shell:trial_balance' %}" class="h-8 px-3 rounded-sm bg-primary text-white font-bold text-xs inline-flex items-center">ميزان المراجعة</a>
-        <a href="{% url 'shell:pnl' %}" class="h-8 px-3 rounded-sm bg-primary text-white font-bold text-xs inline-flex items-center">الأرباح والخسائر</a>
-        <a href="{% url 'shell:journal_list' %}" class="h-8 px-3 rounded-sm bg-primary text-white font-bold text-xs inline-flex items-center">القيود اليومية</a>
-      </div>
-    </div>
+    {% include "shell/_accounting_tabs.html" with accounting_tab="chart" %}
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -30,7 +26,7 @@
               <td>{{ r.total_debit|floatformat:2|intcomma }}</td>
               <td>{{ r.total_credit|floatformat:2|intcomma }}</td>
               <td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td>
-              <td><a href="{% url 'shell:account_ledger' r.account.pk %}">كشف حساب</a></td>
+              <td><a href="{% url 'shell:account_ledger' r.account.pk %}" class="text-primary font-semibold hover:underline">كشف حساب</a></td>
             </tr>
             {% empty %}
             <tr><td colspan="7" class="p-8 text-center text-muted">لا توجد حسابات</td></tr>

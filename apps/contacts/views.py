@@ -11,19 +11,17 @@ from django.views.decorators.http import require_POST
 
 from apps.contacts.forms import CustomerForm, CustomerPaymentForm
 from apps.contacts.models import Customer, CustomerLedgerEntry
-from apps.contacts.routing import contacts_url_namespace
 from apps.contacts.services import record_customer_payment
 
 
 def _contacts_ctx(request, **kwargs):
-    ctx = {"contacts_ns": contacts_url_namespace(request)}
+    ctx = {"contacts_ns": "shell"}
     ctx.update(kwargs)
     return ctx
 
 
 def _contacts_reverse(request, viewname, *args, **kwargs):
-    ns = contacts_url_namespace(request)
-    return reverse(f"{ns}:{viewname}", args=args, kwargs=kwargs)
+    return reverse(f"shell:{viewname}", args=args, kwargs=kwargs)
 
 
 def _contacts_redirect(request, viewname, *args, **kwargs):
@@ -31,7 +29,7 @@ def _contacts_redirect(request, viewname, *args, **kwargs):
 
 
 def _contacts_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl if contacts_url_namespace(request) == "shell" else classic_tpl
+    return shell_tpl
 
 
 @login_required

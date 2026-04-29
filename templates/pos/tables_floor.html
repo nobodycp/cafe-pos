@@ -1,4 +1,5 @@
 {% extends "shell/base.html" %}
+{% load static %}
 {% block title %}خريطة الطاولات{% endblock %}
 {% block nav_on_tables %}on{% endblock %}
 {% block cashier_body %}
@@ -94,37 +95,42 @@
 </div>
 
 
+<script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
 <script>
 (function(){
-  document.querySelectorAll('.table-cust-search').forEach(function(inp){
-    var tid=inp.getAttribute('data-table');
-    var hits=document.getElementById('hits-'+tid);
-    var tmo;
-    inp.addEventListener('input',function(){
-      clearTimeout(tmo);
-      var q=inp.value.trim();
-      if(q.length<1){hits.innerHTML='';return}
-      tmo=setTimeout(function(){
-        fetch('{% url "pos:customers_search" %}?q='+encodeURIComponent(q))
-          .then(function(r){return r.json()})
-          .then(function(data){
-            hits.innerHTML='';
-            (data.results||[]).forEach(function(c){
-              var b=document.createElement('button');
-              b.type='button';
-              b.textContent=c.name_ar+(c.phone?' — '+c.phone:'');
-              b.className='block w-full text-right px-2 py-1.5 border-none bg-primary-soft dark:bg-primary/10 cursor-pointer my-0.5 rounded-lg font-sans text-xs hover:bg-primary/20 transition-colors duration-200';
-              b.onclick=function(){
-                document.getElementById('cust-'+tid).value=c.id;
-                document.getElementById('guest-'+tid).value='';
-                hits.innerHTML='<span class="text-success font-semibold">✓ '+c.name_ar+'</span>';
-              };
-              hits.appendChild(b);
-            });
-          });
-      },180);
+  var CUST_SEARCH_URL='{% url "pos:customers_search" %}';
+  if(typeof CafeCustomerAutocomplete!=='undefined'){
+    document.querySelectorAll('.table-cust-search').forEach(function(inp){
+      var tid=inp.getAttribute('data-table');
+      var hits=document.getElementById('hits-'+tid);
+      var hidden=document.getElementById('cust-'+tid);
+      if(!hits||!hidden)return;
+      CafeCustomerAutocomplete.bind({
+        searchUrl: CUST_SEARCH_URL,
+        input: inp,
+        hits: hits,
+        hidden: hidden,
+        debounce: 180,
+        hitClass: 'block w-full text-right px-2 py-1.5 border-none bg-primary-soft dark:bg-primary/10 cursor-pointer my-0.5 rounded-lg font-sans text-xs hover:bg-primary/20 transition-colors duration-200',
+        useDisplayNone: false,
+        arrowNav: false,
+        onPick: function(c, el){
+          el.hidden.value=c.id;
+          var guest=document.getElementById('guest-'+tid);
+          if(guest)guest.value='';
+          el.hits.innerHTML='<span class="text-success font-semibold">✓ '+(c.name_ar||'')+'</span>';
+        }
+      });
+      /* Enter بعد اختيار عميل (أو نص ضيف): الحقل ليس داخل form — نفتح الطاولة كزر «فتح طاولة» */
+      inp.addEventListener('keydown', function(e){
+        if(e.key!=='Enter')return;
+        if(hits.querySelector('[data-cust-hit]'))return;
+        e.preventDefault();
+        var openBtn=document.querySelector('.open-free-table[data-table="'+tid+'"]');
+        if(openBtn)openBtn.click();
+      });
     });
-  });
+  }
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
   function showFloorModal(title,bodyHtml,onConfirm){
     var overlay=document.createElement('div');

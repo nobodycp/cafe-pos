@@ -1,21 +1,21 @@
-{# شريط تنقل التقارير — يعمل مع shell:* و reports:* #}
+{# شريط تنقل التقارير — مسارات الغلاف فقط #}
 {% with u=request.resolver_match.url_name %}
 <nav class="reports-nav-tabs flex flex-nowrap gap-1 mb-2 pb-1.5 border-b border-gray-300/80 dark:border-gray-600 overflow-x-auto thin-scroll min-w-0" aria-label="تقارير النظام">
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:reports' %}{% else %}{% url 'reports:dashboard' %}{% endif %}"
+  <a href="{% url 'shell:reports' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'reports' or u == 'dashboard' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">لوحة</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:daily_sales' %}{% else %}{% url 'reports:daily_sales' %}{% endif %}"
+  <a href="{% url 'shell:daily_sales' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'daily_sales' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">مبيعات يومية</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:expense_report' %}{% else %}{% url 'reports:expense_report' %}{% endif %}"
+  <a href="{% url 'shell:expense_report' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'expense_report' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">مصروفات</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:weekly_report' %}{% else %}{% url 'reports:weekly_report' %}{% endif %}"
+  <a href="{% url 'shell:weekly_report' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'weekly_report' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">أسبوعي</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:product_movement' %}{% else %}{% url 'reports:product_movement' %}{% endif %}"
+  <a href="{% url 'shell:product_movement' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'product_movement' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">حركة أصناف</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:cash_flow' %}{% else %}{% url 'reports:cash_flow' %}{% endif %}"
+  <a href="{% url 'shell:cash_flow' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'cash_flow' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">تدفق نقدي</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:payroll_report' %}{% else %}{% url 'reports:payroll_report' %}{% endif %}"
+  <a href="{% url 'shell:payroll_report' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'payroll_report' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">موظفون</a>
-  <a href="{% if reports_ns == 'shell' %}{% url 'shell:payment_channels' %}{% else %}{% url 'reports:payment_channels' %}{% endif %}"
+  <a href="{% url 'shell:payment_channels' %}"
      class="h-7 px-2 rounded-sm text-[11px] font-bold inline-flex items-center whitespace-nowrap no-underline transition-colors {% if u == 'payment_channels' %}bg-primary text-white{% else %}bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:border-primary{% endif %}">دفع وتتبع</a>
 </nav>
 {% endwith %}

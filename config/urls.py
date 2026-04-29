@@ -20,16 +20,5 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path("app/", include("apps.core.shell_urls")),
     path("pos/", include("apps.pos.urls")),
-    # Legacy module URLs kept temporarily during the shell migration.
-    # New navigation must use /app/... routes; remove these after confirming no old bookmarks/integrations remain.
-    path("products/", include("apps.catalog.urls")),
-    path("inventory/", include("apps.inventory.urls")),
-    path("purchasing/", include("apps.purchasing.urls")),
-    path("customers/", include("apps.contacts.urls")),
-    path("payroll/", include("apps.payroll.urls")),
-    path("expenses/", include("apps.expenses.urls")),
-    path("reports/", include("apps.reports.urls")),
-    path("accounting/", include("apps.accounting.urls")),
-    path("billing/", include("apps.billing.urls")),
     path("", include("apps.core.urls")),
 ]

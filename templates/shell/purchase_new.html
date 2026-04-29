@@ -4,7 +4,7 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">فاتورة شراء جديدة</span><span class="flex-1"></span>
-    <a href="{% url 'shell:suppliers' %}" class="text-xs font-bold text-primary hover:text-primary-dk no-underline">← الموردون</a>
+    <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← الموردون</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_purchase_invoice_form_body.html" %}

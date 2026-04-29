@@ -12,19 +12,22 @@ from apps.core.models import log_audit
 from apps.core.services import SessionService
 from apps.inventory.forms import RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
-from apps.inventory.routing import inventory_url_namespace
 from apps.inventory.services import ensure_stock_balance, adjust_stock, get_unit_cost, receive_purchase_stock
 from apps.purchasing.models import PurchaseLine
 
 
+_SHELL_INV_VIEW = {"home": "inventory_home", "movements": "inventory_movements", "adjust": "inventory_adjust"}
+
+
 def _inventory_ctx(request, **kwargs):
-    ctx = {"inventory_ns": inventory_url_namespace(request)}
+    ctx = {"inventory_ns": "shell"}
     ctx.update(kwargs)
     return ctx
 
 
 def _inventory_reverse(request, viewname, *args, **kwargs):
-    return reverse(f"{inventory_url_namespace(request)}:{viewname}", args=args, kwargs=kwargs)
+    vn = _SHELL_INV_VIEW.get(viewname, viewname)
+    return reverse(f"shell:{vn}", args=args, kwargs=kwargs)
 
 
 def _inventory_redirect(request, viewname, *args, **kwargs):
@@ -32,7 +35,7 @@ def _inventory_redirect(request, viewname, *args, **kwargs):
 
 
 def _inventory_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl if inventory_url_namespace(request) == "shell" else classic_tpl
+    return shell_tpl
 
 
 @login_required

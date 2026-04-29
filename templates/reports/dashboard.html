@@ -1,9 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}التقارير{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
+{% block title %}التقارير{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="التقارير" toolbar_hint="مؤشرات اليوم والورديات" %}
 
 {# صف واحد مضغوط: مؤشرات اليوم + تقييم المخزون #}
 <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5 mb-1.5">
@@ -35,7 +34,7 @@
   {% if low_stock_count or unpaid_customers %}
   <div class="flex flex-wrap gap-1 mt-1 pt-1 border-t border-gray-100 dark:border-gray-700/80 justify-end">
     {% if low_stock_count %}
-    <a href="{% if inventory_ns == 'shell' %}{% url 'shell:inventory_home' %}?filter=low{% else %}{% url 'inventory:home' %}?filter=low{% endif %}" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-danger/10 border border-danger/40 text-danger text-[10px] font-bold no-underline hover:bg-danger/15">
+    <a href="{% url 'shell:inventory_home' %}?filter=low" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm bg-danger/10 border border-danger/40 text-danger text-[10px] font-bold no-underline hover:bg-danger/15">
       مخزون منخفض: {{ low_stock_count }}
     </a>
     {% endif %}
@@ -156,4 +155,5 @@
   });
 })();
 </script>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

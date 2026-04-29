@@ -1,0 +1,7 @@
+{# expenses_tab: list | categories (على صفحات النماذج يُترك غير مُمرَّر فيظهران كرابطين فقط) #}
+<div class="flex flex-wrap gap-1.5 items-center mb-3" role="tablist" aria-label="أقسام المصروفات">
+  <a href="{% url 'shell:expense_categories' %}"
+     class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center whitespace-nowrap {% if expenses_tab == 'categories' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">التصنيفات</a>
+  <a href="{% url 'shell:expenses' %}"
+     class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center whitespace-nowrap {% if expenses_tab == 'list' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">قائمة المصروفات</a>
+</div>

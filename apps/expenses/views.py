@@ -24,7 +24,7 @@ def expense_edit(request, pk):
             request,
             "مصروف «رواتب» لا يُعدَّل يدوياً — يُدار من الموظفين (سلفة أو صرف راتب). يمكنك حذف السطر من قائمة المصروفات إن لزم.",
         )
-        return redirect("expenses:list")
+        return redirect("shell:expenses")
     if request.method == "POST":
         form = ExpenseForm(request.POST)
         if form.is_valid():
@@ -42,7 +42,7 @@ def expense_edit(request, pk):
                         user=request.user,
                     )
                 messages.success(request, "تم تحديث المصروف.")
-                return redirect("expenses:list")
+                return redirect("shell:expenses")
             except ValueError as e:
                 msg = str(e)
                 if msg == "SALARIES_VIA_PAYROLL_ONLY":
@@ -68,7 +68,7 @@ def expense_delete(request, pk):
         messages.success(request, "تم حذف المصروف.")
     except Exception as e:
         messages.error(request, str(e))
-    return redirect("expenses:list")
+    return redirect("shell:expenses")
 
 
 @login_required
@@ -88,7 +88,7 @@ def expense_create(request):
                     user=request.user,
                 )
                 messages.success(request, "تم إضافة المصروف بنجاح.")
-                return redirect("expenses:list")
+                return redirect("shell:expenses")
             except ValueError as e:
                 msg = str(e)
                 if msg == "SALARIES_VIA_PAYROLL_ONLY":
@@ -112,7 +112,7 @@ def expense_category_create(request):
         if form.is_valid():
             form.save()
             messages.success(request, "تم إضافة التصنيف بنجاح.")
-            return redirect("expenses:categories")
+            return redirect("shell:expense_categories")
     else:
         form = ExpenseCategoryForm()
     return render(request, "expenses/category_form.html", {"form": form, "edit": False})
@@ -126,7 +126,7 @@ def expense_category_edit(request, pk):
         if form.is_valid():
             form.save()
             messages.success(request, "تم تعديل التصنيف بنجاح.")
-            return redirect("expenses:categories")
+            return redirect("shell:expense_categories")
     else:
         form = ExpenseCategoryForm(instance=category)
     return render(request, "expenses/category_form.html", {"form": form, "edit": True})

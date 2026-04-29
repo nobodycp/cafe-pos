@@ -1,11 +1,11 @@
 {# يُضمَّن في purchase_new و purchase_form — بحث منتجات + إنشاء سريع #}
 <div id="purchase-api-config" class="hidden"
-     data-search-url="{% url 'purchasing:purchase_products_search' %}"
-     data-create-url="{% url 'purchasing:purchase_product_quick_create' %}"
-     data-supplier-search-url="{% url 'purchasing:purchase_suppliers_search' %}"
-     data-supplier-create-url="{% url 'purchasing:purchase_supplier_quick_create' %}"
-     data-unit-search-url="{% url 'purchasing:purchase_units_search' %}"
-     data-unit-create-url="{% url 'purchasing:purchase_unit_quick_create' %}"></div>
+     data-search-url="{% url 'shell:purchase_products_search' %}"
+     data-create-url="{% url 'shell:purchase_product_quick_create' %}"
+     data-supplier-search-url="{% url 'shell:purchase_suppliers_search' %}"
+     data-supplier-create-url="{% url 'shell:purchase_supplier_quick_create' %}"
+     data-unit-search-url="{% url 'shell:purchase_units_search' %}"
+     data-unit-create-url="{% url 'shell:purchase_unit_quick_create' %}"></div>
 <style>
 .purchase-ac-hits{max-height:min(320px,55vh);overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:260px;}
 .line-product-search + .purchase-ac-hits{min-width:420px;}

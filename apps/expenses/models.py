@@ -54,3 +54,14 @@ class Expense(TimeStampedModel):
 
     def __str__(self):
         return f"{self.category_id} {self.amount}"
+
+    @property
+    def payment_method_label_ar(self) -> str:
+        """عرض عربي لرمز طريقة الدفع (الحقل بدون choices في النموذج)."""
+        from apps.core.payment_methods import get_payment_method_choices
+
+        code = (self.payment_method or "").strip()
+        for c, label in get_payment_method_choices():
+            if c == code:
+                return label
+        return code or "—"

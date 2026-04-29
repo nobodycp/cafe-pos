@@ -34,10 +34,7 @@ def build_payment_methods_list_context(request) -> dict:
 
 
 def payment_methods_settings_return_url(request) -> str:
-    ns = getattr(request.resolver_match, "namespace", "") or ""
-    if ns == "shell":
-        return f"{reverse('shell:settings')}?tab=payment"
-    return f"{reverse('core:settings')}?tab=payment"
+    return f"{reverse('shell:settings')}?tab=payment"
 
 
 @login_required
@@ -45,16 +42,13 @@ def payment_method_list_page(request):
     """يوجّه قائمة طرق الدفع المنفصلة إلى تبويب الإعدادات."""
     q = request.GET.copy()
     q["tab"] = "payment"
-    ns = getattr(request.resolver_match, "namespace", "") or ""
-    base = reverse("shell:settings") if ns == "shell" else reverse("core:settings")
+    base = reverse("shell:settings")
     return redirect(f"{base}?{q.urlencode()}")
 
 
 @login_required
 def payment_method_create_page(request):
     return_url = payment_methods_settings_return_url(request)
-    ns = getattr(request.resolver_match, "namespace", "") or ""
-    template_name = "shell/payment_method_form.html" if ns == "shell" else "pos/cashier_payment_method_form.html"
     if request.method == "POST":
         form = PaymentMethodForm(request.POST)
         if form.is_valid():
@@ -65,7 +59,7 @@ def payment_method_create_page(request):
         form = PaymentMethodForm()
     return render(
         request,
-        template_name,
+        "shell/payment_method_form.html",
         {"form": form, "title": "طريقة دفع جديدة", "is_create": True, "payment_methods_return_url": return_url},
     )
 
@@ -73,8 +67,6 @@ def payment_method_create_page(request):
 @login_required
 def payment_method_update_page(request, pk: int):
     return_url = payment_methods_settings_return_url(request)
-    ns = getattr(request.resolver_match, "namespace", "") or ""
-    template_name = "shell/payment_method_form.html" if ns == "shell" else "pos/cashier_payment_method_form.html"
     obj = get_object_or_404(PaymentMethod, pk=pk)
     if request.method == "POST":
         form = PaymentMethodForm(request.POST, instance=obj)
@@ -86,7 +78,7 @@ def payment_method_update_page(request, pk: int):
         form = PaymentMethodForm(instance=obj)
     return render(
         request,
-        template_name,
+        "shell/payment_method_form.html",
         {
             "form": form,
             "title": "تعديل طريقة الدفع",

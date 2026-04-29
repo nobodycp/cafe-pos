@@ -32,6 +32,6 @@
   {% if contacts_ns == 'shell' %}
   <a href="{% url 'shell:customer_detail' customer.pk %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
   {% else %}
-  <a href="{% url 'contacts:customer_detail' customer.pk %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
+  <a href="{% url 'shell:customer_detail' customer.pk %}" class="text-primary font-semibold hover:underline">&larr; رجوع</a>
   {% endif %}
 </p>

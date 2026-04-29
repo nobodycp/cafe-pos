@@ -12,15 +12,8 @@ from django.utils import timezone
 
 from apps.accounting.models import Account, JournalEntry, JournalLine
 from apps.core.payment_methods import resolve_cash_bank_line_code, resolve_ledger_account_code
+from apps.core.decimalutil import as_decimal
 from apps.core.sequences import next_int
-
-
-def _d(v) -> Decimal:
-    if v is None:
-        return Decimal("0")
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 def _next_je_number() -> str:
@@ -83,16 +76,16 @@ def post_sale_invoice_journal(
     ).exists():
         return
 
-    grand = _d(invoice.total)
+    grand = as_decimal(invoice.total)
     if grand <= 0:
         raise ValueError("ZERO_INVOICE")
 
-    net = _d(invoice.subtotal) - _d(invoice.discount_total)
+    net = as_decimal(invoice.subtotal) - as_decimal(invoice.discount_total)
     if net < 0:
         net = Decimal("0")
-    svc = _d(invoice.service_charge_total)
-    tax = _d(invoice.tax_total)
-    total_cost = _d(invoice.total_cost)
+    svc = as_decimal(invoice.service_charge_total)
+    tax = as_decimal(invoice.tax_total)
+    total_cost = as_decimal(invoice.total_cost)
 
     entry = _build_entry(
         description=f"فاتورة بيع {invoice.invoice_number}",
@@ -104,7 +97,7 @@ def post_sale_invoice_journal(
     entry.save()
 
     for method, amount in pay_by_method.items():
-        amt = _d(amount)
+        amt = as_decimal(amount)
         if amt <= 0:
             continue
         sys_code = resolve_ledger_account_code(method)
@@ -120,9 +113,9 @@ def post_sale_invoice_journal(
     for ln in invoice.lines.select_related("product"):
         p = ln.product
         if p.product_type == p.ProductType.COMMISSION:
-            commission_total += _d(ln.recognized_revenue)
+            commission_total += as_decimal(ln.recognized_revenue)
         else:
-            regular_total += _d(ln.recognized_revenue)
+            regular_total += as_decimal(ln.recognized_revenue)
 
     regular_revenue = net - commission_total
     if regular_revenue < 0:
@@ -174,7 +167,7 @@ def post_purchase_invoice_journal(
     if existing:
         return
 
-    total = _d(purchase_invoice.total)
+    total = as_decimal(purchase_invoice.total)
     if total <= 0:
         raise ValueError("ZERO_PURCHASE")
 
@@ -190,7 +183,7 @@ def post_purchase_invoice_journal(
     _add_line(entry, _get_account("INVENTORY"), debit=total, desc="إضافة مخزون")
 
     for method, amount in pay_by_method.items():
-        amt = _d(amount)
+        amt = as_decimal(amount)
         if amt <= 0:
             continue
         if method == "credit":
@@ -210,7 +203,7 @@ def post_expense_journal(
     user=None,
 ) -> JournalEntry:
     """قيد مصروف: مدين حساب المصروف، دائن صندوق/بنك."""
-    amount = _d(expense.amount)
+    amount = as_decimal(expense.amount)
     if amount <= 0:
         raise ValueError("ZERO_EXPENSE")
 
@@ -250,7 +243,7 @@ def post_customer_payment_journal(
     user=None,
 ) -> JournalEntry:
     """قيد تحصيل من عميل: مدين صندوق/بنك، دائن ذمم زبائن."""
-    amt = _d(amount)
+    amt = as_decimal(amount)
     if amt <= 0:
         raise ValueError("ZERO_PAYMENT")
 
@@ -282,7 +275,7 @@ def post_supplier_payment_journal(
     user=None,
 ) -> JournalEntry:
     """قيد سداد مورد: مدين ذمم موردين، دائن صندوق/بنك."""
-    amt = _d(amount)
+    amt = as_decimal(amount)
     if amt <= 0:
         raise ValueError("ZERO_PAYMENT")
 
@@ -394,9 +387,9 @@ def account_ledger(account: Account, date_from=None, date_to=None) -> List[dict]
 
     for line in JournalLine.objects.filter(q).select_related("entry").order_by("entry__date", "entry__created_at"):
         if is_debit_normal:
-            running += _d(line.debit) - _d(line.credit)
+            running += as_decimal(line.debit) - as_decimal(line.credit)
         else:
-            running += _d(line.credit) - _d(line.debit)
+            running += as_decimal(line.credit) - as_decimal(line.debit)
         rows.append({
             "date": line.entry.date,
             "entry_pk": line.entry.pk,

@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from apps.core.decimalutil import as_decimal
 from apps.core.services import SessionService
 from apps.expenses.models import ExpenseCategory
 from apps.expenses.services import create_expense, delete_expense_permanent
@@ -24,23 +25,11 @@ from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase,
 
 
 def _payroll_ns(request):
-    return "shell" if (getattr(request.resolver_match, "namespace", "") or "") == "shell" else "payroll"
+    return "shell"
 
 
 def _payroll_redirect(request, viewname, *args, **kwargs):
     return redirect(reverse(f"{_payroll_ns(request)}:{viewname}", args=args, kwargs=kwargs))
-
-
-def _payroll_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl if _payroll_ns(request) == "shell" else classic_tpl
-
-
-def _d(v) -> Decimal:
-    if v is None:
-        return Decimal("0")
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 def _salaries_category():
@@ -49,12 +38,12 @@ def _salaries_category():
 
 def _recalc_balance(emp):
     if emp.pay_type == Employee.PayType.MONTHLY:
-        earned = _d(emp.monthly_salary)
+        earned = as_decimal(emp.monthly_salary)
     elif emp.pay_type == Employee.PayType.HOURLY:
-        earned = emp.work_hours_balance * _d(emp.hourly_wage)
+        earned = emp.work_hours_balance * as_decimal(emp.hourly_wage)
     else:
-        earned = emp.work_days_balance * _d(emp.daily_wage)
-    emp.net_balance = (earned - _d(emp.advance_balance) - _d(emp.store_purchases_balance)).quantize(Decimal("0.01"))
+        earned = emp.work_days_balance * as_decimal(emp.daily_wage)
+    emp.net_balance = (earned - as_decimal(emp.advance_balance) - as_decimal(emp.store_purchases_balance)).quantize(Decimal("0.01"))
     emp.save(update_fields=["net_balance", "updated_at"])
 
 
@@ -89,7 +78,7 @@ def employee_create(request):
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeCreateForm()
-    return render(request, _payroll_tpl(request, "shell/employee_form.html", "payroll/employee_form.html"), {"form": form, "title": "إضافة موظف"})
+    return render(request, "payroll/employee_form.html", {"form": form, "title": "إضافة موظف"})
 
 
 @login_required
@@ -103,7 +92,7 @@ def employee_edit(request, pk):
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
         form = EmployeeForm(instance=emp)
-    return render(request, _payroll_tpl(request, "shell/employee_form.html", "payroll/employee_form.html"), {"form": form, "title": "تعديل موظف", "employee": emp})
+    return render(request, "payroll/employee_form.html", {"form": form, "title": "تعديل موظف", "employee": emp})
 
 
 @login_required
@@ -113,7 +102,7 @@ def employee_advance_create(request, pk):
     if request.method == "POST":
         form = EmployeeAdvanceForm(request.POST)
         if form.is_valid():
-            amount = _d(form.cleaned_data["amount"])
+            amount = as_decimal(form.cleaned_data["amount"])
             note = form.cleaned_data["note"] or ""
             ws = SessionService.get_open_session()
             exp = create_expense(
@@ -133,7 +122,7 @@ def employee_advance_create(request, pk):
                 note=note,
                 linked_expense=exp,
             )
-            emp.advance_balance = (_d(emp.advance_balance) + amount).quantize(Decimal("0.01"))
+            emp.advance_balance = (as_decimal(emp.advance_balance) + amount).quantize(Decimal("0.01"))
             emp.save(update_fields=["advance_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, "تم تسجيل السلفة وإدراجها ضمن مصروفات «رواتب».")
@@ -149,10 +138,10 @@ def employee_advance_create(request, pk):
 def employee_advance_delete(request, pk, advance_id):
     emp = get_object_or_404(Employee, pk=pk)
     adv = get_object_or_404(EmployeeAdvance, pk=advance_id, employee=emp)
-    amt = _d(adv.amount)
+    amt = as_decimal(adv.amount)
     if adv.linked_expense_id:
         delete_expense_permanent(expense=adv.linked_expense, user=request.user)
-    emp.advance_balance = (_d(emp.advance_balance) - amt).quantize(Decimal("0.01"))
+    emp.advance_balance = (as_decimal(emp.advance_balance) - amt).quantize(Decimal("0.01"))
     if emp.advance_balance < 0 and emp.advance_balance > Decimal("-0.01"):
         emp.advance_balance = Decimal("0")
     emp.save(update_fields=["advance_balance", "updated_at"])
@@ -169,14 +158,14 @@ def employee_payout_create(request, pk):
     if request.method == "POST":
         form = EmployeePayoutForm(request.POST, pay_type=emp.pay_type)
         if form.is_valid():
-            days = _d(form.cleaned_data["days_count"])
-            hours = _d(form.cleaned_data["hours_count"])
+            days = as_decimal(form.cleaned_data["days_count"])
+            hours = as_decimal(form.cleaned_data["hours_count"])
             if emp.pay_type == Employee.PayType.MONTHLY:
-                amount = _d(form.cleaned_data["amount"]).quantize(Decimal("0.01"))
+                amount = as_decimal(form.cleaned_data["amount"]).quantize(Decimal("0.01"))
             elif emp.pay_type == Employee.PayType.HOURLY:
-                amount = (hours * _d(emp.hourly_wage)).quantize(Decimal("0.01"))
+                amount = (hours * as_decimal(emp.hourly_wage)).quantize(Decimal("0.01"))
             else:
-                amount = (days * _d(emp.daily_wage)).quantize(Decimal("0.01"))
+                amount = (days * as_decimal(emp.daily_wage)).quantize(Decimal("0.01"))
             if amount <= 0:
                 messages.error(request, "المبلغ المحسوب صفر.")
             elif emp.pay_type == Employee.PayType.DAILY and days > emp.work_days_balance:
@@ -188,12 +177,12 @@ def employee_payout_create(request, pk):
             else:
                 advance_deduction = Decimal("0")
                 if emp.advance_balance > 0:
-                    advance_deduction = min(_d(emp.advance_balance), amount)
-                    emp.advance_balance = (_d(emp.advance_balance) - advance_deduction).quantize(Decimal("0.01"))
+                    advance_deduction = min(as_decimal(emp.advance_balance), amount)
+                    emp.advance_balance = (as_decimal(emp.advance_balance) - advance_deduction).quantize(Decimal("0.01"))
                 if emp.pay_type == Employee.PayType.DAILY:
-                    emp.work_days_balance = (_d(emp.work_days_balance) - days).quantize(Decimal("0.01"))
+                    emp.work_days_balance = (as_decimal(emp.work_days_balance) - days).quantize(Decimal("0.01"))
                 elif emp.pay_type == Employee.PayType.HOURLY:
-                    emp.work_hours_balance = (_d(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
+                    emp.work_hours_balance = (as_decimal(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
                 emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
                 _recalc_balance(emp)
                 net_cash = (amount - advance_deduction).quantize(Decimal("0.01"))
@@ -251,9 +240,9 @@ def employee_payout_delete(request, pk, payout_id):
     po = get_object_or_404(EmployeeSalaryPayout, pk=payout_id, employee=emp)
     if po.linked_expense_id:
         delete_expense_permanent(expense=po.linked_expense, user=request.user)
-    emp.work_days_balance = (_d(emp.work_days_balance) + _d(po.days_count)).quantize(Decimal("0.01"))
-    emp.work_hours_balance = (_d(emp.work_hours_balance) + _d(po.hours_count)).quantize(Decimal("0.01"))
-    emp.advance_balance = (_d(emp.advance_balance) + _d(po.advance_applied)).quantize(Decimal("0.01"))
+    emp.work_days_balance = (as_decimal(emp.work_days_balance) + as_decimal(po.days_count)).quantize(Decimal("0.01"))
+    emp.work_hours_balance = (as_decimal(emp.work_hours_balance) + as_decimal(po.hours_count)).quantize(Decimal("0.01"))
+    emp.advance_balance = (as_decimal(emp.advance_balance) + as_decimal(po.advance_applied)).quantize(Decimal("0.01"))
     emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
     po.delete()
     _recalc_balance(emp)
@@ -272,7 +261,7 @@ def employee_add_days(request, pk):
         form = EmployeeWorkDaysForm(request.POST)
         if form.is_valid():
             days = form.cleaned_data["days_count"]
-            emp.work_days_balance = (_d(emp.work_days_balance) + _d(days)).quantize(Decimal("0.01"))
+            emp.work_days_balance = (as_decimal(emp.work_days_balance) + as_decimal(days)).quantize(Decimal("0.01"))
             emp.save(update_fields=["work_days_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, f"تم إضافة {days} يوم عمل بنجاح")
@@ -293,7 +282,7 @@ def employee_add_hours(request, pk):
         form = EmployeeWorkHoursForm(request.POST)
         if form.is_valid():
             hrs = form.cleaned_data["hours_count"]
-            emp.work_hours_balance = (_d(emp.work_hours_balance) + _d(hrs)).quantize(Decimal("0.01"))
+            emp.work_hours_balance = (as_decimal(emp.work_hours_balance) + as_decimal(hrs)).quantize(Decimal("0.01"))
             emp.save(update_fields=["work_hours_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, f"تم إضافة {hrs} ساعة عمل بنجاح")
@@ -316,7 +305,7 @@ def employee_cafe_purchase(request, pk):
                 amount=amount,
                 note=form.cleaned_data["note"],
             )
-            emp.store_purchases_balance = (_d(emp.store_purchases_balance) + _d(amount)).quantize(Decimal("0.01"))
+            emp.store_purchases_balance = (as_decimal(emp.store_purchases_balance) + as_decimal(amount)).quantize(Decimal("0.01"))
             emp.save(update_fields=["store_purchases_balance", "updated_at"])
             _recalc_balance(emp)
             messages.success(request, "تم تسجيل الشراء بنجاح")
@@ -332,7 +321,7 @@ def employee_cafe_purchase(request, pk):
 def employee_cafe_purchase_delete(request, pk, purchase_id):
     emp = get_object_or_404(Employee, pk=pk)
     cp = get_object_or_404(EmployeeCafePurchase, pk=purchase_id, employee=emp)
-    emp.store_purchases_balance = (_d(emp.store_purchases_balance) - _d(cp.amount)).quantize(Decimal("0.01"))
+    emp.store_purchases_balance = (as_decimal(emp.store_purchases_balance) - as_decimal(cp.amount)).quantize(Decimal("0.01"))
     if emp.store_purchases_balance < 0 and emp.store_purchases_balance > Decimal("-0.01"):
         emp.store_purchases_balance = Decimal("0")
     emp.save(update_fields=["store_purchases_balance", "updated_at"])
@@ -356,4 +345,4 @@ def employee_delete(request, pk):
     name = emp.name_ar
     emp.delete()
     messages.success(request, f"تم حذف الموظف «{name}» وجميع سجلاته.")
-    return redirect("payroll:employees")
+    return _payroll_redirect(request, "employees")

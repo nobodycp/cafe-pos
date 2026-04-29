@@ -19,6 +19,7 @@ from apps.billing.tab_service import (
     sum_tab_payments,
 )
 from apps.catalog.models import Category, Product, ProductModifierGroup
+from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.models import Customer
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
@@ -291,10 +292,10 @@ def table_open(request):
 @require_GET
 def customers_search(request):
     q = (request.GET.get("q") or "").strip()[:80]
-    qs = Customer.objects.filter(is_active=True)
-    if q:
-        qs = qs.filter(Q(name_ar__icontains=q) | Q(phone__icontains=q) | Q(name_en__icontains=q))
-    data = [{"id": c.pk, "name_ar": c.name_ar, "phone": c.phone or ""} for c in qs.order_by("name_ar")[:20]]
+    data = [
+        {"id": c.pk, "name_ar": c.name_ar, "phone": c.phone or ""}
+        for c in active_customers_search_qs(q, limit=20)
+    ]
     return JsonResponse({"results": data})
 
 

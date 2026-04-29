@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}ملخص نهاية اليوم{% endblock %}
+{% block title %}ملخص نهاية اليوم{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block content %}
 
 <div class="mb-6">

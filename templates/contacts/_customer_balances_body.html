@@ -4,7 +4,7 @@
   {% if contacts_ns == 'shell' %}
   <a href="{% url 'shell:customers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة العملاء</a>
   {% else %}
-  <a href="{% url 'contacts:customers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة العملاء</a>
+  <a href="{% url 'shell:customers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة العملاء</a>
   {% endif %}
 </div>
 
@@ -29,7 +29,7 @@
             {% if contacts_ns == 'shell' %}
             <a href="{% url 'shell:customer_detail' r.customer.pk %}" class="hover:text-primary transition-colors">{{ r.customer.name_ar }}</a>
             {% else %}
-            <a href="{% url 'contacts:customer_detail' r.customer.pk %}" class="hover:text-primary transition-colors">{{ r.customer.name_ar }}</a>
+            <a href="{% url 'shell:customer_detail' r.customer.pk %}" class="hover:text-primary transition-colors">{{ r.customer.name_ar }}</a>
             {% endif %}
           </td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ r.customer.phone }}</td>
@@ -39,7 +39,7 @@
             {% if contacts_ns == 'shell' %}
             <a href="{% url 'shell:customer_statement' r.customer.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
             {% else %}
-            <a href="{% url 'contacts:customer_statement' r.customer.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
+            <a href="{% url 'shell:customer_statement' r.customer.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
             {% endif %}
           </td>
         </tr>

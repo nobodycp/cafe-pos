@@ -1,33 +1,40 @@
-{% extends base_template %}
-{% block title %}{% if edit %}تعديل تصنيف{% else %}إضافة تصنيف{% endif %}{% endblock %}
-{% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{% if edit %}تعديل تصنيف{% else %}إضافة تصنيف{% endif %}</h1>
-  <a href="{% url 'expenses:categories' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
-    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    العودة للتصنيفات
-  </a>
-</div>
-
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
-  <form method="post">
-    {% csrf_token %}
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">الرمز</label>
-      {{ form.code }}
-      {% if form.code.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.code.errors.0 }}</p>{% endif %}
+{% extends "shell/base.html" %}
+{% block title %}{% if edit %}تعديل تصنيف{% else %}إضافة تصنيف{% endif %}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">المصروفات</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">{% if edit %}تعديل تصنيف{% else %}تصنيف جديد{% endif %}</span>
     </div>
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (عربي)</label>
-      {{ form.name_ar }}
-      {% if form.name_ar.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'shell:expense_categories' %}" class="shell-toolbar-link whitespace-nowrap">← التصنيفات</a>
+    <span class="select-none text-muted/70 dark:text-gray-500" aria-hidden="true">·</span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_expenses_tabs.html" %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+      <form method="post" class="space-y-4 max-w-3xl">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.code.id_for_label }}">الرمز</label>
+          {{ form.code }}
+          {% if form.code.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.code.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.name_ar.id_for_label }}">الاسم</label>
+          {{ form.name_ar }}
+          {% if form.name_ar.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_ar.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.name_en.id_for_label }}">اسم إضافي (اختياري)</label>
+          {{ form.name_en }}
+          {% if form.name_en.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
+        </div>
+        <button type="submit" class="w-full h-11 rounded-lg bg-primary text-white font-bold text-sm hover:opacity-95">حفظ</button>
+      </form>
     </div>
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">الاسم (إنجليزي)</label>
-      {{ form.name_en }}
-      {% if form.name_en.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.name_en.errors.0 }}</p>{% endif %}
-    </div>
-    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
-  </form>
+  </div>
 </div>
 {% endblock %}

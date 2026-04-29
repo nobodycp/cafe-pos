@@ -25,7 +25,6 @@ from apps.purchasing.models import (
     SupplierPayment,
 )
 from apps.purchasing.purge_service import purge_purchase_invoice
-from apps.purchasing.routing import purchasing_url_namespace
 from apps.purchasing.services import post_purchase_invoice, record_supplier_payment
 from apps.billing.models import SaleInvoiceLine
 
@@ -190,14 +189,13 @@ def _purchase_form_state(request):
 
 
 def _purchasing_ctx(request, **kwargs):
-    ctx = {"purchasing_ns": purchasing_url_namespace(request)}
+    ctx = {"purchasing_ns": "shell"}
     ctx.update(kwargs)
     return ctx
 
 
 def _purchasing_reverse(request, viewname, *args, **kwargs):
-    ns = purchasing_url_namespace(request)
-    return reverse(f"{ns}:{viewname}", args=args, kwargs=kwargs)
+    return reverse(f"shell:{viewname}", args=args, kwargs=kwargs)
 
 
 def _purchasing_redirect(request, viewname, *args, **kwargs):
@@ -205,7 +203,7 @@ def _purchasing_redirect(request, viewname, *args, **kwargs):
 
 
 def _purchasing_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl if purchasing_url_namespace(request) == "shell" else classic_tpl
+    return shell_tpl
 
 
 @login_required
@@ -859,7 +857,7 @@ def purchase_return_create(request, pk):
 
                 log_audit(request.user, "purchase.return.created", "purchasing.PurchaseReturn", ret.pk, {"total": str(total)})
                 messages.success(request, f"تم تسجيل مرتجع {ret.return_number} بمبلغ {total}")
-                return redirect("purchasing:purchase_detail", pk=invoice.pk)
+                return redirect("shell:purchase_detail", pk=invoice.pk)
 
     return render(request, "purchasing/purchase_return_form.html", {
         "invoice": invoice,

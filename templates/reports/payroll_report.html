@@ -1,10 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}تقرير الموظفين{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير الموظفين — السلف والصرف والمشتريات</p>
+{% block title %}تقرير الموظفين{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="تقرير الموظفين" toolbar_hint="السلف والصرف والمشتريات" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <form method="get" class="flex gap-2 flex-wrap items-end">
@@ -61,11 +59,7 @@
           <td class="py-2 px-2 text-end tabular-nums">{{ row.cafe|floatformat:2|intcomma }}</td>
           <td class="py-2 px-2 text-end font-bold tabular-nums">{{ row.row_total|floatformat:2|intcomma }}</td>
           <td class="py-2 px-2">
-            {% if payroll_ns == 'shell' %}
             <a href="{% url 'shell:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline whitespace-nowrap">البطاقة</a>
-            {% else %}
-            <a href="{% url 'payroll:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline whitespace-nowrap">البطاقة</a>
-            {% endif %}
           </td>
         </tr>
         {% empty %}
@@ -75,4 +69,5 @@
     </table>
   </div>
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}

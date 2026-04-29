@@ -1,45 +1,57 @@
-{% extends base_template %}
-{% block title %}{% if edit_expense %}تعديل مصروف{% else %}إضافة مصروف{% endif %}{% endblock %}
-{% block content %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-  <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{% if edit_expense %}تعديل مصروف{% else %}إضافة مصروف{% endif %}</h1>
-  <a href="{% url 'expenses:list' %}" class="inline-flex items-center gap-1 text-muted hover:text-primary font-semibold text-sm transition-colors">
-    <svg class="w-4 h-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    العودة للمصروفات
-  </a>
-</div>
-
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">
-  <form method="post">
-    {% csrf_token %}
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">التصنيف</label>
-      {{ form.category }}
-      {% if form.category.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.category.errors.0 }}</p>{% endif %}
+{% extends "shell/base.html" %}
+{% block title %}{% if edit_expense %}تعديل مصروف{% else %}إضافة مصروف{% endif %}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">المصروفات</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">{% if edit_expense %}تعديل مصروف{% else %}مصروف جديد{% endif %}</span>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-semibold text-muted mb-1.5">المبلغ</label>
-        {{ form.amount }}
-        {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
-      </div>
-      <div>
-        <label class="block text-sm font-semibold text-muted mb-1.5">طريقة الدفع</label>
-        {{ form.payment_method }}
-        {% if form.payment_method.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_method.errors.0 }}</p>{% endif %}
-      </div>
+    <span class="min-w-0 flex-1"></span>
+    <a href="{% url 'shell:expenses' %}" class="shell-toolbar-link whitespace-nowrap">← قائمة المصروفات</a>
+    <span class="select-none text-muted/70 dark:text-gray-500" aria-hidden="true">·</span>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_expenses_tabs.html" %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
+      <form method="post" class="space-y-4 max-w-3xl">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.category.id_for_label }}">التصنيف</label>
+          {{ form.category }}
+          {% if form.category.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.category.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.amount.id_for_label }}">المبلغ</label>
+            {{ form.amount }}
+            {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.payment_method.id_for_label }}">طريقة الدفع</label>
+            {{ form.payment_method }}
+            {% if form.payment_method.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_method.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.expense_date.id_for_label }}">التاريخ</label>
+          {{ form.expense_date }}
+          {% if form.expense_date.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.expense_date.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.notes.id_for_label }}">ملاحظات</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
+        </div>
+        {% if form.non_field_errors %}
+        <div class="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm font-semibold">
+          {% for error in form.non_field_errors %}<p class="m-0">{{ error }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        <button type="submit" class="w-full h-11 rounded-lg bg-primary text-white font-bold text-sm hover:opacity-95">حفظ</button>
+      </form>
     </div>
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">التاريخ</label>
-      {{ form.expense_date }}
-      {% if form.expense_date.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.expense_date.errors.0 }}</p>{% endif %}
-    </div>
-    <div class="mb-4">
-      <label class="block text-sm font-semibold text-muted mb-1.5">ملاحظات</label>
-      {{ form.notes }}
-      {% if form.notes.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
-    </div>
-    <button type="submit" class="w-full inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors mt-2">حفظ</button>
-  </form>
+  </div>
 </div>
 {% endblock %}

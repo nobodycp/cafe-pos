@@ -5,7 +5,7 @@
     {% if contacts_ns == 'shell' %}
     <a href="{% url 'shell:customer_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة عميل</a>
     {% else %}
-    <a href="{% url 'contacts:customer_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة عميل</a>
+    <a href="{% url 'shell:customer_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة عميل</a>
     {% endif %}
   </div>
 </div>
@@ -28,7 +28,7 @@
               {% if contacts_ns == 'shell' %}
               <a href="{% url 'shell:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
               {% else %}
-              <a href="{% url 'contacts:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
+              <a href="{% url 'shell:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
               {% endif %}
             </td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ c.phone }}</td>
@@ -39,8 +39,8 @@
                 <a href="{% url 'shell:customer_edit' c.pk %}" class="text-primary font-semibold hover:underline">تعديل</a>
                 <form method="post" action="{% url 'shell:customer_delete' c.pk %}" class="inline m-0" onsubmit="return confirm('حذف العميل «{{ c.name_ar }}» نهائياً؟');">
                 {% else %}
-                <a href="{% url 'contacts:customer_edit' c.pk %}" class="text-primary font-semibold hover:underline">تعديل</a>
-                <form method="post" action="{% url 'contacts:customer_delete' c.pk %}" class="inline m-0" onsubmit="return confirm('حذف العميل «{{ c.name_ar }}» نهائياً؟');">
+                <a href="{% url 'shell:customer_edit' c.pk %}" class="text-primary font-semibold hover:underline">تعديل</a>
+                <form method="post" action="{% url 'shell:customer_delete' c.pk %}" class="inline m-0" onsubmit="return confirm('حذف العميل «{{ c.name_ar }}» نهائياً؟');">
                 {% endif %}
                   {% csrf_token %}
                   <button type="submit" class="text-xs font-bold text-danger hover:underline bg-transparent border-none cursor-pointer p-0">حذف</button>

@@ -4,16 +4,9 @@ from decimal import Decimal
 
 from django.db import transaction
 
+from apps.core.decimalutil import as_decimal
 from apps.core.models import log_audit
 from apps.expenses.models import Expense, ExpenseCategory
-
-
-def _d(v) -> Decimal:
-    if v is None:
-        return Decimal("0")
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 @transaction.atomic
@@ -28,7 +21,7 @@ def create_expense(
     user=None,
     allow_salary_category: bool = False,
 ) -> Expense:
-    amt = _d(amount)
+    amt = as_decimal(amount)
     if amt <= 0:
         raise ValueError("INVALID_AMOUNT")
     if category.code == ExpenseCategory.Code.SALARIES and not allow_salary_category:

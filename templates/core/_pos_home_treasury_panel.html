@@ -4,5 +4,5 @@
   <div class="flex-1 min-h-0 overflow-y-auto">
     {% include "core/_treasury_voucher_form.html" with voucher_form=treasury_voucher_form treasury_next=treasury_next voucher_layout="wide" %}
   </div>
-  <p class="text-[10px] text-muted mt-2 shrink-0">بعد الحفظ تعود لهذه الشاشة. <a href="{% url 'core:treasury' %}" class="text-[#1e3a5f] dark:text-sky-400 font-bold hover:underline">تفاصيل السندات</a></p>
+  <p class="text-[10px] text-muted mt-2 shrink-0">بعد الحفظ تعود لهذه الشاشة. <a href="{% url 'shell:accounting_treasury' %}" class="text-[#1e3a5f] dark:text-sky-400 font-bold hover:underline">صفحة السندات</a></p>
 </div>

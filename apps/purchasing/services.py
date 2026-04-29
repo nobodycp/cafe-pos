@@ -11,15 +11,8 @@ from apps.core.payment_methods import credit_method_codes, get_payment_method_co
 from apps.core.sequences import next_int
 from apps.core.services import SessionService
 from apps.inventory.services import receive_purchase_stock
+from apps.core.decimalutil import as_decimal
 from apps.purchasing.models import PurchaseInvoice, PurchaseLine, Supplier, SupplierLedgerEntry, SupplierPayment
-
-
-def _d(v) -> Decimal:
-    if v is None:
-        return Decimal("0")
-    if isinstance(v, Decimal):
-        return v
-    return Decimal(str(v))
 
 
 def next_purchase_invoice_number() -> str:
@@ -49,20 +42,20 @@ def post_purchase_invoice(
         payment_status=PurchaseInvoice.PaymentStatus.PAID,
     )
     for product, qty, unit_cost in lines:
-        lt = (_d(qty) * _d(unit_cost)).quantize(Decimal("0.01"))
+        lt = (as_decimal(qty) * as_decimal(unit_cost)).quantize(Decimal("0.01"))
         total += lt
         PurchaseLine.objects.create(
             purchase=pur,
             product=product,
-            quantity=_d(qty),
-            unit_cost=_d(unit_cost),
+            quantity=as_decimal(qty),
+            unit_cost=as_decimal(unit_cost),
             line_total=lt,
         )
         if product.is_stock_tracked:
             receive_purchase_stock(
                 product=product,
-                quantity=_d(qty),
-                unit_cost=_d(unit_cost),
+                quantity=as_decimal(qty),
+                unit_cost=as_decimal(unit_cost),
                 session=session,
                 reference_model="purchasing.PurchaseInvoice",
                 reference_pk=str(pur.pk),
@@ -71,7 +64,7 @@ def post_purchase_invoice(
     pur.total = total
     pur.save(update_fields=["total", "updated_at"])
 
-    pay_sum = sum((_d(a) for _, a in payments), Decimal("0")).quantize(Decimal("0.01"))
+    pay_sum = sum((as_decimal(a) for _, a in payments), Decimal("0")).quantize(Decimal("0.01"))
     if pay_sum != total:
         raise ValueError("PURCHASE_PAYMENT_SUM_MISMATCH")
 
@@ -87,7 +80,7 @@ def post_purchase_invoice(
     )
 
     for method, amount in payments:
-        amt = _d(amount)
+        amt = as_decimal(amount)
         if amt <= 0:
             continue
         if method == "credit":
@@ -111,7 +104,7 @@ def post_purchase_invoice(
         )
 
     ar_codes = credit_method_codes()
-    pay_pos = [(m, a) for m, a in payments if _d(a) > 0]
+    pay_pos = [(m, a) for m, a in payments if as_decimal(a) > 0]
     credit_only = bool(pay_pos) and all(m in ar_codes for m, _ in pay_pos)
     if credit_only and total > 0:
         pur.payment_status = PurchaseInvoice.PaymentStatus.UNPAID
@@ -126,7 +119,7 @@ def post_purchase_invoice(
     pur_pay_map = {"cash": Decimal("0"), "bank": Decimal("0"), "credit": Decimal("0")}
     for method, amount in payments:
         m = str(method)
-        amt = _d(amount)
+        amt = as_decimal(amount)
         if amt <= 0:
             continue
         sys = resolve_ledger_account_code(m)
@@ -153,7 +146,7 @@ def record_supplier_payment(
     work_session=None,
 ) -> SupplierPayment:
     """سداد مستقل لمورد (خارج سياق فاتورة شراء)."""
-    amt = _d(amount)
+    amt = as_decimal(amount)
     if amt <= 0:
         raise ValueError("INVALID_AMOUNT")
 

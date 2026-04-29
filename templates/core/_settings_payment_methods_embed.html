@@ -8,7 +8,7 @@
       جديد
     </a>
     {% else %}
-    <a href="{% url 'core:payment_method_create' %}"
+    <a href="{% url 'shell:payment_method_create' %}"
        class="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">
       <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       جديد
@@ -68,12 +68,12 @@
               </form>
               {% endif %}
               {% else %}
-              <a href="{% url 'core:payment_method_update' m.pk %}"
+              <a href="{% url 'shell:payment_method_update' m.pk %}"
                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold hover:border-primary hover:text-primary transition-colors">
                 تعديل
               </a>
               {% if m.code != "cash" %}
-              <form method="post" action="{% url 'core:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
+              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
                 {% csrf_token %}
                 <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-danger/40 text-danger text-xs font-bold hover:bg-danger/10 transition-colors">
                   حذف

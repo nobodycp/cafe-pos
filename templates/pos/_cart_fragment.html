@@ -1,4 +1,4 @@
-{% load l10n %}
+{% load core_extras %}
 {# Cart fragment — تخطيط كاشير تقليدي: إجمالي علوي، جدول أصناف، شريط أدوات، دفع #}
 <style>
 /* يتجاوز app.css (width:100% على كل الحقول) داخل عمود الكاشير فقط */
@@ -146,7 +146,7 @@
   <div class="pos-cart-total-bar shrink-0" dir="rtl">
     <div class="pos-ctb-hero">
       <span class="pos-ctb-hero-label">المتبقي للدفع</span>
-      <span class="pos-ctb-hero-amt text-emerald-400"><span id="live-balance">{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}</span><span class="pos-ctb-cur">{{ POS_SETTINGS.currency_symbol }}</span></span>
+      <span class="pos-ctb-hero-amt text-emerald-400"><span id="live-balance">{{ tab_balance|dec_plain }}</span><span class="pos-ctb-cur">{{ POS_SETTINGS.currency_symbol }}</span></span>
     </div>
     <div class="pos-ctb-stats">
       <span class="pos-ctb-seg">
@@ -297,7 +297,7 @@
 
   {% if order_totals %}
   <div class="shrink-0 px-1 py-1 space-y-1" id="cart-footer">
-    <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}" data-grand="{% localize off %}{{ order_totals.grand|floatformat:2 }}{% endlocalize %}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
+    <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{{ tab_balance|dec_plain }}" data-grand="{{ order_totals.grand|dec_plain }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
       {% csrf_token %}
       <div class="flex flex-wrap gap-0.5" id="pay-methods" dir="rtl">
         {% for row in POS_SETTINGS.payment_method_rows %}
@@ -335,7 +335,7 @@
         <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع">دفع<span class="pos-ca-kbd">Enter</span></button>
         <div id="pos-ca-amt-wrap" class="shrink-0">
           <label for="pay-amt" class="sr-only">مبلغ الدفعة</label>
-          <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{% localize off %}{{ tab_balance|floatformat:2 }}{% endlocalize %}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+          <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{{ tab_balance|dec_plain }}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
         </div>
       </div>
     </form>

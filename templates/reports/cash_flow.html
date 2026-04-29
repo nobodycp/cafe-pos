@@ -1,10 +1,8 @@
-{% extends base_template %}
+{% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}التدفقات النقدية{% endblock %}
-{% block content %}
-
-{% include "reports/_reports_nav_tabs.html" %}
-<p class="text-xs font-extrabold text-gray-800 dark:text-gray-100 mb-2 m-0">تقرير التدفقات النقدية</p>
+{% block title %}التدفقات النقدية{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="التدفقات النقدية" toolbar_hint="وارد وصادر حسب الفترة" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <form method="get" class="flex flex-wrap gap-2 items-end">
@@ -65,4 +63,5 @@
     {{ net_flow|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}
   </span>
 </div>
+{% include "reports/_reports_shell_end.html" %}
 {% endblock %}
