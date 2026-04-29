@@ -83,18 +83,6 @@
     hits.style.zIndex = '99999';
   }
 
-  document.addEventListener('keydown', function(e) {
-    if (e.key !== 'Tab' && e.key !== 'Enter') return;
-    var active = document.activeElement;
-    if (!active || !active.matches('.line-product-search, .line-unit-search, #purchase-supplier-search')) return;
-    var wrap = active.closest('.relative') || active.parentElement;
-    var hits = wrap && wrap.querySelector('.purchase-ac-hits:not(.hidden)');
-    var first = hits && hits.querySelector('.purchase-ac-hit');
-    if (!first) return;
-    e.preventDefault();
-    first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-  }, true);
-
   function firstVisibleEmptyRow() {
     var rows = Array.prototype.slice.call(document.querySelectorAll('.purchase-line'));
     for (var i = 0; i < rows.length; i++) {
@@ -162,7 +150,7 @@
       });
       hits.classList.remove('hidden');
       floatHitsUnderInput(hits, inp, 420);
-      activeIdx = 0;
+      activeIdx = items.length ? 0 : -1;
     }
 
     var runSearch = debounce(function() {
@@ -198,22 +186,24 @@
       var btns = hits.querySelectorAll('.purchase-ac-hit');
       if (e.key === 'Tab' && btns.length) {
         e.preventDefault();
-        btns[Math.max(activeIdx, 0)].dispatchEvent(new MouseEvent('mousedown'));
+        activeIdx = 0;
+        btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
         return;
       }
       if (!btns.length) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        activeIdx = Math.min(activeIdx + 1, btns.length - 1);
+        activeIdx = activeIdx < 0 ? 0 : Math.min(activeIdx + 1, btns.length - 1);
         btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === activeIdx); });
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        activeIdx = Math.max(activeIdx - 1, 0);
+        activeIdx = activeIdx < 0 ? 0 : Math.max(activeIdx - 1, 0);
         btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === activeIdx); });
       } else if (e.key === 'Enter') {
         if (btns.length) {
           e.preventDefault();
-          btns[Math.max(activeIdx, 0)].dispatchEvent(new MouseEvent('mousedown'));
+          var idx = activeIdx >= 0 && activeIdx < btns.length ? activeIdx : 0;
+          btns[idx].dispatchEvent(new MouseEvent('mousedown'));
         }
       } else if (e.key === 'Escape') {
         hideHits(hits);
@@ -293,9 +283,16 @@
     inp.addEventListener('input', runSearch);
     inp.addEventListener('keydown', function(e) {
       var btns = hits.querySelectorAll('.purchase-ac-hit');
-      if ((e.key === 'Tab' || e.key === 'Enter') && btns.length) {
+      if (e.key === 'Tab' && btns.length) {
         e.preventDefault();
-        btns[Math.max(activeIdx, 0)].dispatchEvent(new MouseEvent('mousedown'));
+        activeIdx = 0;
+        btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
+        return;
+      }
+      if (e.key === 'Enter' && btns.length) {
+        e.preventDefault();
+        var idx = activeIdx >= 0 && activeIdx < btns.length ? activeIdx : 0;
+        btns[idx].dispatchEvent(new MouseEvent('mousedown'));
       }
     });
     createBtn.addEventListener('click', function() {
@@ -452,7 +449,8 @@
       if (e.key === 'Enter') {
         e.preventDefault();
         if (inp.classList.contains('line-qty')) focusEl(row.querySelector('.line-cost'));
-        else if (inp.classList.contains('line-cost')) {
+        else if (inp.classList.contains('line-cost')) focusEl(row.querySelector('.line-discount'));
+        else if (inp.classList.contains('line-discount')) {
           var next = ensureNextRow(row);
           focusEl(next && next.querySelector('.line-product-search'));
         }
@@ -530,9 +528,16 @@
     inp.addEventListener('input', run);
     inp.addEventListener('keydown', function(e) {
       var btns = hits.querySelectorAll('.purchase-ac-hit');
-      if ((e.key === 'Tab' || e.key === 'Enter') && btns.length) {
+      if (e.key === 'Tab' && btns.length) {
         e.preventDefault();
-        btns[Math.max(activeIdx, 0)].dispatchEvent(new MouseEvent('mousedown'));
+        activeIdx = 0;
+        btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
+        return;
+      }
+      if (e.key === 'Enter' && btns.length) {
+        e.preventDefault();
+        var idx = activeIdx >= 0 && activeIdx < btns.length ? activeIdx : 0;
+        btns[idx].dispatchEvent(new MouseEvent('mousedown'));
       }
     });
     if (createBtn) createBtn.addEventListener('click', function() {

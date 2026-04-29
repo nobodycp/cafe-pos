@@ -199,6 +199,15 @@ class PosSettings(models.Model):
     receipt_header = models.TextField(_("رأس الإيصال (نص إضافي)"), blank=True)
     receipt_footer = models.TextField(_("تذييل الإيصال (نص إضافي)"), blank=True)
     receipt_show_tax_number = models.BooleanField(_("إظهار الرقم الضريبي على الإيصال"), default=True)
+    allow_sale_invoice_edit = models.BooleanField(
+        _("السماح بتعديل فاتورة البيع بعد الإصدار"),
+        default=False,
+        help_text=_(
+            "عند التفعيل يظهر رابط «تعديل الفاتورة» في تفاصيل الفاتورة وفي الكاشير. "
+            "لا يُسمح بالتعديل إن وُجدت دفعة آجل، أو مرتجع على الفاتورة. "
+            "يُحدَّث المخزون وفق فرق الكميات؛ دفعة واحدة غير الآجل تُعدَّل تلقائياً إذا تغيّر الإجمالي."
+        ),
+    )
 
     class Meta:
         verbose_name = _("إعدادات النظام")

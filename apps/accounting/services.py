@@ -73,7 +73,8 @@ def post_sale_invoice_journal(
     if JournalEntry.objects.filter(
         reference_type="billing.SaleInvoice",
         reference_pk=str(invoice.pk),
-    ).exists():
+        is_reversed=False,
+    ).exclude(description__startswith="عكس قيد").exists():
         return
 
     grand = as_decimal(invoice.total)

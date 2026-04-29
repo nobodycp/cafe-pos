@@ -24,6 +24,307 @@
 .thin-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 9999px; }
 .dark .thin-scroll::-webkit-scrollbar-thumb { background: #4b5563; }
 
+/* ══════════════════════════════════════════════════════════ */
+/* ══  Design system — Phase 1 (tokens + reusable surfaces)   */
+/*  Desktop-first, compact; use with #app-viewport.ds-viewport */
+/* ══════════════════════════════════════════════════════════ */
+:root {
+  --ds-primary: #1e3a5f;
+  --ds-primary-dk: #163051;
+  --ds-primary-soft: #e2e8f0;
+  --ds-bg: #e8eaed;
+  --ds-panel: #ffffff;
+  --ds-panel-dark: #1f2937;
+  --ds-border: #e2e8f0;
+  --ds-border-dark: #374151;
+  --ds-text: #111827;
+  --ds-muted: #64748b;
+  --ds-radius: 0.5rem;
+  --ds-radius-sm: 0.25rem;
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-row: 2rem;
+  --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ds-input-h: 2rem;
+  --ds-font-page: 1.125rem;
+  --ds-font-section: 0.875rem;
+  --ds-font-label: 0.8125rem;
+  --ds-font-small: 0.6875rem;
+}
+
+.dark {
+  --ds-panel: var(--ds-panel-dark);
+  --ds-border: var(--ds-border-dark);
+  --ds-text: #f3f4f6;
+}
+
+.ds-viewport {
+  font-variant-numeric: tabular-nums;
+}
+
+/* لوحات داخل الغلاف — حدود موحّدة دون تظليل ثقيل */
+.ds-viewport .pos-shell-content .bg-white.dark\:bg-gray-800.rounded-xl,
+.ds-viewport .pos-shell-content .bg-white.rounded-xl {
+  box-shadow: none;
+}
+
+/* أزرار صغيرة للشريط / التابات (يمكن إلحاقها بالعناصر) */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ds-row);
+  padding: 0 0.75rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: var(--ds-primary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.ds-btn:hover {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+}
+.dark .ds-btn {
+  background: #111827;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+.ds-btn-primary {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary-dk);
+  color: #fff;
+}
+.ds-btn-primary:hover {
+  background: var(--ds-primary-dk);
+  color: #fff;
+}
+
+/* جداول قوائم الشل: صفوف مدمجة */
+.ds-viewport .pos-shell-content table.w-full.text-sm tbody tr {
+  transition: background 0.1s ease;
+}
+.ds-viewport .pos-shell-content table.w-full.text-sm tbody tr:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+.dark .ds-viewport .pos-shell-content table.w-full.text-sm tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Design system — panels, tables, toolbar, tabs (explicit classes) ── */
+.ds-shell-viewport {
+  box-shadow: none;
+}
+.ds-panel {
+  background: var(--ds-panel);
+  border: 1px solid #d1d5db;
+  border-radius: var(--ds-radius-sm);
+  box-shadow: none;
+  overflow: hidden;
+}
+.dark .ds-panel {
+  border-color: var(--ds-border-dark);
+  background: var(--ds-panel-dark);
+}
+.ds-panel-header {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: var(--ds-font-section);
+  font-weight: 800;
+  color: var(--ds-text);
+  line-height: 1.25;
+}
+.dark .ds-panel-header {
+  border-color: #374151;
+}
+.ds-panel-body {
+  padding: 0.75rem;
+}
+.ds-page-title {
+  font-size: var(--ds-font-page);
+  font-weight: 800;
+  color: var(--ds-text);
+  line-height: 1.3;
+  margin: 0 0 0.5rem;
+}
+.ds-section-title {
+  font-size: var(--ds-font-section);
+  font-weight: 800;
+  color: var(--ds-text);
+  margin: 0 0 0.375rem;
+}
+.ds-text-muted {
+  font-size: var(--ds-font-small);
+  color: var(--ds-muted);
+  font-weight: 600;
+}
+.ds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.dark .ds-toolbar {
+  background: #111827;
+  border-color: #374151;
+}
+.ds-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid #e2e8f0;
+}
+.dark .ds-table-wrap {
+  border-color: #374151;
+}
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  background: var(--ds-panel);
+}
+.ds-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.375rem 0.625rem;
+  text-align: start;
+  font-size: var(--ds-font-small);
+  font-weight: 800;
+  color: var(--ds-muted);
+  background: #f1f5f9;
+  border-bottom: 1px solid #cbd5e1;
+}
+.dark .ds-table thead th {
+  background: #374151;
+  border-color: #4b5563;
+  color: #cbd5e1;
+}
+.ds-table tbody td {
+  padding: 0.375rem 0.625rem;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: middle;
+}
+.dark .ds-table tbody td {
+  border-color: #374151;
+}
+.ds-table tbody tr:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+.dark .ds-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.ds-table tbody tr.is-selected {
+  background: rgba(30, 58, 95, 0.1);
+}
+.dark .ds-table tbody tr.is-selected {
+  background: rgba(59, 130, 246, 0.12);
+}
+.ds-input {
+  height: var(--ds-input-h);
+  min-height: var(--ds-input-h);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+}
+.dark .ds-input {
+  border-color: #4b5563;
+  background: #1e293b;
+  color: #f8fafc;
+}
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-font-small);
+  font-weight: 700;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: var(--ds-text);
+}
+.dark .ds-badge {
+  border-color: #4b5563;
+  background: #374151;
+}
+.ds-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.ds-summary-card {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--ds-radius-sm);
+  background: #f8fafc;
+}
+.dark .ds-summary-card {
+  border-color: #374151;
+  background: #111827;
+}
+.ds-summary-card .ds-summary-card-label {
+  display: block;
+  font-size: var(--ds-font-small);
+  font-weight: 700;
+  color: var(--ds-muted);
+  margin-bottom: 0.125rem;
+}
+.ds-summary-card .ds-summary-card-value {
+  font-size: 0.9375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-primary);
+}
+.ds-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.125rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dark .ds-tabs {
+  border-color: #374151;
+}
+.ds-tab {
+  min-height: 1.75rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--ds-radius-sm);
+  background: #fff;
+  color: var(--ds-text);
+  font-size: var(--ds-font-small);
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dark .ds-tab {
+  background: #1f2937;
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+.ds-tab:hover {
+  border-color: var(--ds-primary);
+}
+.ds-tab.is-active {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary-dk);
+  color: #fff;
+}
+.ds-elevated {
+  box-shadow: var(--ds-shadow-sm);
+}
+
 /* ── Toast animations ── */
 @keyframes toastIn {
   from { opacity: 0; transform: translateX(-50%) translateY(-16px); }
@@ -35,20 +336,12 @@
 .toast-animate-in  { animation: toastIn .3s ease forwards; }
 .toast-animate-out { animation: toastOut .3s ease forwards; }
 
-/* ── Cart item pop ── */
-@keyframes pop {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-.animate-pop { animation: pop .25s ease; }
-
-/* ── Fade-in for content ── */
+/* ── Optional subtle fade (messages only) ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.animate-fade-in { animation: fadeIn .25s ease; }
+.animate-fade-in { animation: fadeIn .15s ease; }
 
 /* ── Print styles ── */
 @media print {
@@ -342,6 +635,10 @@ button:active, .btn:active, [type="submit"]:active {
 .pos-shell-toolbar {
   background: #e8eaed;
   border-bottom: 1px solid #d1d5db;
+}
+.pos-shell-toolbar.ds-toolbar-like {
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 .dark .pos-shell-toolbar {
   background: #030712;

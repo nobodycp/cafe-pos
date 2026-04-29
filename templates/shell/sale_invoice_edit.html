@@ -1,0 +1,35 @@
+{% extends "shell/base.html" %}
+{% load static humanize core_extras %}
+{% block title %}تعديل فاتورة {{ invoice.invoice_number }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden" dir="rtl">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">تعديل فاتورة {{ invoice.invoice_number }}</span>
+    <span class="flex-1"></span>
+    <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link">← تفاصيل الفاتورة</a>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← الكاشير</a>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if not pos_allows_edit %}
+    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+      تعديل فواتير البيع غير مفعّل. فعّل «السماح بتعديل فاتورة البيع بعد الإصدار» من <strong>الإعدادات → الإيصال</strong>.
+    </div>
+    {% elif has_sale_returns %}
+    <div class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">لا يمكن تعديل فاتورة عليها مرتجع.</div>
+    {% elif not can_edit_sale_invoice %}
+    <div class="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">{{ cannot_edit_reason }}</div>
+    {% else %}
+    <div class="max-w-lg mx-auto w-full">
+      {% include "shell/_sale_invoice_edit_receipt_form.html" with sale_edit_pos_embed=0 %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block cashier_scripts %}
+<script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>
+<script>
+  if (window.initSaleInvoiceReceiptEdit) window.initSaleInvoiceReceiptEdit(document);
+</script>
+{% endblock %}

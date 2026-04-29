@@ -1,12 +1,41 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
 from apps.billing.purge_service import purge_sale_invoice
+from apps.billing.sale_invoice_edit import apply_sale_invoice_line_edits, can_edit_sale_invoice
+from apps.core.models import get_pos_settings
+
+
+def _sale_invoice_edit_error_message(code: str) -> str:
+    if code.startswith("PAYMENT_MISMATCH:"):
+        parts = code.split(":")
+        pay_s = parts[1] if len(parts) > 1 else "?"
+        tot_s = parts[2] if len(parts) > 2 else "?"
+        return (
+            "مجموع الدفعات لا يطابق الإجمالي الجديد. استخدم دفعة واحدة (غير الآجل) أو عدّل الدفعات يدوياً. "
+            f"(دفعات: {pay_s} — إجمالي: {tot_s})"
+        )
+    if code == "CREDIT_PAYMENTS_NO_EDIT":
+        return "لا يمكن تعديل فاتورة فيها دفع آجل من هنا."
+    if code == "MISSING_FIELDS":
+        return "أكمل الكمية والسعر لكل سطر."
+    if code == "BAD_NUMBER":
+        return "تأكد من إدخال أرقام صحيحة للكمية والسعر."
+    if code == "NO_PAYMENTS_ON_INVOICE":
+        return "لا توجد دفعات مسجّلة على هذه الفاتورة — لا يمكن المتابعة."
+    if code.startswith("INSUFFICIENT_STOCK"):
+        return "المخزون غير كافٍ لهذا التعديل."
+    if code == "INVALID_TOTALS":
+        return "مجاميع غير صالحة بعد التعديل."
+    return code.replace("_", " ")
 
 
 @login_required
@@ -83,7 +112,101 @@ def sale_invoice_detail(request, pk):
         "invoice": invoice,
         "lines": lines,
         "payments": payments,
+        "has_sale_returns": invoice.returns.exists(),
     })
+
+
+@login_required
+@require_GET
+def sale_invoice_edit_panel(request, pk):
+    """HTML جزئي لتعديل الفاتورة داخل طبقة الكاشير (GET فقط)."""
+    invoice = get_object_or_404(
+        SaleInvoice.objects.select_related(
+            "customer", "supplier_buyer",
+            "order__table_session__dining_table", "work_session",
+        ),
+        pk=pk,
+    )
+    lines = list(invoice.lines.select_related("product").order_by("pk"))
+    payments = list(invoice.payments.all())
+    can_edit, reason = can_edit_sale_invoice(invoice)
+    has_returns = invoice.returns.exists()
+    return render(
+        request,
+        "shell/_sale_invoice_edit_fragment.html",
+        {
+            "invoice": invoice,
+            "lines": lines,
+            "payments": payments,
+            "can_edit_sale_invoice": can_edit,
+            "cannot_edit_reason": reason,
+            "has_sale_returns": has_returns,
+            "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
+        },
+    )
+
+
+@login_required
+def sale_invoice_edit(request, pk):
+    invoice = get_object_or_404(
+        SaleInvoice.objects.select_related(
+            "customer", "supplier_buyer",
+            "order__table_session__dining_table", "work_session",
+        ),
+        pk=pk,
+    )
+    lines = list(invoice.lines.select_related("product").order_by("pk"))
+    payments = list(invoice.payments.all())
+    can_edit, reason = can_edit_sale_invoice(invoice)
+    has_returns = invoice.returns.exists()
+    is_pos_embed = request.method == "POST" and request.POST.get("pos_embed") == "1"
+
+    if request.method == "POST":
+        if not can_edit or has_returns:
+            msg = reason or "لا يمكن تعديل هذه الفاتورة."
+            if is_pos_embed:
+                return JsonResponse({"ok": False, "error": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("shell:invoice_detail", pk=invoice.pk)
+        rows = []
+        try:
+            for ln in lines:
+                qkey = f"qty_{ln.pk}"
+                pkey = f"price_{ln.pk}"
+                rq = (request.POST.get(qkey) or "").strip()
+                rp = (request.POST.get(pkey) or "").strip()
+                if not rq or not rp:
+                    raise ValueError("MISSING_FIELDS")
+                try:
+                    rows.append((ln.pk, Decimal(rq.replace(",", ".")), Decimal(rp.replace(",", "."))))
+                except Exception:
+                    raise ValueError("BAD_NUMBER") from None
+            apply_sale_invoice_line_edits(invoice=invoice, user=request.user, rows=rows)
+        except ValueError as e:
+            code = str(e)
+            err_msg = _sale_invoice_edit_error_message(code)
+            if is_pos_embed:
+                return JsonResponse({"ok": False, "error": err_msg}, status=400)
+            messages.error(request, err_msg)
+            return redirect("shell:sale_invoice_edit", pk=invoice.pk)
+        if is_pos_embed:
+            return JsonResponse({"ok": True})
+        messages.success(request, "تم حفظ تعديلات الفاتورة.")
+        return redirect("shell:invoice_detail", pk=invoice.pk)
+
+    return render(
+        request,
+        "shell/sale_invoice_edit.html",
+        {
+            "invoice": invoice,
+            "lines": lines,
+            "payments": payments,
+            "can_edit_sale_invoice": can_edit,
+            "cannot_edit_reason": reason,
+            "has_sale_returns": has_returns,
+            "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
+        },
+    )
 
 
 @login_required

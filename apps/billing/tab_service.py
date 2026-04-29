@@ -397,13 +397,24 @@ def finalize_order_invoice(
                 "source": (p.payment_source or "").strip()[:24] or src_default,
             }
         )
-    inv = create_sale_invoice_core(
-        order=order,
-        user=user,
-        pay_by_method=pay_by_method,
-        customer=customer,
-        payment_rows=payment_rows,
-    )
+    if SaleInvoice.objects.filter(order=order).exists():
+        from apps.billing.invoice_resume_service import update_sale_invoice_from_order
+
+        inv = update_sale_invoice_from_order(
+            order=order,
+            user=user,
+            customer=customer,
+            pay_by_method=pay_by_method,
+            payment_rows=payment_rows,
+        )
+    else:
+        inv = create_sale_invoice_core(
+            order=order,
+            user=user,
+            pay_by_method=pay_by_method,
+            customer=customer,
+            payment_rows=payment_rows,
+        )
     order.tab_payments.filter(sale_invoice__isnull=True).update(sale_invoice=inv)
     order.status = Order.Status.CHECKED_OUT
     order.save(update_fields=["status", "updated_at"])

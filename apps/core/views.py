@@ -12,7 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.core.forms import TreasuryVoucherForm
-from apps.core.treasury_services import submit_treasury_voucher
+from apps.core.treasury_services import recent_treasury_voucher_logs, submit_treasury_voucher
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.payroll.models import Employee
@@ -83,6 +83,7 @@ def treasury(request):
         {
             "voucher_form": voucher_form,
             "work_session": ws,
+            "recent_treasury_rows": list(recent_treasury_voucher_logs(limit=10)),
         },
     )
 

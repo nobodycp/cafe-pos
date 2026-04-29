@@ -8,31 +8,53 @@
     <a href="{% url 'shell:product_list' %}" class="shell-toolbar-link">← المنتجات</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <div class="ds-panel ds-panel-body" x-data="{ tab: 'basic' }">
       <form method="post">
         {% csrf_token %}
-        {% if form.non_field_errors %}<div class="mb-5 p-4 rounded-lg bg-danger/10 border border-danger/20">{% for error in form.non_field_errors %}<p class="text-danger text-sm font-semibold">{{ error }}</p>{% endfor %}</div>{% endif %}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% if form.non_field_errors %}<div class="mb-3 p-2 rounded-sm bg-danger/10 border border-danger/20">{% for error in form.non_field_errors %}<p class="text-danger text-xs font-semibold">{{ error }}</p>{% endfor %}</div>{% endif %}
+        <div class="ds-tabs border-0 mb-3 p-0 gap-1 flex-wrap" role="tablist">
+          <button type="button" class="ds-tab" :class="tab === 'basic' ? 'is-active' : ''" @click="tab = 'basic'">أساسي</button>
+          <button type="button" class="ds-tab" :class="tab === 'pricing' ? 'is-active' : ''" @click="tab = 'pricing'">أسعار وعمولة</button>
+          <button type="button" class="ds-tab" :class="tab === 'inventory' ? 'is-active' : ''" @click="tab = 'inventory'">مخزون</button>
+          <button type="button" class="ds-tab" :class="tab === 'recipe' ? 'is-active' : ''" @click="tab = 'recipe'">وصفة / تصنيع</button>
+        </div>
+        <div class="space-y-3" x-show="tab === 'basic'" style="display: block">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div><label for="id_name_ar">الاسم (عربي)</label>{{ form.name_ar }}{% for error in form.name_ar.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
           <div><label for="id_name_en">الاسم (إنجليزي)</label>{{ form.name_en }}{% for error in form.name_en.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
           <div><label for="id_category">التصنيف</label>{{ form.category }}{% for error in form.category.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
           <div><label for="id_unit">الوحدة</label>{{ form.unit }}{% for error in form.unit.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
-          <div><label for="id_selling_price">سعر البيع</label>{{ form.selling_price }}{% for error in form.selling_price.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
           <div><label for="id_product_type">نوع المنتج</label>{{ form.product_type }}{% for error in form.product_type.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
+          <div><label for="id_barcode">الباركود</label>{{ form.barcode }}{% for error in form.barcode.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
+          <label class="flex items-center gap-2 md:col-span-2">{{ form.is_active }}<span>نشط</span></label>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" id="commission-row">
+        </div>
+        <div class="space-y-3" x-show="tab === 'pricing'" style="display: none">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label for="id_selling_price">سعر البيع</label>{{ form.selling_price }}{% for error in form.selling_price.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2" id="commission-row">
           <div><label for="id_commission_percentage">نسبة العمولة %</label>{{ form.commission_percentage }}{% for error in form.commission_percentage.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
           <div><label for="id_commission_vendor">بائع النسبة (المورد)</label>{{ form.commission_vendor }}{% for error in form.commission_vendor.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        </div>
+        <div class="space-y-3" x-show="tab === 'inventory'" style="display: none">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div id="min-stock-wrap"><label for="id_min_stock_level">الحد الأدنى للمخزون</label>{{ form.min_stock_level }}{% for error in form.min_stock_level.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
-          <div><label for="id_barcode">الباركود</label>{{ form.barcode }}{% for error in form.barcode.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ error }}</p>{% endfor %}</div>
+          <label class="flex items-center gap-2 md:col-span-2">{{ form.is_stock_tracked }}<span>تتبع المخزون</span><span class="relative inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-[10px] font-bold text-gray-600 cursor-help group">?<span class="hidden group-hover:block absolute bottom-full right-0 mb-2 w-72 rounded-sm border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 p-2 text-xs leading-relaxed text-gray-700 dark:text-gray-200 shadow-lg z-50">إذا كان المنتج المصنع يتبع للمخزون يصبح له رصيد كمنتج نهائي وتحتاج إدخال إنتاج منه. إذا لم يتبع للمخزون، يخصم النظام مكوناته من المخزون حسب معادلة التصنيع وقت البيع، وهذا غالبًا الأنسب للمشروبات والأطعمة المحضرة عند الطلب.</span></span></label>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <label class="flex items-center gap-2">{{ form.is_stock_tracked }}<span>تتبع المخزون</span><span class="relative inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-[10px] font-bold text-gray-600 cursor-help group">?<span class="hidden group-hover:block absolute bottom-full right-0 mb-2 w-72 rounded-sm border border-gray-300 bg-white p-2 text-xs leading-relaxed text-gray-700 shadow-lg z-50">إذا كان المنتج المصنع يتبع للمخزون يصبح له رصيد كمنتج نهائي وتحتاج إدخال إنتاج منه. إذا لم يتبع للمخزون، يخصم النظام مكوناته من المخزون حسب معادلة التصنيع وقت البيع، وهذا غالبًا الأنسب للمشروبات والأطعمة المحضرة عند الطلب.</span></span></label>
-          <label class="flex items-center gap-2">{{ form.is_active }}<span>نشط</span></label>
         </div>
-        <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ المنتج</button>
+        <div class="space-y-2" x-show="tab === 'recipe'" style="display: none">
+          <p class="ds-text-muted m-0">معادلة التصنيع والمواد الخام تُدار من قائمة المنتجات بعد حفظ المنتج كنوع «مصنع».</p>
+          {% if form.instance.pk and form.instance.product_type == 'manufactured' %}
+          <a href="{% url 'shell:recipe_list' form.instance.pk %}" class="ds-btn ds-btn-primary inline-flex">فتح معادلة التصنيع</a>
+          {% elif form.instance.pk %}
+          <p class="text-xs text-muted m-0">غير متاح إلا للمنتجات من نوع «مصنع».</p>
+          {% else %}
+          <p class="text-xs text-muted m-0">احفظ المنتج أولاً ثم عيّن النوع «مصنع» لإدارة الوصفة.</p>
+          {% endif %}
+        </div>
+        <button type="submit" class="ds-btn ds-btn-primary w-full mt-4 min-h-9">حفظ المنتج</button>
       </form>
     </div>
   </div>

@@ -96,11 +96,13 @@ class ReceiptForm(forms.ModelForm):
             "receipt_header",
             "receipt_footer",
             "receipt_show_tax_number",
+            "allow_sale_invoice_edit",
         ]
         widgets = {
             "receipt_header": forms.Textarea(attrs={"class": "form-input", "rows": 3, "placeholder": "نص يظهر أعلى الإيصال"}),
             "receipt_footer": forms.Textarea(attrs={"class": "form-input", "rows": 3, "placeholder": "شكراً لزيارتكم ..."}),
             "receipt_show_tax_number": forms.CheckboxInput(attrs={"class": "form-check"}),
+            "allow_sale_invoice_edit": forms.CheckboxInput(attrs={"class": "form-check"}),
         }
 
 

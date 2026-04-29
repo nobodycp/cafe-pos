@@ -1,289 +1,315 @@
 {% load core_extras %}
-{# Cart fragment — تخطيط كاشير تقليدي: إجمالي علوي، جدول أصناف، شريط أدوات، دفع #}
+{# عمود العربة: flex عمودي — رأس ≤150px | جدول flex:1 | سفلية ≤170px #}
 <style>
-/* يتجاوز app.css (width:100% على كل الحقول) داخل عمود الكاشير فقط */
+#pos-cart.pos-cart-column{height:100%;min-height:0;display:flex;flex-direction:column}
 #pos-cart input[type="number"],
 #pos-cart input[type="text"],
 #pos-cart input[type="search"],
 #pos-cart input[type="tel"]{
-  width:auto!important;
-  max-width:100%;
-  box-sizing:border-box;
-  min-height:1.25rem!important;
-  height:1.25rem!important;
-  padding:0 4px!important;
-  font-size:10px!important;
-  line-height:1.2!important;
+  width:auto!important;max-width:100%;box-sizing:border-box;
+  min-height:1.25rem!important;height:1.25rem!important;padding:0 4px!important;
+  font-size:10px!important;line-height:1.2!important;
 }
-#pos-cart .pos-ci-disc-amt{width:3.75rem!important;min-width:3.5rem!important;flex:0 0 auto!important;}
-#pos-cart .pos-ci-disc-pct{width:2.75rem!important;min-width:2.5rem!important;flex:0 0 auto!important;}
-#pos-cart .pos-ci-note{flex:1 1 6rem!important;min-width:0!important;width:min(14rem,42vw)!important;max-width:16rem!important;}
+#pos-cart .pos-ci-disc-amt{width:3.5rem!important;min-width:3.25rem!important;flex:0 0 auto!important;}
+#pos-cart .pos-ci-disc-pct{width:2.5rem!important;min-width:2.25rem!important;flex:0 0 auto!important;}
+#pos-cart .pos-ci-note{flex:1 1 4rem!important;min-width:0!important;max-width:none!important;width:auto!important;}
 #pos-cart .pos-ci-pay-amt{width:5.25rem!important;min-width:4.75rem!important;flex:0 0 auto!important;}
 #pos-cart #ep-payer-panel input.pos-payer-field{
-  min-height:1.625rem!important;
-  height:1.625rem!important;
-  font-size:11px!important;
-  padding:2px 6px!important;
+  min-height:1.5rem!important;height:1.5rem!important;font-size:10px!important;padding:0 4px!important;
 }
-/* عمودان متساويان لاسم المحوّل / الجوال */
 #pos-cart #ep-payer-panel .pos-payer-name,
-#pos-cart #ep-payer-panel .pos-payer-phone{
-  width:100%!important;
-  min-width:0!important;
-  max-width:100%!important;
-  box-sizing:border-box!important;
-}
-/* آجل: عميل في نفس صف المحوّل — نصف عرض فقط، العمود الثاني فارغ */
+#pos-cart #ep-payer-panel .pos-payer-phone{width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
 #pos-cart #pay-ar-customer-panel .pos-ar-cust-wrap{min-width:0}
 #pos-cart #pay-ar-customer-panel input.pos-ar-cust{
-  width:100%!important;
-  min-width:0!important;
-  max-width:100%!important;
-  min-height:1.625rem!important;
-  height:1.625rem!important;
-  font-size:11px!important;
-  padding:2px 6px!important;
-  box-sizing:border-box!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  min-height:1.5rem!important;height:1.5rem!important;font-size:10px!important;padding:0 4px!important;box-sizing:border-box!important;
 }
 #pos-cart .pos-ci-cust{width:min(10rem,32vw)!important;flex:1 1 6rem!important;}
-.pos-cart-lines thead th{padding:2px 4px;font-weight:700;border-bottom:1px solid #cbd5e1;background:#f1f5f9}
-.dark .pos-cart-lines thead th{background:#1e293b;border-color:#475569}
-.pos-cart-lines tbody td{padding:1px 4px;vertical-align:middle;border-bottom:1px solid #e5e7eb}
+
+/* عمود داخلي: ثلاثة أقسام قابلة للقياس */
+.pos-cart-inner{
+  display:flex;flex-direction:column;flex:1 1 auto;min-height:0;height:100%;
+  font-size:11px;overflow:hidden;
+}
+/* رأس: طلب + عميل + شريط المجاميع — إجمالي ≤150px */
+.pos-cart-header-zone{
+  flex:0 0 auto;max-height:150px;min-height:0;overflow-x:hidden;overflow-y:auto;
+  box-sizing:border-box;
+}
+.pos-cart-header-zone .pos-cart-order-strip{padding:4px 6px}
+.pos-cart-header-zone .pos-cart-cust-strip{padding:2px 6px}
+
+/* وسط: الجدول يملأ ما بين الرأس والسفلية */
+.pos-cart-table-region{
+  flex:1 1 0%;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+  border-bottom:1px solid #e5e7eb;
+}
+.dark .pos-cart-table-region{border-color:#374151}
+.pos-cart-table-scroll{
+  flex:1 1 auto;min-height:0;height:100%;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  background:#fff;
+}
+.dark .pos-cart-table-scroll{background:#111827}
+.pos-cart-empty{
+  min-height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  padding:8px;font-size:11px;color:#64748b;
+}
+
+.pos-cart-lines{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+.pos-cart-lines thead th{
+  position:sticky;top:0;z-index:2;padding:2px 4px;font-weight:800;border-bottom:1px solid #cbd5e1;
+  background:#f1f5f9;box-shadow:0 1px 0 #e2e8f0;height:28px;max-height:28px;box-sizing:border-box;
+}
+.dark .pos-cart-lines thead th{background:#1e293b;border-color:#475569;box-shadow:0 1px 0 #334155}
+.pos-cart-lines tbody tr.cart-line-item{
+  height:42px;max-height:42px;box-sizing:border-box;
+}
+.pos-cart-lines tbody td{
+  padding:1px 4px;vertical-align:middle;border-bottom:1px solid #e5e7eb;
+  max-height:42px;overflow:hidden;line-height:1.15;box-sizing:border-box;
+}
 .dark .pos-cart-lines tbody td{border-color:#374151}
 .pos-cart-lines .cart-line-item.is-selected{background:rgba(30,58,95,.12)!important}
 .dark .pos-cart-lines .cart-line-item.is-selected{background:rgba(96,165,250,.15)!important}
-.pos-cart-lines input[type=number]{font-size:10px!important;padding:1px 2px!important;min-height:22px!important;height:22px!important;width:2.75rem!important;min-width:2.5rem!important;max-width:3.25rem!important;}
-.pos-cart-toolbar .tb-btn{min-height:26px;padding:0 6px;font-size:10px;font-weight:600;border-radius:4px;border:1px solid #d1d5db}
-.dark .pos-cart-toolbar .tb-btn{border-color:#4b5563}
-#pos-cart #cart-discount-note-block form{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
-#pos-cart #cart-discount-note-block>summary{list-style:none}
-#pos-cart #cart-discount-note-block>summary::-webkit-details-marker{display:none}
-#pos-cart #cart-discount-note-block>summary .pos-dn-chev{display:inline-block;transition:transform .12s ease;font-size:8px;opacity:.55}
-#pos-cart #cart-discount-note-block[open]>summary .pos-dn-chev{transform:rotate(-90deg)}
-/* شريط إجراءات الدفع: إلغاء | تعليق | دفع | مبلغ */
-#pos-cart #pos-checkout-action-bar{display:flex;flex-direction:row;align-items:stretch;min-height:2.25rem;margin-top:4px;border-radius:6px;overflow:hidden;border:1px solid #0f172a;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.dark #pos-cart #pos-checkout-action-bar{border-color:#e2e8f0}
-#pos-cart #pos-checkout-action-bar .pos-ca-btn{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  margin:0;border:none;border-radius:0;cursor:pointer;font-weight:800;font-size:10px;line-height:1.1;
-  padding:4px 5px;color:#fff;flex:0 0 auto;min-width:3.1rem;font-family:inherit;
+.pos-cart-lines .pos-line-name-cell{line-height:1.15;max-height:38px}
+.pos-cart-lines .pos-line-name-cell .pos-line-name-one{
+  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;
 }
-#pos-cart #pos-checkout-action-bar .pos-ca-kbd{font-size:8px;font-weight:600;opacity:.9;font-family:ui-monospace,monospace}
-#pos-cart #pos-checkout-action-bar .pos-ca-cancel{background:#dc2626}
-#pos-cart #pos-checkout-action-bar .pos-ca-cancel:hover{background:#b91c1c}
-#pos-cart #pos-checkout-action-bar .pos-ca-hold{background:#2563eb}
-#pos-cart #pos-checkout-action-bar .pos-ca-hold:hover{background:#1d4ed8}
-#pos-cart #pos-checkout-action-bar .pos-ca-pay{flex:1 1 auto;min-width:0;background:#059669;font-size:11px}
-#pos-cart #pos-checkout-action-bar .pos-ca-pay:hover{background:#047857}
-#pos-cart #pos-ca-amt-wrap{
-  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;
-  background:#fde68a;padding:2px 5px;border-inline-start:1px solid #ca8a04;min-width:0;
+.pos-cart-lines input[type=number]{
+  font-size:10px!important;padding:0 2px!important;min-height:26px!important;height:26px!important;max-height:30px!important;
+  width:2.75rem!important;min-width:2.5rem!important;max-width:3.25rem!important;
 }
-.dark #pos-cart #pos-ca-amt-wrap{background:rgba(253,224,71,.22);border-color:#eab308}
-#pos-cart #pos-ca-amt-wrap input.pos-ci-pay-amt{
-  min-height:1.75rem!important;height:1.75rem!important;font-size:11px!important;
-  width:7.25rem!important;min-width:7rem!important;max-width:9rem!important;
+.pos-cart-lines .pos-qty-btns button{width:22px!important;height:22px!important;min-height:22px!important;padding:0!important;font-size:9px!important;}
+
+/* شريط المجاميع — مدمج داخل الرأس ≤150px */
+.pos-cart-total-bar{
+  flex-shrink:0;display:flex;flex-direction:column;gap:2px;
+  background:#0a0a0a;border-bottom:2px solid #404040;padding:4px 6px;box-sizing:border-box;
 }
-/* شريط ملخص الطلب — بدون فراغ وسطي؛ الشرائح تملأ العرض دون تداخل */
-#pos-cart .pos-cart-total-bar{
-  display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;
-  gap:10px 14px;background:#0a0a0a;border-bottom:2px solid #404040;padding:8px 10px;width:100%;box-sizing:border-box;
-  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;
+.dark .pos-cart-total-bar{background:#000;border-bottom-color:#525252}
+.pos-cart-total-bar__grid{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px 8px;
+  direction:ltr;min-height:0;
 }
-.dark #pos-cart .pos-cart-total-bar{background:#000;border-bottom-color:#525252}
-#pos-cart .pos-ctb-hero{
-  display:flex;flex-direction:row;align-items:baseline;flex-wrap:nowrap;gap:8px 12px;
-  flex:0 0 auto;min-width:fit-content;max-width:100%;
+.pos-ctb-side-l{text-align:left;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-end:2px}
+.pos-ctb-side-r{text-align:right;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-start:2px}
+.pos-ctb-k{font-size:9px;font-weight:700;color:#737373;line-height:1.1}
+.pos-ctb-v{font-size:11px;font-weight:800;color:#e5e5e5;font-variant-numeric:tabular-nums;line-height:1.15}
+.pos-ctb-v--disc{color:#fda4af}
+.pos-ctb-center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0}
+.pos-ctb-hero-lbl{font-size:9px;font-weight:800;color:#a3a3a3;line-height:1}
+.pos-ctb-hero-amt{font-size:clamp(1.1rem,3.5vw,1.65rem);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:#34d399;white-space:nowrap}
+.pos-ctb-hero-amt .pos-ctb-cur{font-size:55%;font-weight:700;color:#a7f3d0;margin-inline-start:2px}
+.pos-ctb-extras{font-size:9px;font-weight:600;color:#737373;text-align:center;line-height:1.1}
+
+/* سفلية: أدوات + دفع — ≤170px عموديًا */
+.pos-cart-bottom{
+  flex:0 0 auto;max-height:170px;min-height:0;overflow-x:hidden;overflow-y:auto;
+  display:flex;flex-direction:column;gap:2px;
+  padding:4px 6px;background:#f8fafc;border-top:1px solid #e2e8f0;box-sizing:border-box;
 }
-#pos-cart .pos-ctb-hero-label{font-size:18px;font-weight:800;color:#a3a3a3;white-space:nowrap;line-height:1.1}
-#pos-cart .pos-ctb-hero-amt{font-size:clamp(2.1rem,5.6vw,2.75rem);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
-#pos-cart .pos-ctb-hero-amt .pos-ctb-cur{font-size:62%;font-weight:700;color:#d4d4d4;margin-inline-start:4px}
-#pos-cart .pos-ctb-stats{
-  display:flex;flex-direction:row;flex-wrap:wrap;align-items:stretch;justify-content:space-evenly;
-  flex:1 1 0%;gap:8px 10px;min-width:0;align-self:stretch;
+.dark .pos-cart-bottom{background:#111827;border-color:#374151}
+.pos-cart-bottom__discount{
+  flex:0 0 auto;border-bottom:1px dashed #cbd5e1;padding:0 0 2px;margin:0;
 }
-#pos-cart .pos-ctb-seg{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2px 0;
-  flex:1 1 5.75rem;min-width:5.25rem;max-width:100%;flex-shrink:0;
-  padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.06);box-sizing:border-box;
-  font-size:18px;line-height:1.15;
+.dark .pos-cart-bottom__discount{border-color:#4b5563}
+.pos-cart-bottom__discount .pos-discount-note-row{
+  display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;min-width:0;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
 }
-#pos-cart .pos-ctb-seg-lbl{font-weight:700;color:#737373;font-size:14px;line-height:1.1;white-space:normal;max-width:100%}
-#pos-cart .pos-ctb-seg-val{font-weight:800;font-size:18px;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap}
-#pos-cart .pos-ctb-seg--disc .pos-ctb-seg-val{color:#fda4af}
-#pos-cart .pos-ctb-seg--muted .pos-ctb-seg-val{color:#d4d4d4}
-#pos-cart .pos-ctb-netseg .pos-ctb-seg-lbl{color:#737373}
-#pos-cart .pos-ctb-netseg .pos-ctb-seg-val{color:#a3a3a3;font-size:16px}
-#pos-cart .pos-ctb-extras-inline{
-  flex:1 1 100%;min-width:100%;text-align:center;font-size:14px;font-weight:600;color:#737373;
-  padding:4px 6px;box-sizing:border-box;
+.pos-cart-bottom__discount .pos-discount-note-row > form{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.pos-cart-bottom__discount #order-note-form-compact{flex:1 1 6rem;min-width:4rem}
+.pos-cart-toolbar{
+  flex:0 0 auto;display:flex;flex-wrap:nowrap;align-items:center;gap:2px;overflow-x:auto;
+  padding:0;min-height:26px;max-height:30px;
 }
+.pos-cart-toolbar .tb-btn{
+  min-height:24px;max-height:28px;padding:0 5px;font-size:9px;font-weight:600;border-radius:3px;
+  border:1px solid #d1d5db;background:#fff;color:#111827;flex:0 0 auto;
+}
+.dark .pos-cart-toolbar .tb-btn{border-color:#4b5563;background:#1f2937;color:#f3f4f6}
+
+#pos-cart #checkout-form{display:flex;flex-direction:column;gap:2px;min-width:0;margin:0;flex:0 1 auto;min-height:0}
+#pos-cart #pay-methods{
+  display:flex;flex-direction:row;flex-wrap:nowrap;gap:2px;align-items:center;width:100%;
+  overflow-x:auto;overflow-y:hidden;flex:0 0 auto;padding:0;-webkit-overflow-scrolling:touch;
+}
+#pos-cart #pay-methods .pm-btn{
+  flex:1 0 auto;min-width:2.75rem;height:26px;max-height:28px;padding:0 3px;border-radius:3px;
+  border:1px solid #cbd5e1;font-size:8px;font-weight:800;background:#fff;color:#0f172a;white-space:nowrap;
+}
+.dark #pos-cart #pay-methods .pm-btn{background:#1f2937;border-color:#4b5563;color:#f8fafc}
+#pos-cart #pay-methods .pm-btn.on{border-color:#1e3a5f;background:#e2e8f0;color:#0f172a}
+.dark #pos-cart #pay-methods .pm-btn.on{border-color:#3b82f6;background:rgba(30,58,95,.45);color:#fff}
+
+#pos-cart .pos-checkout-row3{
+  display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;width:100%;gap:0;margin:0;
+  border-radius:4px;overflow:hidden;border:1px solid #0f172a;flex:0 0 auto;min-height:34px;max-height:40px;
+}
+.dark #pos-cart .pos-checkout-row3{border-color:#e2e8f0}
+#pos-cart .pos-checkout-row3 .pos-ca-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin:0;border:none;border-radius:0;
+  cursor:pointer;font-weight:800;font-size:9px;line-height:1;padding:2px 4px;color:#fff;font-family:inherit;flex:0 0 auto;min-width:2.75rem;
+}
+#pos-cart .pos-checkout-row3 .pos-ca-kbd{font-size:7px;font-weight:600;opacity:.9;font-family:ui-monospace,monospace}
+#pos-cart .pos-checkout-row3 .pos-ca-cancel{background:#dc2626}
+#pos-cart .pos-checkout-row3 .pos-ca-cancel:hover{background:#b91c1c}
+#pos-cart .pos-checkout-row3 .pos-ca-hold{background:#b45309;border-inline:1px solid rgba(0,0,0,.2)}
+#pos-cart .pos-checkout-row3 .pos-ca-hold:hover{background:#92400e}
+.dark #pos-cart .pos-checkout-row3 .pos-ca-hold{border-color:rgba(255,255,255,.12)}
+#pos-cart .pos-checkout-row3 .pos-ca-pay{
+  flex:1 1 45%;min-width:5rem;background:#059669;font-size:11px;font-weight:900;
+}
+#pos-cart .pos-checkout-row3 .pos-ca-pay:hover{background:#047857}
+#pos-cart .pos-checkout-row3 .pos-ca-amt-wrap{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;background:#fde68a;padding:0 4px;border-inline-start:1px solid #ca8a04;min-width:0;
+}
+.dark #pos-cart .pos-checkout-row3 .pos-ca-amt-wrap{background:rgba(253,224,71,.22);border-color:#eab308}
+#pos-cart .pos-checkout-row3 .pos-ci-pay-amt{
+  min-height:28px!important;height:28px!important;font-size:11px!important;width:6.25rem!important;min-width:5.5rem!important;max-width:7.5rem!important;
+}
+#pos-cart .pos-cart-hint-pay{font-size:7px;color:#64748b;margin:0;line-height:1.1;flex:0 0 auto}
+#pos-cart #ep-payer-panel,#pos-cart #pay-ar-customer-panel{gap:4px;padding:0;margin:0}
 </style>
 {% if not current_order %}
 <div class="flex items-center justify-center text-muted text-xs py-6">لا يوجد طلب نشط</div>
 {% else %}
-<div class="pos-cart-inner flex flex-col min-h-0 h-full text-xs" dir="rtl">
+<div class="pos-cart-inner" dir="rtl">
 
-  <div class="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1.5 py-1 border-b border-gray-200 dark:border-gray-700 text-[10px]">
+  <div class="pos-cart-header-zone">
+  <div class="pos-cart-order-strip shrink-0 flex flex-wrap items-center gap-x-2 gap-y-0 border-b border-gray-200 dark:border-gray-700 text-[10px] bg-white dark:bg-gray-900">
     <span class="font-bold text-primary">#{{ current_order.pk }}</span>
     <span class="text-muted truncate">{{ current_order.get_order_type_display }}{% if current_order.table %} · {{ current_order.table.name_ar }}{% endif %}</span>
     <span class="ms-auto flex flex-wrap gap-0.5">
-      <a href="{% url 'pos:order_split' current_order.pk %}" class="tb-btn no-underline inline-flex items-center text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">تقسيم</a>
+      <a href="{% url 'pos:order_split' current_order.pk %}" class="tb-btn no-underline inline-flex items-center text-gray-800 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 px-1.5 py-0.5 rounded border border-gray-300 dark:border-gray-600 text-[10px] font-bold">تقسيم</a>
       <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="هل أنت متأكد من إلغاء هذا الطلب بالكامل؟">{% csrf_token %}
-        <button type="submit" class="tb-btn text-danger border-danger/40 hover:bg-danger/10">إلغاء</button>
+        <button type="submit" class="tb-btn text-danger border-danger/40 hover:bg-danger/10 px-1.5 py-0.5 rounded text-[10px] font-bold bg-white dark:bg-gray-800">إلغاء طلب</button>
       </form>
     </span>
   </div>
 
   {% if current_order.customer %}
-  <div class="shrink-0 flex items-center gap-1.5 px-1.5 py-0.5 border-b border-gray-200 dark:border-gray-700 bg-primary-soft/30 dark:bg-primary/10 text-[10px]">
+  <div class="pos-cart-cust-strip shrink-0 flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-700 bg-primary-soft/30 dark:bg-primary/10 text-[10px]">
     <span class="font-semibold truncate">{{ current_order.customer.name_ar }}</span>
     <span class="text-muted truncate">{{ current_order.customer.phone }}</span>
   </div>
   {% endif %}
 
   {% if order_totals %}
-  <div class="pos-cart-total-bar shrink-0" dir="rtl">
-    <div class="pos-ctb-hero">
-      <span class="pos-ctb-hero-label">المتبقي للدفع</span>
-      <span class="pos-ctb-hero-amt text-emerald-400"><span id="live-balance">{{ tab_balance|dec_plain }}</span><span class="pos-ctb-cur">{{ POS_SETTINGS.currency_symbol }}</span></span>
+  <div class="pos-cart-total-bar" aria-label="ملخص المبالغ">
+    <div class="pos-cart-total-bar__grid">
+      <div class="pos-ctb-side-l" aria-label="خصم ومدفوع">
+        <div><span class="pos-ctb-k">الخصم</span> <span class="pos-ctb-v pos-ctb-v--disc">{% if order_totals.discount > 0 %}−{{ order_totals.discount }}{% else %}0.00{% endif %}</span></div>
+        <div><span class="pos-ctb-k">المدفوع</span> <span class="pos-ctb-v">{{ tab_paid }}</span></div>
+      </div>
+      <div class="pos-ctb-center">
+        <span class="pos-ctb-hero-lbl">المتبقي للتحصيل</span>
+        <span class="pos-ctb-hero-amt"><span id="live-balance">{{ tab_balance|dec_plain }}</span><span class="pos-ctb-cur">{{ POS_SETTINGS.currency_symbol }}</span></span>
+      </div>
+      <div class="pos-ctb-side-r" aria-label="إجمالي قبل الخصم">
+        {% if order_totals.discount > 0 %}
+        <span class="pos-ctb-k">قبل الخصم</span>
+        <span class="pos-ctb-v">{{ order_totals.gross }} {{ POS_SETTINGS.currency_symbol }}</span>
+        {% endif %}
+        <span class="pos-ctb-k">صافي الفاتورة</span>
+        <span class="pos-ctb-v">{{ order_totals.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
     </div>
-    <div class="pos-ctb-stats">
-      <span class="pos-ctb-seg">
-        <span class="pos-ctb-seg-lbl">{% if order_totals.discount > 0 %}قبل الخصم{% else %}الإجمالي{% endif %}</span>
-        <span class="pos-ctb-seg-val text-neutral-100">{% if order_totals.discount > 0 %}{{ order_totals.gross }}{% else %}{{ order_totals.grand }}{% endif %}</span>
-      </span>
-      <span class="pos-ctb-seg pos-ctb-seg--disc">
-        <span class="pos-ctb-seg-lbl">الخصم</span>
-        <span class="pos-ctb-seg-val">{% if order_totals.discount > 0 %}−{{ order_totals.discount }}{% else %}0.00{% endif %}</span>
-      </span>
-      <span class="pos-ctb-seg pos-ctb-seg--muted">
-        <span class="pos-ctb-seg-lbl">المدفوع</span>
-        <span class="pos-ctb-seg-val">{{ tab_paid }}</span>
-      </span>
-      {% if order_totals.discount > 0 %}
-      <span class="pos-ctb-seg pos-ctb-netseg">
-        <span class="pos-ctb-seg-lbl">صافي الفاتورة</span>
-        <span class="pos-ctb-seg-val">{{ order_totals.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
-      </span>
-      {% endif %}
-      {% if order_totals.service > 0 or order_totals.tax > 0 %}
-      <span class="pos-ctb-extras-inline">
-        {% if order_totals.service > 0 %}خدمة {{ order_totals.service }}{% endif %}
-        {% if order_totals.service > 0 and order_totals.tax > 0 %} · {% endif %}
-        {% if order_totals.tax > 0 %}ضريبة {{ order_totals.tax }}{% endif %}
-      </span>
-      {% endif %}
+    {% if order_totals.service > 0 or order_totals.tax > 0 %}
+    <div class="pos-ctb-extras">
+      {% if order_totals.service > 0 %}خدمة {{ order_totals.service }}{% endif %}
+      {% if order_totals.service > 0 and order_totals.tax > 0 %} · {% endif %}
+      {% if order_totals.tax > 0 %}ضريبة {{ order_totals.tax }}{% endif %}
     </div>
-  </div>
-  {% endif %}
-
-  <div class="flex-1 min-h-0 overflow-auto border-b border-gray-200 dark:border-gray-700">
-    {% if cart_line_rows %}
-    <table class="pos-cart-lines w-full border-collapse table-fixed text-[10px]">
-      <thead>
-        <tr>
-          <th class="w-6 text-center">#</th>
-          <th class="text-start min-w-0">الاسم</th>
-          <th class="w-[5.5rem] text-center">كمية</th>
-          <th class="w-16 text-center">سعر</th>
-          <th class="w-12 text-center">خصم</th>
-          <th class="w-14 text-end">مجموع</th>
-          <th class="w-7 text-center"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for crow in cart_line_rows %}
-        {% with line=crow.line %}
-        <tr class="cart-line-item cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50{% if forloop.last %} is-selected{% endif %}"
-            data-line-idx="{{ forloop.counter0 }}"
-            data-line-id="{{ line.pk }}"
-            data-unit-price="{{ line.unit_price }}"
-            data-qty="{{ line.quantity }}">
-          <td class="text-center text-muted font-mono relative">
-            <span class="js-line-note sr-only">{{ line.line_note }}</span>{{ crow.idx }}</td>
-          <td class="min-w-0 text-start">
-            <div class="truncate font-semibold text-gray-900 dark:text-gray-100 leading-tight" title="{{ line.product.name_ar }}">{{ line.product.name_ar }}</div>
-            {% if line.modifiers_json %}
-            <div class="text-[9px] text-muted truncate">{% for m in line.modifiers_json %}{{ m.name_ar }}{% if not forloop.last %}، {% endif %}{% endfor %}</div>
-            {% endif %}
-            {% if line.line_note %}<div class="text-[9px] text-primary italic truncate">{{ line.line_note }}</div>{% endif %}
-          </td>
-          <td class="text-center">
-            <div class="inline-flex items-center gap-px justify-center">
-              <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
-                <input type="hidden" name="qty_delta" value="-1">
-                <button type="submit" class="w-5 h-5 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold leading-none hover:bg-rose-600 hover:text-white p-0">−</button>
-              </form>
-              <span class="min-w-[1.25rem] text-center font-bold tabular-nums">{{ line.quantity|floatformat:"-3" }}</span>
-              <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
-                <input type="hidden" name="qty_delta" value="1">
-                <button type="submit" class="w-5 h-5 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-[10px] font-bold leading-none hover:bg-emerald-600 hover:text-white p-0">+</button>
-              </form>
-            </div>
-          </td>
-          <td class="text-center">
-            <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form inline-block w-full max-w-[4.5rem] mx-auto" title="سعر الوحدة">
-              {% csrf_token %}
-              <input type="number" name="unit_price" step="0.01" min="0" inputmode="decimal" value="{{ line.unit_price }}"
-                class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center font-semibold">
-              <button type="submit" class="sr-only">ok</button>
-            </form>
-            {% if line.extra_unit_price %}
-            <div class="text-[8px] text-muted leading-none mt-px">+{{ line.extra_unit_price }}</div>
-            {% endif %}
-          </td>
-          <td class="text-center text-muted tabular-nums">{% if crow.alloc_discount > 0 %}{{ crow.alloc_discount }}{% else %}—{% endif %}</td>
-          <td class="text-end font-bold text-primary tabular-nums leading-none">{{ crow.line_net }}</td>
-          <td class="text-center">
-            <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="حذف السطر؟">{% csrf_token %}
-              <button type="submit" class="w-5 h-5 p-0 text-[11px] leading-none text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded" title="حذف">×</button>
-            </form>
-          </td>
-        </tr>
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="flex items-center justify-center text-muted text-[11px] py-8">السلة فارغة</div>
     {% endif %}
   </div>
+  {% endif %}
+  </div>{# /.pos-cart-header-zone #}
 
-  <div class="shrink-0 pos-cart-toolbar flex flex-wrap gap-0.5 px-1 py-1 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/80">
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-delete" title="Del">حذف</button>
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-note" title="F4">ملاحظة</button>
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-price" title="F3">سعر</button>
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-line-qty" title="F2">كمية</button>
-    <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" style="display:contents" id="tb-hold-form">{% csrf_token %}
-      <button type="submit" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" title="تعليق الطلب">تعليق</button>
-    </form>
-    <a href="{% url 'pos:tables_floor' %}" class="tb-btn no-underline inline-flex items-center bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100">طاولات</a>
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-new-invoice" title="تعليق ثم شاشة جديدة">جديد</button>
-    <button type="button" class="tb-btn bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100" id="tb-open-drawer">درج</button>
+  <div class="pos-cart-table-region">
+    <div class="pos-cart-table-scroll">
+      {% if cart_line_rows %}
+      <table class="pos-cart-lines">
+        <thead>
+          <tr>
+            <th class="w-6 text-center">#</th>
+            <th class="text-start min-w-0">الاسم</th>
+            <th class="w-[5.25rem] text-center">كمية</th>
+            <th class="w-14 text-center">سعر</th>
+            <th class="w-11 text-center">خصم</th>
+            <th class="w-14 text-end">مجموع</th>
+            <th class="w-6 text-center"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for crow in cart_line_rows %}
+          {% with line=crow.line %}
+          <tr class="cart-line-item cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50{% if forloop.last %} is-selected{% endif %}"
+              data-line-idx="{{ forloop.counter0 }}"
+              data-line-id="{{ line.pk }}"
+              data-unit-price="{{ line.unit_price }}"
+              data-qty="{{ line.quantity }}"
+              title="{{ line.product.name_ar|escape }}{% if line.modifiers_json %} — {% for m in line.modifiers_json %}{{ m.name_ar|escape }}{% if not forloop.last %}، {% endif %}{% endfor %}{% endif %}{% if line.line_note %} — {{ line.line_note|escape }}{% endif %}{% if line.extra_unit_price %} (+{{ line.extra_unit_price }}){% endif %}">
+            <td class="text-center text-muted font-mono">
+              <span class="js-line-note sr-only">{{ line.line_note }}</span>{{ crow.idx }}</td>
+            <td class="min-w-0 text-start pos-line-name-cell text-gray-900 dark:text-gray-100">
+              <span class="pos-line-name-one">{{ line.product.name_ar }}</span>
+            </td>
+            <td class="text-center">
+              <div class="pos-qty-btns inline-flex items-center gap-px justify-center">
+                <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+                  <input type="hidden" name="qty_delta" value="-1">
+                  <button type="submit" class="rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 font-bold leading-none hover:bg-rose-600 hover:text-white">−</button>
+                </form>
+                <span class="min-w-[1.25rem] text-center font-bold tabular-nums">{{ line.quantity|floatformat:"-3" }}</span>
+                <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
+                  <input type="hidden" name="qty_delta" value="1">
+                  <button type="submit" class="rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 font-bold leading-none hover:bg-emerald-600 hover:text-white">+</button>
+                </form>
+              </div>
+            </td>
+            <td class="text-center">
+              <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form inline-block w-full max-w-[4.25rem] mx-auto" title="سعر الوحدة{% if line.extra_unit_price %} (+{{ line.extra_unit_price }}){% endif %}">
+                {% csrf_token %}
+                <input type="number" name="unit_price" step="0.01" min="0" inputmode="decimal" value="{{ line.unit_price }}"
+                  class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-center font-semibold">
+                <button type="submit" class="sr-only">ok</button>
+              </form>
+            </td>
+            <td class="text-center text-muted tabular-nums">{% if crow.alloc_discount > 0 %}{{ crow.alloc_discount }}{% else %}—{% endif %}</td>
+            <td class="text-end font-bold text-primary tabular-nums leading-none">{{ crow.line_net }}</td>
+            <td class="text-center">
+              <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form" data-confirm="حذف السطر؟">{% csrf_token %}
+                <button type="submit" class="w-5 h-5 p-0 text-[11px] leading-none text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded" title="حذف">×</button>
+              </form>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="pos-cart-empty" role="status">السلة فارغة</div>
+      {% endif %}
+    </div>
   </div>
 
-  <details class="shrink-0 border-b border-gray-200 dark:border-gray-700 text-[10px] leading-tight group" id="cart-discount-note-block">
-    <summary class="cursor-pointer px-1 py-0.5 font-semibold text-muted hover:text-primary flex items-center gap-0.5 select-none">
-      <span class="pos-dn-chev" aria-hidden="true">▶</span>
-      <span>خصم الطلب · ملاحظة</span>
-      {% if current_order.discount_amount or current_order.discount_percent or current_order.order_note %}
-      <span class="text-[9px] font-normal text-primary/70 shrink-0">· نشط</span>
-      {% endif %}
-    </summary>
-    <div class="px-1 pb-0.5 pt-0 border-t border-gray-100 dark:border-gray-800/80">
-      <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-        <form method="post" action="{% url 'pos:order_discount' current_order.pk %}" class="ajax-cart-form items-center gap-1">
+  {% if order_totals %}
+  <div class="pos-cart-bottom" id="pos-cart-bottom-dock">
+    <div class="pos-cart-bottom__discount" id="cart-discount-note-block">
+      <div class="pos-discount-note-row text-[10px]">
+        <form method="post" action="{% url 'pos:order_discount' current_order.pk %}" class="ajax-cart-form">
           {% csrf_token %}
-          <span class="text-muted font-semibold shrink-0">خصم:</span>
+          <span class="text-muted font-semibold shrink-0">خصم طلب:</span>
           <input type="number" step="0.01" name="discount_amount" value="{{ current_order.discount_amount }}" title="مبلغ الخصم"
             class="pos-ci-disc-amt rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
           <span class="text-muted shrink-0">%</span>
           <input type="number" step="0.01" name="discount_percent" value="{{ current_order.discount_percent }}" title="نسبة الخصم"
             class="pos-ci-disc-pct rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-          <button type="submit" class="h-5 shrink-0 rounded border border-primary/40 bg-primary/10 px-1.5 text-[9px] font-bold text-primary hover:bg-primary hover:text-white leading-none">تطبيق</button>
+          <button type="submit" class="h-5 shrink-0 rounded border border-primary/40 bg-primary/10 px-1 text-[9px] font-bold text-primary hover:bg-primary hover:text-white leading-none">تطبيق</button>
         </form>
-        <form method="post" action="{% url 'pos:order_note' current_order.pk %}" id="order-note-form-compact" class="flex min-w-0 flex-1 items-center gap-1 sm:max-w-[min(100%,20rem)]">
+        <form method="post" action="{% url 'pos:order_note' current_order.pk %}" id="order-note-form-compact" class="flex min-w-0 items-center gap-1">
           {% csrf_token %}
           <span class="text-muted font-semibold shrink-0">ملاحظة:</span>
           <input type="text" name="order_note" id="order-note-compact" maxlength="2000" placeholder="…" autocomplete="off"
@@ -293,22 +319,33 @@
         </form>
       </div>
     </div>
-  </details>
 
-  {% if order_totals %}
-  <div class="shrink-0 px-1 py-1 space-y-1" id="cart-footer">
-    <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" data-balance="{{ tab_balance|dec_plain }}" data-grand="{{ order_totals.grand|dec_plain }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
+    <div class="pos-cart-toolbar" aria-label="أدوات السطر">
+      <button type="button" class="tb-btn" id="tb-line-delete" title="Del">حذف</button>
+      <button type="button" class="tb-btn" id="tb-line-note" title="F4">ملاحظة</button>
+      <button type="button" class="tb-btn" id="tb-line-price" title="F3">سعر</button>
+      <button type="button" class="tb-btn" id="tb-line-qty" title="F2">كمية</button>
+      <a href="{% url 'pos:tables_floor' %}" class="tb-btn no-underline inline-flex items-center">طاولات</a>
+      <button type="button" class="tb-btn" id="tb-new-invoice" title="تعليق ثم شاشة جديدة">جديد</button>
+      <button type="button" class="tb-btn" id="tb-last-sale-invoice" title="تحميل آخر فاتورة في السلة للتعديل — Shift+نقرة لمعاينة سريعة">آخر فاتورة</button>
+      <button type="button" class="tb-btn" id="tb-open-drawer">درج</button>
+      <span class="text-[8px] text-muted font-semibold ms-auto max-w-[12rem] leading-tight hidden xl:inline" title="اختصارات">/ بحث · Tab · Enter · F9 · +/- · Del</span>
+    </div>
+
+    <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" id="tb-hold-form" class="hidden" aria-hidden="true">{% csrf_token %}</form>
+    <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" class="m-0 min-w-0" novalidate data-balance="{{ tab_balance|dec_plain }}" data-grand="{{ order_totals.grand|dec_plain }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
       {% csrf_token %}
-      <div class="flex flex-wrap gap-0.5" id="pay-methods" dir="rtl">
+      <div id="pay-methods" dir="rtl" class="w-full">
         {% for row in POS_SETTINGS.payment_method_rows %}
-        <button type="button" class="pm-btn flex-1 min-w-[3.5rem] h-8 rounded border border-gray-300 dark:border-gray-600 text-[9px] sm:text-[10px] font-bold transition hover:border-primary bg-white dark:bg-gray-800 px-0.5 leading-tight"
+        <button type="button" class="pm-btn"
           data-m="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
         {% endfor %}
       </div>
       <input type="hidden" name="payment_mode" id="pay-mode-val" value="">
-      <p class="text-[8px] text-muted leading-tight">دفعات جزئية: عدّل «مبلغ الدفعة» دون إغلاق الطاولة.</p>
 
-      <div class="hidden mb-0.5 grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="ep-payer-panel">
+      <p class="pos-cart-hint-pay">دفعات جزئية: غيّر «مبلغ الدفعة» دون إغلاق الطاولة.</p>
+
+      <div class="hidden grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="ep-payer-panel">
         <div class="relative min-w-0">
           <input type="text" name="payer_name" id="pay-payer-name" maxlength="120" autocomplete="off" placeholder="اسم المحوّل"
             class="pos-payer-field pos-payer-name rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
@@ -318,7 +355,7 @@
           class="pos-payer-field pos-payer-phone rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums">
       </div>
 
-      <div class="hidden mb-0.5 grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="pay-ar-customer-panel">
+      <div class="hidden grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="pay-ar-customer-panel">
         <div class="relative min-w-0 pos-ar-cust-wrap">
           <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
           <input type="search" id="pay-cust-search" placeholder="اسم العميل…" autocomplete="off" aria-label="اختيار عميل للدفع الآجل"
@@ -329,11 +366,11 @@
         <div class="min-w-0 min-h-[1.625rem]" aria-hidden="true"></div>
       </div>
 
-      <div id="pos-checkout-action-bar" dir="ltr" class="flex flex-row items-stretch gap-0">
-        <button type="button" class="pos-ca-btn pos-ca-cancel" id="pos-btn-cancel-order" title="إلغاء الطلب كاملاً">إلغاء الطلب<span class="pos-ca-kbd">F9</span></button>
-        <button type="button" class="pos-ca-btn pos-ca-hold" id="pos-btn-hold-order" title="تعليق الطلب">تعليق<span class="pos-ca-kbd">Esc</span></button>
-        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع">دفع<span class="pos-ca-kbd">Enter</span></button>
-        <div id="pos-ca-amt-wrap" class="shrink-0">
+      <div class="pos-checkout-row3" dir="ltr">
+        <button type="button" class="pos-ca-btn pos-ca-cancel" id="pos-btn-cancel-order" title="إلغاء الطلب كاملاً">إلغاء</button>
+        <button type="submit" class="pos-ca-btn pos-ca-hold" id="pos-btn-hold-order" form="tb-hold-form" title="تعليق الطلب">تعليق</button>
+        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع">دفع<span class="pos-ca-kbd">F9</span></button>
+        <div class="pos-ca-amt-wrap" id="pos-ca-amt-wrap">
           <label for="pay-amt" class="sr-only">مبلغ الدفعة</label>
           <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{{ tab_balance|dec_plain }}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
         </div>

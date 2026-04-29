@@ -1,5 +1,6 @@
 from django.urls import path
 
+from apps.billing import views as billing_views
 from apps.pos import views
 
 app_name = "pos"
@@ -32,6 +33,14 @@ urlpatterns = [
     path("order/<int:order_id>/checkout/", views.order_checkout, name="order_checkout"),
     path("kitchen/<int:order_id>/batch/<int:batch_no>/", views.kitchen_ticket, name="kitchen_ticket"),
     path("cart-fragment/", views.cart_fragment, name="cart_fragment"),
+    path("last-invoice/", views.last_sale_invoice_panel, name="last_invoice"),
+    path("last-invoice/resume/", views.last_invoice_resume_into_cart, name="last_invoice_resume"),
+    path("last-invoice/edit/", views.last_sale_invoice_edit_redirect, name="last_sale_invoice_edit"),
+    path(
+        "invoice/<int:pk>/edit-panel/",
+        billing_views.sale_invoice_edit_panel,
+        name="sale_invoice_edit_panel",
+    ),
     path("receipt/<int:invoice_id>/", views.receipt_print, name="receipt"),
     path("receipt/<int:invoice_id>/raw/", views.receipt_raw, name="receipt_raw"),
 ]

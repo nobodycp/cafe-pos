@@ -1,0 +1,115 @@
+{% load humanize core_extras %}
+{# نموذج تعديل بنفس مظهر الإيصال/الطباعة — sale_edit_pos_embed: 1 للكاشير (pos_embed)، 0 للصفحة الكاملة #}
+<form method="post" action="{% url 'shell:sale_invoice_edit' invoice.pk %}" id="sale-invoice-edit-receipt-form" class="sale-invoice-edit-receipt-form"
+  data-sale-edit-form="1"
+  {% if sale_edit_pos_embed %}data-pos-sale-edit="1"{% endif %}
+  data-discount="{{ invoice.discount_total|floatformat:2 }}"
+  data-service="{{ invoice.service_charge_total|floatformat:2 }}"
+  data-tax="{{ invoice.tax_total|floatformat:2 }}"
+  data-currency="{{ POS_SETTINGS.currency_symbol }}">
+  {% csrf_token %}
+  {% if sale_edit_pos_embed %}<input type="hidden" name="pos_embed" value="1">{% endif %}
+
+  <p class="no-print text-[11px] text-muted mb-2 leading-relaxed">
+    نفس شكل الإيصال: عدّل <strong>الكمية</strong> و<strong>السعر</strong> فقط، ثم احفظ. المجاميع تتحدّث للمعاينة (الخصم ثابت من الفاتورة).
+  </p>
+
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-4" id="invoice-printable">
+    <div class="text-center mb-4">
+      <h2 class="text-lg font-extrabold text-gray-800 dark:text-white">{{ CAFE_NAME_AR }}</h2>
+      <p class="text-muted text-sm mt-1">فاتورة بيع رقم: {{ invoice.invoice_number }}</p>
+      <p class="text-muted text-xs mt-0.5">{{ invoice.created_at|date:"Y-m-d H:i" }}</p>
+    </div>
+
+    <div class="flex gap-4 flex-wrap mb-4 text-sm">
+      {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
+      <div><span class="text-muted">الطاولة:</span> <strong>{{ invoice.order.table_session.dining_table.name_ar }}</strong></div>
+      {% endif %}
+      {% if invoice.customer %}
+      <div><span class="text-muted">العميل:</span> <strong>{{ invoice.customer.name_ar }}</strong></div>
+      {% endif %}
+      <div><span class="text-muted">الوردية:</span> {{ invoice.work_session }}</div>
+    </div>
+
+    <div class="overflow-x-auto mb-4">
+      <table class="w-full text-sm">
+        <thead>
+          <tr>
+            <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">#</th>
+            <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الصنف</th>
+            <th class="text-center p-2 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الكمية</th>
+            <th class="text-center p-2 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">السعر</th>
+            <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المجموع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in lines %}
+          <tr class="border-b border-gray-100 dark:border-gray-700 transition-colors sale-edit-line" data-sale-edit-line>
+            <td class="p-2 align-middle">{{ forloop.counter }}</td>
+            <td class="p-2 font-semibold align-middle">{{ line.product.name_ar }}</td>
+            <td class="p-2 text-center align-middle">
+              <input type="number" name="qty_{{ line.pk }}" value="{{ line.quantity|floatformat:'-3' }}" step="0.001" min="0" autocomplete="off"
+                class="sale-edit-qty w-full max-w-[4.5rem] sm:max-w-[5.5rem] mx-auto rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-1 text-center text-xs tabular-nums" dir="ltr">
+            </td>
+            <td class="p-2 text-center align-middle">
+              <input type="number" name="price_{{ line.pk }}" value="{{ line.unit_price|floatformat:2 }}" step="0.01" min="0" autocomplete="off"
+                class="sale-edit-price w-full max-w-[4.5rem] sm:max-w-[5.5rem] mx-auto rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-1 text-center text-xs tabular-nums" dir="ltr">
+            </td>
+            <td class="p-2 font-semibold align-middle tabular-nums text-start"><span class="sale-edit-line-total">—</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="max-w-sm ms-auto">
+      <div class="flex justify-between py-1.5 text-sm">
+        <span>المجموع قبل الخصم</span>
+        <span id="sale-edit-live-subtotal" class="tabular-nums font-medium">—</span>
+      </div>
+      {% if invoice.discount_total > 0 %}
+      <div class="flex justify-between py-1.5 text-sm text-danger">
+        <span>الخصم</span>
+        <span class="tabular-nums">-{{ invoice.discount_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
+      {% endif %}
+      {% if invoice.service_charge_total > 0 %}
+      <div class="flex justify-between py-1.5 text-sm text-muted">
+        <span>خدمة</span>
+        <span class="tabular-nums">{{ invoice.service_charge_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
+      {% endif %}
+      {% if invoice.tax_total > 0 %}
+      <div class="flex justify-between py-1.5 text-sm text-muted">
+        <span>ضريبة</span>
+        <span class="tabular-nums">{{ invoice.tax_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between py-2 text-lg font-extrabold border-t-2 border-gray-800 dark:border-gray-200 mt-1">
+        <span>الإجمالي</span>
+        <span id="sale-edit-live-total" class="tabular-nums">—</span>
+      </div>
+    </div>
+
+    <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3">
+      <h3 class="text-sm font-bold mb-2">طرق الدفع</h3>
+      {% for pay in payments %}
+      <div class="flex justify-between py-1.5 text-sm">
+        <span class="ds-badge {% if pay.method == 'cash' %}border-success/30 bg-success/10 text-success{% elif pay.method == 'credit' %}border-danger/30 bg-danger/10 text-danger{% else %}border-info/30 bg-info/10 text-info{% endif %}">{{ pay.method|payment_method_label }}</span>
+        <span class="font-semibold tabular-nums">{{ pay.amount|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <p class="text-center text-muted text-xs mt-4">شكراً لزيارتكم</p>
+  </div>
+
+  <div class="no-print mt-3 flex flex-wrap gap-2 items-center">
+    <button type="submit" class="inline-flex h-9 sm:h-10 items-center justify-center rounded-lg bg-primary px-4 sm:px-6 text-xs sm:text-sm font-bold text-white hover:bg-primary-dk">حفظ التعديلات</button>
+    {% if sale_edit_pos_embed %}
+    <button type="button" class="pos-invoice-back-preview inline-flex h-9 sm:h-10 items-center justify-center rounded-lg border border-gray-300 px-4 sm:px-6 text-xs sm:text-sm font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">إلغاء</button>
+    {% else %}
+    <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="inline-flex h-9 sm:h-10 items-center justify-center rounded-lg border border-gray-300 px-4 sm:px-6 text-xs sm:text-sm font-bold text-gray-700 hover:bg-gray-50 no-underline dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">إلغاء</a>
+    {% endif %}
+  </div>
+</form>

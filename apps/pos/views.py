@@ -4,13 +4,14 @@ from django.conf import settings
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count, Prefetch, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.receipt_escpos import build_invoice_receipt
+from apps.billing.models import OrderPayment, SaleInvoice
 from apps.billing.tab_service import (
     apply_tab_payments_and_maybe_finalize,
     cart_line_rows_for_template,
@@ -22,6 +23,7 @@ from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.models import Customer
 from apps.core.forms import TreasuryVoucherForm
+from apps.core.treasury_services import recent_treasury_voucher_logs
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.payment_methods import (
     credit_method_codes,
@@ -211,9 +213,11 @@ def pos_main(request):
         home_tab = "new"
     treasury_voucher_form = None
     treasury_next = ""
+    recent_treasury_rows = []
     if session and not order:
         treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
         treasury_next = reverse("pos:main") + "?home=vouchers"
+        recent_treasury_rows = list(recent_treasury_voucher_logs(limit=10))
 
     return render(
         request,
@@ -237,8 +241,132 @@ def pos_main(request):
             "pos_home_initial": home_tab,
             "treasury_voucher_form": treasury_voucher_form,
             "treasury_next": treasury_next,
+            "recent_treasury_rows": recent_treasury_rows,
         },
     )
+
+
+@login_required
+@require_GET
+def last_sale_invoice_panel(request):
+    """يرجع HTML جزئي لآخر فاتورة بيع (لعرضها داخل طبقة على شاشة الكاشير)."""
+    session = SessionService.get_open_session()
+    if not session:
+        return HttpResponse(
+            '<div class="p-6 text-center text-sm text-muted" dir="rtl">افتح وردية لعرض الفاتورة.</div>',
+            content_type="text/html; charset=utf-8",
+        )
+    inv = (
+        SaleInvoice.objects.filter(is_cancelled=False, work_session=session)
+        .order_by("-created_at", "-pk")
+        .first()
+    )
+    if inv is None:
+        return HttpResponse(
+            '<div class="p-6 text-center text-sm text-muted" dir="rtl">لا توجد فاتورة بيع مسجّلة بعد.</div>',
+            content_type="text/html; charset=utf-8",
+        )
+    invoice = get_object_or_404(
+        SaleInvoice.objects.select_related(
+            "customer", "supplier_buyer",
+            "order__table_session__dining_table", "work_session",
+        ),
+        pk=inv.pk,
+    )
+    lines = invoice.lines.select_related("product").order_by("pk")
+    payments = invoice.payments.all()
+    return render(
+        request,
+        "shell/_invoice_detail_fragment.html",
+        {
+            "invoice": invoice,
+            "lines": lines,
+            "payments": payments,
+            "invoice_embedded": True,
+            "has_sale_returns": invoice.returns.exists(),
+        },
+    )
+
+
+@login_required
+@require_GET
+def last_sale_invoice_edit_redirect(request):
+    """يفتح شاشة تعديل آخر فاتورة بيع (من شريط الكاشير)."""
+    from apps.billing.models import SaleInvoice
+
+    inv = (
+        SaleInvoice.objects.filter(is_cancelled=False)
+        .order_by("-created_at", "-pk")
+        .first()
+    )
+    if inv is None:
+        messages.info(request, "لا توجد فاتورة بيع مسجّلة بعد.")
+        return redirect("pos:main")
+    return redirect("shell:sale_invoice_edit", pk=inv.pk)
+
+
+@login_required
+@require_POST
+def last_invoice_resume_into_cart(request):
+    """تعليق السلة الحالية إن لزم، ثم تحميل آخر فاتورة الوردية في السلة للتعديل وإعادة التسوية لاحقاً."""
+    session = SessionService.get_open_session()
+    if not session:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": "لا توجد وردية مفتوحة."}, status=400)
+        messages.error(request, "لا توجد وردية مفتوحة.")
+        return redirect("pos:main")
+
+    inv = (
+        SaleInvoice.objects.filter(is_cancelled=False, work_session=session)
+        .order_by("-created_at", "-pk")
+        .first()
+    )
+    if inv is None:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": "لا توجد فاتورة في هذه الوردية."}, status=400)
+        messages.error(request, "لا توجد فاتورة في هذه الوردية.")
+        return redirect("pos:main")
+
+    inv_label = inv.invoice_number
+    oid = request.session.get("active_pos_order_id")
+    if oid and int(oid) == inv.order_id:
+        same = Order.objects.filter(
+            pk=inv.order_id, work_session=session, status=Order.Status.OPEN
+        ).first()
+        if same and not OrderPayment.objects.filter(sale_invoice=inv).exists():
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"ok": True, "invoice_number": inv_label, "already": True})
+            messages.info(request, "آخر فاتورة محمّلة بالفعل في السلة.")
+            return redirect("pos:main")
+
+    try:
+        with transaction.atomic():
+            from apps.billing.invoice_resume_service import (
+                hold_current_pos_order_if_needed,
+                resume_last_sale_invoice_into_cart,
+            )
+
+            hold_current_pos_order_if_needed(
+                user=request.user,
+                session=session,
+                current_order_id=int(oid) if oid else None,
+                target_order_id=inv.order_id,
+            )
+            if oid and int(oid) != inv.order_id:
+                request.session.pop("active_pos_order_id", None)
+            order = resume_last_sale_invoice_into_cart(user=request.user)
+    except ValueError as e:
+        msg = str(e)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"ok": False, "error": msg}, status=400)
+        messages.error(request, msg)
+        return redirect("pos:main")
+
+    request.session["active_pos_order_id"] = order.pk
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"ok": True, "invoice_number": inv_label})
+    messages.success(request, f"تم تحميل {inv_label} في السلة للتعديل.")
+    return redirect("pos:main")
 
 
 @login_required
@@ -588,6 +716,9 @@ def order_discount(request, order_id):
 def order_split(request, order_id):
     """Split selected lines from an order into a new order (for bill splitting)."""
     order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
+    if SaleInvoice.objects.filter(order=order).exists():
+        messages.error(request, "لا يمكن التقسيم أثناء تعديل فاتورة مسجّلة. أكمل التعديل أو ألغِ الطلب.")
+        return redirect("pos:main")
     lines = list(order.lines.select_related("product").all())
 
     if request.method == "POST":
@@ -633,10 +764,25 @@ def order_split(request, order_id):
 @login_required
 @require_POST
 def order_cancel(request, order_id):
+    is_xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     order = _get_order_for_session(order_id, status=Order.Status.OPEN)
-    from apps.billing.models import SaleInvoice
-    if SaleInvoice.objects.filter(order=order).exists():
-        messages.error(request, "لا يمكن إلغاء طلب صدرت له فاتورة.")
+    inv = SaleInvoice.objects.filter(order=order).first()
+    if inv:
+        from apps.billing.invoice_resume_service import abort_resume_invoice_order
+
+        try:
+            abort_resume_invoice_order(order=order, invoice=inv, user=request.user)
+        except ValueError as e:
+            if is_xhr:
+                return JsonResponse({"ok": False, "error": str(e)}, status=400)
+            messages.error(request, str(e))
+            return redirect("pos:main")
+        request.session.pop("active_pos_order_id", None)
+        if is_xhr:
+            return JsonResponse(
+                {"ok": True, "message": "تم إلغاء تعديل الفاتورة وإعادة حالتها السابقة."}
+            )
+        messages.success(request, "تم إلغاء تعديل الفاتورة وإعادة حالتها السابقة.")
         return redirect("pos:main")
     order.status = Order.Status.CANCELLED
     order.save(update_fields=["status", "updated_at"])
@@ -652,7 +798,10 @@ def order_cancel(request, order_id):
             ts.save(update_fields=["status", "closed_at", "updated_at"])
     log_audit(request.user, "pos.order.cancel", "pos.Order", order.pk, {})
     request.session.pop("active_pos_order_id", None)
-    messages.success(request, f"تم إلغاء الطلب #{order.pk}")
+    ok_msg = f"تم إلغاء الطلب #{order.pk}"
+    if is_xhr:
+        return JsonResponse({"ok": True, "message": ok_msg})
+    messages.success(request, ok_msg)
     return redirect("pos:main")
 
 
@@ -660,6 +809,14 @@ def order_cancel(request, order_id):
 @require_POST
 def order_hold(request, order_id):
     order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
+    if SaleInvoice.objects.filter(order=order).exists():
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse(
+                {"ok": False, "error": "لا يمكن تعليق الطلب أثناء تعديل فاتورة — استخدم «إلغاء طلب» للتراجع عن التعديل أولاً."},
+                status=400,
+            )
+        messages.error(request, "لا يمكن تعليق الطلب أثناء تعديل فاتورة — استخدم «إلغاء طلب» للتراجع أولاً.")
+        return redirect("pos:main")
     try:
         hold_order(order=order, user=request.user)
     except ValueError as e:
@@ -678,6 +835,40 @@ def order_hold(request, order_id):
 @login_required
 @require_POST
 def order_checkout(request, order_id):
+    is_xhr = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    def _err(msg: str):
+        if is_xhr:
+            return JsonResponse({"ok": False, "error": msg}, status=400)
+        messages.error(request, msg)
+        return redirect("pos:main")
+
+    def _ok_receipt(inv_pk: int, flash_msg: str):
+        if is_xhr:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "redirect": reverse("pos:receipt", kwargs={"invoice_id": inv_pk}),
+                    "message": flash_msg,
+                }
+            )
+        messages.success(request, flash_msg)
+        return redirect("pos:receipt", invoice_id=inv_pk)
+
+    def _ok_tables_floor(flash_msg: str):
+        if is_xhr:
+            return JsonResponse(
+                {"ok": True, "redirect": reverse("pos:tables_floor"), "message": flash_msg}
+            )
+        messages.success(request, flash_msg)
+        return redirect("pos:tables_floor")
+
+    def _ok_partial_pay(flash_msg: str):
+        if is_xhr:
+            return JsonResponse({"ok": True, "refresh_cart": True, "message": flash_msg})
+        messages.success(request, flash_msg)
+        return redirect("pos:main")
+
     order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
     customer = None
     cid = request.POST.get("customer_id")
@@ -696,43 +887,44 @@ def order_checkout(request, order_id):
         except ValueError as e:
             code = str(e)
             if code == "TAB_PAYMENT_ON_EMPTY_ORDER":
-                messages.error(
-                    request,
-                    "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة.",
-                )
+                msg = "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة."
             else:
-                messages.error(request, code)
-            return redirect("pos:main")
+                msg = code
+            return _err(msg)
         request.session.pop("active_pos_order_id", None)
         if inv:
-            messages.success(request, f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}")
-            return redirect("pos:receipt", invoice_id=inv.pk)
-        messages.success(request, "تم إغلاق الطاولة (طلب فارغ — دون فاتورة).")
-        return redirect("pos:tables_floor")
+            flash_msg = f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}"
+            return _ok_receipt(inv.pk, flash_msg)
+        flash_msg = "تم إغلاق الطاولة (طلب فارغ — دون فاتورة)."
+        return _ok_tables_floor(flash_msg)
 
     payments = _payments_from_checkout_form(request, remaining)
     new_sum = sum((p[1] for p in payments), Decimal("0")).quantize(Decimal("0.01"))  # type: ignore[index]
 
     if remaining > 0 and new_sum <= 0:
-        messages.error(request, "أدخل مبلغ دفع أكبر من صفر.")
-        return redirect("pos:main")
+        raw_mode = (request.POST.get("payment_mode") or "").strip()
+        codes = get_payment_method_codes()
+        if not raw_mode or raw_mode not in codes:
+            msg = "اختر طريقة الدفع أولاً." if not raw_mode else "طريقة الدفع غير صالحة."
+        else:
+            msg = "أدخل مبلغ دفع أكبر من صفر."
+        return _err(msg)
     if new_sum > remaining + Decimal("0.02"):
-        messages.error(request, "مجموع الدفعات يتجاوز المتبقي على الطلب.")
-        return redirect("pos:main")
+        return _err("مجموع الدفعات يتجاوز المتبقي على الطلب.")
 
     ar_codes = credit_method_codes()
     for item in payments:
         _m = item[0]
         amt = item[1]
         if _m in ar_codes and amt > 0 and not customer:
-            messages.error(request, "اختر عميلاً لجزء الائتمان.")
-            return redirect("pos:main")
+            return _err("اختر عميلاً لجزء الائتمان.")
         if _m in method_codes_requiring_payer_details() and amt > 0:
             pn = item[2] if len(item) > 2 else ""
             ph = item[3] if len(item) > 3 else ""
             if len(str(pn).strip()) < 2 or len(str(ph).strip()) < 8:
-                messages.error(request, "أدخل اسم المحوّل ورقم الجوال (للتتبع) مع بنك فلسطين / بال باي / جوال باي.")
-                return redirect("pos:main")
+                return _err(
+                    "أدخل اسم المحوّل ورقم الجوال (للتتبع) مع بنك فلسطين / بال باي / جوال باي."
+                )
 
     try:
         inv = apply_tab_payments_and_maybe_finalize(
@@ -741,31 +933,30 @@ def order_checkout(request, order_id):
     except ValueError as e:
         code = str(e)
         if code.startswith("INSUFFICIENT_STOCK"):
-            messages.error(request, "المخزون غير كافٍ لهذا البند.")
+            msg = "المخزون غير كافٍ لهذا البند."
         elif code == "PAYMENT_SUM_MISMATCH":
-            messages.error(request, "خطأ في تطابق المبالغ.")
+            msg = "خطأ في تطابق المبالغ."
         elif code == "CREDIT_REQUIRES_CUSTOMER":
-            messages.error(request, "الائتمان يتطلب عميلاً.")
+            msg = "الائتمان يتطلب عميلاً."
         elif code == "TAB_PAYMENT_ON_EMPTY_ORDER":
-            messages.error(
-                request,
-                "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة.",
-            )
+            msg = "طلب فارغ به دفعات مسجّلة — أزل الدفعات أو ألغِ الطلب من الطاولة."
         else:
-            messages.error(request, code)
-        return redirect("pos:main")
+            msg = code
+        return _err(msg)
 
     if inv:
         request.session.pop("active_pos_order_id", None)
-        messages.success(request, f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}")
-        return redirect("pos:receipt", invoice_id=inv.pk)
+        flash_msg = f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}"
+        return _ok_receipt(inv.pk, flash_msg)
     order.refresh_from_db()
     if order.status == Order.Status.CHECKED_OUT:
         request.session.pop("active_pos_order_id", None)
-        messages.success(request, "تم إغلاق الطاولة (طلب فارغ — دون فاتورة).")
-        return redirect("pos:tables_floor")
-    messages.success(request, f"تم تسجيل دفعة. المتبقي: {(remaining - new_sum).quantize(Decimal('0.01'))} ر.س")
-    return redirect("pos:main")
+        flash_msg = "تم إغلاق الطاولة (طلب فارغ — دون فاتورة)."
+        return _ok_tables_floor(flash_msg)
+    flash_msg = (
+        f"تم تسجيل دفعة. المتبقي: {(remaining - new_sum).quantize(Decimal('0.01'))} ر.س"
+    )
+    return _ok_partial_pay(flash_msg)
 
 
 @login_required
@@ -808,7 +999,7 @@ def payer_hints_search(request):
     """اقتراحات اسم/جوال المحوّل من دفعات سابقة (تبويب لاختيار أول نتيجة)."""
     from django.db.models import Q
 
-    from apps.billing.models import InvoicePayment, OrderPayment
+    from apps.billing.models import InvoicePayment, OrderPayment, SaleInvoice
 
     q = (request.GET.get("q") or "").strip()
     if len(q) < 1:

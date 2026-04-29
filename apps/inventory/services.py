@@ -162,6 +162,53 @@ def consume_for_sale(
         )
 
 
+@transaction.atomic
+def return_sale_consumption(
+    *,
+    product: Product,
+    quantity: Decimal,
+    session: WorkSession,
+    invoice_pk: int,
+) -> None:
+    """عكس استهلاك البيع: إرجاع كمية للمخزون عند تقليل كمية سطر فاتورة (تعديل فاتورة)."""
+    qty = as_decimal(quantity)
+    if qty <= 0:
+        return
+    ptype = product.product_type
+    if ptype == Product.ProductType.SERVICE or ptype == Product.ProductType.COMMISSION:
+        return
+    if ptype == Product.ProductType.MANUFACTURED:
+        aggregated: dict[int, Decimal] = {}
+        for line in RecipeLine.objects.filter(manufactured_product=product).select_related("component"):
+            if not line.component.is_stock_tracked:
+                continue
+            cid = line.component_id
+            comp_qty = as_decimal(line.quantity_per_unit) * qty
+            aggregated[cid] = aggregated.get(cid, Decimal("0")) + comp_qty
+        for cid, total_qty in aggregated.items():
+            comp = Product.objects.get(pk=cid)
+            adjust_stock(
+                product=comp,
+                quantity_delta=total_qty,
+                movement_type=StockMovement.MovementType.ADJUSTMENT,
+                session=session,
+                reference_model="billing.SaleInvoice",
+                reference_pk=str(invoice_pk),
+                note=f"إرجاع مخزون بعد تعديل فاتورة (BOM {product.pk})",
+            )
+        return
+    if product.is_stock_tracked:
+        adjust_stock(
+            product=product,
+            quantity_delta=qty,
+            movement_type=StockMovement.MovementType.ADJUSTMENT,
+            session=session,
+            reference_model="billing.SaleInvoice",
+            reference_pk=str(invoice_pk),
+            note="إرجاع مخزون بعد تعديل فاتورة",
+        )
+
+
 def check_stock_available(product: Product, quantity: Decimal) -> None:
     if get_pos_settings().allow_negative_stock:
         return

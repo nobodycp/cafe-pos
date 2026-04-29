@@ -8,15 +8,20 @@
     <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← الموردون</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-      <h1>فواتير الشراء</h1>
-      <div class="flex gap-2 flex-wrap"><a href="{% url 'shell:purchase_new' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">فاتورة شراء جديدة</a></div>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <span class="ds-section-title m-0">فواتير الشراء</span>
+      <span class="flex-1"></span>
+      <a href="{% url 'shell:purchase_new' %}" class="ds-btn ds-btn-primary shrink-0">فاتورة جديدة</a>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
-      <form method="get" class="flex gap-3 flex-wrap items-center"><input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم المورد..." class="flex-1 min-w-[200px]"><button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">بحث</button></form>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <form method="get" class="flex gap-2 flex-wrap items-center flex-1 min-w-0 m-0">
+        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم المورد..." class="ds-input flex-1 min-w-[200px] max-w-2xl">
+        <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
+      </form>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
-      <table class="w-full text-sm">
+    <div class="ds-panel">
+    <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+      <table class="w-full text-sm ds-table">
         <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
         <tbody>
         {% for inv in invoices %}
@@ -33,6 +38,7 @@
         {% endfor %}
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

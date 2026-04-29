@@ -6,23 +6,23 @@
   <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">الفواتير</span>
     <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="text-xs font-bold text-primary">← لوحة الطلبات</a>
+    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="mb-3">
-      <form method="get" class="flex gap-1.5 items-center flex-wrap max-w-2xl">
-        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم العميل..." class="h-8 text-xs flex-1 min-w-[220px]">
-        <select name="status" class="h-8 text-xs w-auto">
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <form method="get" class="flex gap-1.5 items-center flex-wrap flex-1 min-w-0 m-0">
+        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم العميل..." class="ds-input flex-1 min-w-[200px] max-w-xl">
+        <select name="status" class="ds-input w-auto min-w-[7rem]">
           <option value="">الكل</option>
           <option value="active" {% if status == 'active' %}selected{% endif %}>نشطة</option>
           <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>ملغاة</option>
         </select>
-        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">بحث</button>
+        <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
       </form>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+    <div class="ds-panel">
+      <div class="ds-table-wrap border-0 rounded-none">
+        <table class="w-full text-sm ds-table">
           <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>
             {% for inv in invoices %}

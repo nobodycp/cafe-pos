@@ -1,0 +1,62 @@
+{% load core_extras humanize %}
+{% if recent_treasury_rows %}
+<div class="ds-panel mt-2 shrink-0">
+  <div class="ds-panel-header">آخر السندات</div>
+  <div class="ds-panel-body p-0">
+    <div class="ds-table-wrap border-0 rounded-none">
+      <table class="ds-table text-[11px]">
+        <thead>
+          <tr>
+            <th class="w-8">#</th>
+            <th>النوع</th>
+            <th>التصنيف</th>
+            <th>الحساب</th>
+            <th class="text-end">المبلغ</th>
+            <th>طريقة الدفع</th>
+            <th>التاريخ</th>
+            <th class="text-center w-20">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in recent_treasury_rows %}
+          {% with p=row.payload %}
+          <tr>
+            <td class="text-muted font-mono">{{ forloop.counter }}</td>
+            <td>{{ p.voucher_type|treasury_voucher_type_ar }}</td>
+            <td>{{ p.party_type|treasury_party_type_ar }}</td>
+            <td class="max-w-[10rem] truncate" title="{{ p.party_label|default:'' }}">{{ p.party_label|default:"—" }}</td>
+            <td class="text-end font-bold tabular-nums">{{ p.amount }}</td>
+            <td>{{ p.method|payment_method_label }}</td>
+            <td class="text-muted whitespace-nowrap">{{ row.created_at|naturaltime }}</td>
+            <td class="text-center">
+              {% if p.party_type == 'customer' and p.customer_pk %}
+                {% if perms.contacts.view_customer %}
+                <a href="{% url 'shell:customer_detail' p.customer_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">عرض</a>
+                {% endif %}
+              {% elif p.party_type == 'supplier' and p.supplier_pk %}
+                {% if perms.purchasing.view_supplier %}
+                <a href="{% url 'shell:supplier_detail' p.supplier_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">عرض</a>
+                {% endif %}
+              {% elif p.party_type == 'employee' and p.employee_pk %}
+                {% if perms.payroll.view_employee %}
+                <a href="{% url 'shell:employee_detail' p.employee_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">عرض</a>
+                {% elif p.expense_pk and perms.expenses.change_expense %}
+                <a href="{% url 'shell:expense_edit' p.expense_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
+                {% endif %}
+              {% elif p.party_type == 'expense' and p.expense_pk %}
+                {% if perms.expenses.change_expense %}
+                <a href="{% url 'shell:expense_edit' p.expense_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}

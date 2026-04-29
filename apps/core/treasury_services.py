@@ -7,11 +7,32 @@ from decimal import Decimal
 from django.utils import timezone
 
 from apps.contacts.services import record_customer_payment
-from apps.core.models import log_audit
+from apps.core.models import AuditLog, log_audit
 from apps.expenses.models import ExpenseCategory
 from apps.expenses.services import create_expense
 from apps.payroll.models import Employee, EmployeeAdvance
 from apps.purchasing.services import record_supplier_payment
+
+TREASURY_VOUCHER_AUDIT_ACTION = "treasury.voucher"
+
+
+def recent_treasury_voucher_logs(*, limit: int = 10):
+    """آخر سندات موحّدة مسجّلة في سجل التدقيق."""
+    return (
+        AuditLog.objects.filter(action=TREASURY_VOUCHER_AUDIT_ACTION)
+        .select_related("user")
+        .order_by("-created_at")[:limit]
+    )
+
+
+def _log_unified_treasury_voucher(user, payload: dict) -> None:
+    log_audit(
+        user,
+        TREASURY_VOUCHER_AUDIT_ACTION,
+        "treasury.UnifiedVoucher",
+        "",
+        payload,
+    )
 
 
 def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_session):
@@ -25,24 +46,52 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
     party_type = cleaned["party_type"]
 
     if voucher_type == "receipt" and party_type == "customer":
+        cust = cleaned["customer"]
         out = record_customer_payment(
-            customer=cleaned["customer"],
+            customer=cust,
             amount=amount,
             method=method,
             note=note or "سند قبض",
             user=user,
             work_session=work_session,
         )
+        _log_unified_treasury_voucher(
+            user,
+            {
+                "voucher_type": voucher_type,
+                "party_type": party_type,
+                "party_label": cust.name_ar,
+                "amount": str(amount),
+                "method": method,
+                "note": (note or "")[:240],
+                "customer_pk": cust.pk,
+                "ledger_entry_pk": out.pk,
+            },
+        )
         return out
 
     if voucher_type == "disbursement" and party_type == "supplier":
+        sup = cleaned["supplier"]
         out = record_supplier_payment(
-            supplier=cleaned["supplier"],
+            supplier=sup,
             amount=amount,
             method=method,
             note=note or "سند صرف",
             user=user,
             work_session=work_session,
+        )
+        _log_unified_treasury_voucher(
+            user,
+            {
+                "voucher_type": voucher_type,
+                "party_type": party_type,
+                "party_label": sup.name_ar,
+                "amount": str(amount),
+                "method": method,
+                "note": (note or "")[:240],
+                "supplier_pk": sup.pk,
+                "supplier_payment_pk": out.pk,
+            },
         )
         return out
 
@@ -76,6 +125,19 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             exp.pk,
             {"employee_id": emp.pk, "amount": str(amount)},
         )
+        _log_unified_treasury_voucher(
+            user,
+            {
+                "voucher_type": voucher_type,
+                "party_type": party_type,
+                "party_label": emp.name_ar,
+                "amount": str(amount),
+                "method": method,
+                "note": (note or "")[:240],
+                "employee_pk": emp.pk,
+                "expense_pk": exp.pk,
+            },
+        )
         return exp
 
     if voucher_type == "disbursement" and party_type == "expense":
@@ -98,6 +160,19 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             "expenses.Expense",
             exp.pk,
             {"amount": str(amount)},
+        )
+        party_lbl = (getattr(exp.category, "name_ar", None) or "مصروف")[:120]
+        _log_unified_treasury_voucher(
+            user,
+            {
+                "voucher_type": voucher_type,
+                "party_type": party_type,
+                "party_label": party_lbl,
+                "amount": str(amount),
+                "method": method,
+                "note": (note or "")[:240],
+                "expense_pk": exp.pk,
+            },
         )
         return exp
 

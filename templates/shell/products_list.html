@@ -17,11 +17,11 @@
         <button type="submit" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs">بحث</button>
       </form>
     </div>
-    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-      <div class="flex gap-1.5 flex-wrap items-center">
-        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'products' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">المنتجات</a>
-        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'units' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">الوحدات</a>
-        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}" class="h-8 px-3 rounded-lg font-bold text-xs inline-flex items-center {% if active_tab == 'categories' %}bg-primary text-white{% else %}border border-primary text-primary{% endif %}">التصنيفات</a>
+    <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+      <div class="ds-tabs border-0 mb-0 p-0 gap-1">
+        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'products' %}is-active{% endif %}">المنتجات</a>
+        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'units' %}is-active{% endif %}">الوحدات</a>
+        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'categories' %}is-active{% endif %}">التصنيفات</a>
       </div>
       <div class="flex gap-1.5 flex-wrap items-center">
       {% if active_tab == "products" %}
@@ -34,10 +34,10 @@
       {% endif %}
       </div>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div class="overflow-x-auto">
+    <div class="ds-panel">
+      <div class="ds-table-wrap border-0 rounded-none">
         {% if active_tab == "products" %}
-        <table class="w-full text-sm">
+        <table class="w-full text-sm ds-table">
           <thead>
             <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr>
           </thead>
@@ -67,7 +67,7 @@
           </tbody>
         </table>
         {% elif active_tab == "units" %}
-        <table class="w-full text-sm">
+        <table class="w-full text-sm ds-table">
           <thead><tr><th>الرمز</th><th>الاسم</th><th>الإنجليزي</th><th>إجراءات</th></tr></thead>
           <tbody>
             {% for u in units %}
@@ -91,7 +91,7 @@
           </tbody>
         </table>
         {% else %}
-        <table class="w-full text-sm">
+        <table class="w-full text-sm ds-table">
           <thead><tr><th>التصنيف</th><th>الرئيسي</th><th>الترتيب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody>
             {% for cat in categories %}

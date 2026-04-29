@@ -188,6 +188,13 @@
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.receipt_show_tax_number.label }}</span>
         </label>
       </div>
+      <div class="mb-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          {{ receipt.allow_sale_invoice_edit }}
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.allow_sale_invoice_edit.label }}</span>
+        </label>
+        <p class="text-xs text-muted mt-1.5 mr-7 max-w-xl">{{ receipt.allow_sale_invoice_edit.help_text }}</p>
+      </div>
       <button type="submit" class="mt-2 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
     </form>
   </div>

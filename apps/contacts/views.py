@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import Max, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -35,8 +35,11 @@ def _contacts_tpl(request, shell_tpl, classic_tpl):
 @login_required
 def customer_list(request):
     qs = Customer.objects.filter(is_active=True).order_by("name_ar")
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
     tpl = _contacts_tpl(request, "shell/customers_list.html", "contacts/customers.html")
-    return render(request, tpl, _contacts_ctx(request, customers=qs))
+    return render(request, tpl, _contacts_ctx(request, customers=qs, q=q))
 
 
 @login_required

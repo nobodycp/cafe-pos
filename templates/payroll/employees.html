@@ -10,36 +10,39 @@
     <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-      <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">الموظفون</h1>
-      <a href="{% url 'shell:employee_create' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">إضافة موظف</a>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <span class="ds-section-title m-0">الموظفون</span>
+      <span class="flex-1"></span>
+      <a href="{% url 'shell:employee_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة موظف</a>
     </div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-x-auto">
-      <table class="w-full text-sm">
+    <div class="ds-panel">
+    <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+      <table class="w-full text-sm ds-table">
         <thead>
           <tr>
-            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الاسم</th>
-            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">آلية العمل</th>
-            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">قيمة الراتب</th>
-            <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رصيد صافي</th>
-            <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">إجراءات</th>
+            <th>الاسم</th>
+            <th>آلية العمل</th>
+            <th>قيمة الراتب</th>
+            <th>رصيد صافي</th>
+            <th class="text-center w-28">إجراءات</th>
           </tr>
         </thead>
         <tbody>
           {% for e in employees %}
-          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
+          <tr>
+            <td class="font-semibold">
               <a href="{% url 'shell:employee_detail' e.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ e.name_ar }}</a>
             </td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.get_pay_type_display }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ e.pay_amount|floatformat:2|intcomma }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ e.net_balance|floatformat:2|intcomma }}</td>
-            <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-              <div class="flex flex-wrap items-center gap-2">
-                <a href="{% url 'shell:employee_edit' e.pk %}">تعديل</a>
+            <td>{{ e.get_pay_type_display }}</td>
+            <td>{{ e.pay_amount|floatformat:2|intcomma }}</td>
+            <td class="font-semibold">{{ e.net_balance|floatformat:2|intcomma }}</td>
+            <td>
+              <div class="flex flex-wrap items-center justify-end gap-1">
+                <a href="{% url 'shell:employee_detail' e.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">عرض</a>
+                <a href="{% url 'shell:employee_edit' e.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
                 <form method="post" action="{% url 'shell:employee_delete' e.pk %}" class="inline m-0" onsubmit="return confirm('حذف الموظف وجميع سجلاته؟');">
                   {% csrf_token %}
-                  <button type="submit">حذف</button>
+                  <button type="submit" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px] text-danger border-danger/40">حذف</button>
                 </form>
               </div>
             </td>
@@ -49,6 +52,7 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
     </div>
   </div>
 </div>

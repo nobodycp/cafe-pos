@@ -149,34 +149,16 @@
 {# ═══════════════════════════════════════════════ #}
 {# ═══  3-PANEL LAYOUT: Tables | Products | Cart  ═══ #}
 {# ═══════════════════════════════════════════════ #}
-<div class="flex flex-1 min-h-0">
+{# ترتيب ثابت LTR: يسار الشاشة = العربة، الوسط = المنتجات، اليمين = الطاولات (محتوى كل عمود RTL) #}
+<div class="flex flex-1 min-h-0 flex-row dir-ltr">
 
-{# ─── Table mini-strip ─── #}
-<div class="w-[168px] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto p-1 gap-1">
-  <div class="text-[10px] font-bold text-gray-500 px-1 py-0.5 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
-  {% for row in floor_rows %}
-  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-sm border border-gray-300 dark:border-gray-600 p-1.5">
-    {% csrf_token %}
-    <input type="hidden" name="table_id" value="{{ row.table.pk }}">
-    {% if row.session and row.session.customer_id %}
-    <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
-    {% endif %}
-    <span class="t-name block text-xs font-bold truncate">{{ row.table.name_ar }}</span>
-    {% if row.status != 'free' %}
-    <span class="t-amt block text-[10px] font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
-    {% if row.customer_label %}<span class="t-cust block text-[9px] text-muted truncate">{{ row.customer_label }}</span>{% endif %}
-    {% endif %}
-    <button type="submit" class="t-link w-full h-7 rounded-sm bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 mt-1">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
-  </form>
-  {% endfor %}
-  <button type="button" class="h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
-  <div class="mt-auto pt-1">
-    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-[10px] font-bold text-[#1e3a5f] hover:underline">الكل</a>
-  </div>
+{# ─── LEFT (physical): Cart / invoice ─── #}
+<div class="pos-cart-column w-[clamp(240px,32vw,480px)] min-w-[232px] max-w-[min(500px,42vw)] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col min-h-0 h-full dir-rtl" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+  {% include "pos/_cart_fragment.html" %}
 </div>
 
 {# ─── CENTER: Products ─── #}
-<div class="pos-products flex-1 flex flex-col overflow-hidden bg-[#e8eaed] dark:bg-gray-950 p-2">
+<div class="pos-products flex-1 flex flex-col overflow-hidden bg-[#e8eaed] dark:bg-gray-950 p-2 dir-rtl">
   <div class="relative mb-2" id="product-search-wrap">
     <svg class="absolute start-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input type="search" placeholder="اسم أو باركود…" autocomplete="off" id="pos-search-input"
@@ -238,9 +220,40 @@
   {% endfor %}
 </div>
 
-{# ─── Cart ─── #}
-<div class="w-[clamp(280px,40vw,640px)] min-w-[260px] max-w-[min(720px,55vw)] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 flex flex-col min-h-0" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
-  {% include "pos/_cart_fragment.html" %}
+{# ─── RIGHT (physical): Tables mini-strip ─── #}
+<div class="w-[168px] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto p-1 gap-1 dir-rtl">
+  <div class="text-[10px] font-bold text-gray-500 px-1 py-0.5 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
+  {% for row in floor_rows %}
+  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-sm border border-gray-300 dark:border-gray-600 p-1.5">
+    {% csrf_token %}
+    <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+    {% if row.session and row.session.customer_id %}
+    <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
+    {% endif %}
+    <span class="t-name block text-xs font-bold truncate">{{ row.table.name_ar }}</span>
+    {% if row.status != 'free' %}
+    <span class="t-amt block text-[10px] font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
+    {% if row.customer_label %}<span class="t-cust block text-[9px] text-muted truncate">{{ row.customer_label }}</span>{% endif %}
+    {% endif %}
+    <button type="submit" class="t-link w-full h-7 rounded-sm bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 mt-1">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
+  </form>
+  {% endfor %}
+  <button type="button" class="h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
+  <div class="mt-auto pt-1">
+    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-[10px] font-bold text-[#1e3a5f] hover:underline">الكل</a>
+  </div>
+</div>
+
+{# طبقة عرض آخر فاتورة داخل الكاشير (بدون نافذة جديدة) #}
+<div id="pos-invoice-overlay" class="fixed inset-0 z-[300] flex items-center justify-center p-2" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pos-invoice-overlay-title">
+  <div id="pos-invoice-backdrop" class="absolute inset-0 bg-black/50" aria-hidden="true"></div>
+  <div class="relative z-[1] flex w-full max-w-[min(420px,96vw)] sm:max-w-[min(480px,96vw)] max-h-[min(92vh,900px)] flex-col overflow-hidden rounded-lg border border-gray-300 bg-white shadow-2xl dark:border-gray-600 dark:bg-gray-900" dir="rtl">
+    <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-gray-100 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+      <span id="pos-invoice-overlay-title" class="text-sm font-bold text-gray-800 dark:text-gray-100">آخر فاتورة</span>
+      <button type="button" id="pos-invoice-close" class="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">إغلاق</button>
+    </div>
+    <div id="pos-invoice-panel-mount" class="min-h-0 flex-1 overflow-y-auto"></div>
+  </div>
 </div>
 
 </div>
@@ -250,6 +263,7 @@
 {% block cashier_scripts %}
 <script src="{% static 'js/money_parse.js' %}"></script>
 <script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
+<script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>
 <script>
 (function(){
   var CART_URL='{% url "pos:cart_fragment" %}';
@@ -264,6 +278,8 @@
   var CUR='{{ POS_SETTINGS.currency_symbol }}';
   var POS_MAIN_URL='{% url "pos:main" %}';
   var TABLES_FLOOR_URL='{% url "pos:tables_floor" %}';
+  {% if work_session and POS_SETTINGS.allow_sale_invoice_edit %}var RESUME_LAST_INVOICE_URL='{% url "pos:last_invoice_resume" %}';{% else %}var RESUME_LAST_INVOICE_URL='';{% endif %}
+  {% if current_order %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
   var selectedLineId=null;
 
   /* ── AJAX cart refresh ── */
@@ -288,20 +304,110 @@
     }).then(function(r){return r.json()})
     .then(function(d){
       if(!d.ok&&d.error)showToast(d.error,'error');
-      else if(d.ok&&form.action.indexOf('unit-price')!==-1)showToast('تم السعر','success');
+      else if(d.ok){
+        if(d.message)showToast(d.message,'success');
+        else if(form.action.indexOf('unit-price')!==-1)showToast('تم السعر','success');
+      }
       return refreshCart();
     }).catch(function(){return refreshCart()});
   }
 
-  /* ── Toast notifications ── */
+  /* ── Toast notifications — نفس حاوية shell/base.html (Alpine toastManager + Tailwind) ── */
   function showToast(msg,type){
-    var t=document.createElement('div');
-    t.className='pos-toast '+(type||'info');
-    t.textContent=msg;
-    document.body.appendChild(t);
-    setTimeout(function(){t.classList.add('show')},10);
-    setTimeout(function(){t.classList.remove('show');setTimeout(function(){t.remove()},300)},2500);
+    var m=msg==null?'':String(msg);
+    var k=type||'info';
+    if(k!=='success'&&k!=='error'&&k!=='info'&&k!=='warning')k='info';
+    window.dispatchEvent(new CustomEvent('toast',{detail:{msg:m,type:k}}));
   }
+
+  function closePosInvoiceOverlay(){
+    var ov=document.getElementById('pos-invoice-overlay');
+    var mount=document.getElementById('pos-invoice-panel-mount');
+    var titleEl=document.getElementById('pos-invoice-overlay-title');
+    if(ov)ov.style.display='none';
+    if(mount)mount.innerHTML='';
+    if(titleEl)titleEl.textContent='آخر فاتورة';
+  }
+  function setPosInvoiceOverlayTitle(text){
+    var titleEl=document.getElementById('pos-invoice-overlay-title');
+    if(titleEl)titleEl.textContent=text||'آخر فاتورة';
+  }
+  function openPosInvoiceOverlay(){
+    if(!LAST_INVOICE_URL)return;
+    var ov=document.getElementById('pos-invoice-overlay');
+    var mount=document.getElementById('pos-invoice-panel-mount');
+    if(!ov||!mount)return;
+    setPosInvoiceOverlayTitle('آخر فاتورة');
+    mount.innerHTML='<p class="p-6 text-center text-sm text-muted" dir="rtl">جاري التحميل…</p>';
+    ov.style.display='flex';
+    fetch(LAST_INVOICE_URL,{headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'})
+      .then(function(r){if(!r.ok)throw new Error('http');return r.text()})
+      .then(function(html){mount.innerHTML=html;})
+      .catch(function(){mount.innerHTML='<p class="p-6 text-center text-sm text-danger" dir="rtl">تعذر تحميل الفاتورة.</p>';showToast('تعذر تحميل الفاتورة','error');});
+  }
+  function loadPosInvoiceEditPanel(url){
+    var mount=document.getElementById('pos-invoice-panel-mount');
+    if(!mount||!url)return;
+    mount.innerHTML='<p class="p-6 text-center text-sm text-muted" dir="rtl">جاري التحميل…</p>';
+    fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'})
+      .then(function(r){if(!r.ok)throw new Error('http');return r.text()})
+      .then(function(html){
+        mount.innerHTML=html;
+        setPosInvoiceOverlayTitle('تعديل الفاتورة');
+        if(window.initSaleInvoiceReceiptEdit)window.initSaleInvoiceReceiptEdit(mount);
+      })
+      .catch(function(){
+        mount.innerHTML='<p class="p-6 text-center text-sm text-danger" dir="rtl">تعذر تحميل التعديل.</p>';
+        showToast('تعذر تحميل التعديل','error');
+      });
+  }
+  (function setupPosInvoiceOverlay(){
+    var bd=document.getElementById('pos-invoice-backdrop');
+    var cl=document.getElementById('pos-invoice-close');
+    if(bd)bd.addEventListener('click',closePosInvoiceOverlay);
+    if(cl)cl.addEventListener('click',closePosInvoiceOverlay);
+    var ov=document.getElementById('pos-invoice-overlay');
+    if(!ov)return;
+    ov.addEventListener('click',function(e){
+      var editBtn=e.target.closest&&e.target.closest('.pos-invoice-load-edit');
+      if(editBtn&&editBtn.getAttribute('data-edit-panel-url')){
+        e.preventDefault();
+        loadPosInvoiceEditPanel(editBtn.getAttribute('data-edit-panel-url'));
+        return;
+      }
+      if(e.target.closest&&e.target.closest('.pos-invoice-back-preview')){
+        e.preventDefault();
+        openPosInvoiceOverlay();
+      }
+    });
+    ov.addEventListener('submit',function(e){
+      var form=e.target;
+      if(!form||form.tagName!=='FORM'||form.getAttribute('data-pos-sale-edit')!=='1')return;
+      e.preventDefault();
+      var fd=new FormData(form);
+      fetch(form.action,{
+        method:'POST',
+        body:fd,
+        headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+        credentials:'same-origin'
+      })
+        .then(function(r){
+          var ct=(r.headers.get('content-type')||'').toLowerCase();
+          if(ct.indexOf('application/json')>=0)return r.json().then(function(j){return {ok:r.ok,json:j};});
+          return {ok:r.ok,json:null};
+        })
+        .then(function(res){
+          if(res.json&&res.json.ok){
+            showToast('تم حفظ التعديلات','success');
+            openPosInvoiceOverlay();
+            return;
+          }
+          var err=(res.json&&res.json.error)||'تعذر الحفظ';
+          showToast(err,'error');
+        })
+        .catch(function(){showToast('تعذر الحفظ','error');});
+    },true);
+  })();
 
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
@@ -443,12 +549,8 @@
       if(!items.length&&e.key!=='Escape')return;
       if(e.key==='Tab'&&hits.style.display!=='none'&&items.length){
         e.preventDefault();
-        var first=items[0];
-        if(first.getAttribute('data-has-mod')==='1'){
-          window.location.href=CUSTOMIZE_BASE.replace('{pid}',first.getAttribute('data-pid'));
-        } else {
-          addProduct(first.getAttribute('data-pid'));
-        }
+        activeIdx=0;
+        highlightItem(0);
         return;
       }
       if(e.key==='ArrowDown'||e.key==='ArrowUp'){
@@ -460,7 +562,8 @@
       }
       if(e.key==='Enter'&&hits.style.display!=='none'){
         e.preventDefault();
-        var target=activeIdx>=0&&activeIdx<items.length?items[activeIdx]:items[0];
+        var idx=(activeIdx>=0&&activeIdx<items.length)?activeIdx:0;
+        var target=items[idx];
         if(target){
           if(target.getAttribute('data-has-mod')==='1'){
             window.location.href=CUSTOMIZE_BASE.replace('{pid}',target.getAttribute('data-pid'));
@@ -546,7 +649,11 @@
       var body=new URLSearchParams();
       body.set('csrfmiddlewaretoken',CSRF);
       fetch(lineUrl('remove/'+lid+'/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
-        .then(function(){return refreshCart()});
+        .then(function(r){return r.json().catch(function(){return{ok:true};});})
+        .then(function(d){
+          if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
+          return refreshCart();
+        });
     });
     bindTb('tb-line-note',function(){
       var tr=getSelectedCartLine();
@@ -600,6 +707,25 @@
     bindTb('tb-open-drawer',function(){
       showToast('الدرج: يُفتح من برنامج الطابعة المحلي أو اختصار الطابعة','info');
     });
+    var lastInvBtn=document.getElementById('tb-last-sale-invoice');
+    if(lastInvBtn)lastInvBtn.addEventListener('click',function(e){
+      e.preventDefault();
+      if(e.shiftKey&&LAST_INVOICE_URL){openPosInvoiceOverlay();return;}
+      if(!RESUME_LAST_INVOICE_URL){showToast('فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال.','info');return;}
+      if(!confirm('تحميل آخر فاتورة الوردية في السلة للتعديل؟ يُعلّق الطلب الحالي إن وُجد.'))return;
+      var body=new URLSearchParams();
+      body.set('csrfmiddlewaretoken',CSRF);
+      fetch(RESUME_LAST_INVOICE_URL,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body,credentials:'same-origin'})
+        .then(function(r){return r.json().then(function(j){return {ok:r.ok,json:j};}).catch(function(){return {ok:r.ok,json:null};});})
+        .then(function(res){
+          if(res.json&&res.json.ok){
+            if(res.json.already)showToast('السلة تعرض هذه الفاتورة مسبقاً','info');
+            else showToast('تم تحميل الفاتورة في السلة','success');
+            return refreshCart();
+          }
+          showToast((res.json&&res.json.error)||'تعذر التحميل','error');
+        }).catch(function(){showToast('تعذر التحميل','error');});
+    });
     (function initOrderNoteCompact(){
       var nf=document.getElementById('order-note-form-compact');
       var ni=document.getElementById('order-note-compact');
@@ -647,6 +773,12 @@
     var tr=getSelectedCartLine();
     var lid=tr?tr.getAttribute('data-line-id'):null;
     if(e.key==='Escape'){
+      var invOv=document.getElementById('pos-invoice-overlay');
+      if(invOv&&invOv.style.display==='flex'){
+        e.preventDefault();
+        closePosInvoiceOverlay();
+        return;
+      }
       var aeEsc=document.activeElement;
       if(aeEsc&&aeEsc.id==='pos-search-input')return;
       if(aeEsc&&aeEsc.id==='order-note-compact')return;
@@ -662,7 +794,12 @@
       if(holdBar){e.preventDefault();holdBar.click();}
       return;
     }
-    if(e.key==='F9'){e.preventDefault();var cb=document.getElementById('pos-btn-cancel-order');if(cb)cb.click();return;}
+    if(e.key==='F9'){
+      e.preventDefault();
+      var pb=document.getElementById('pay-btn');
+      if(pb){pb.focus();pb.click();}
+      return;
+    }
     if(e.key==='F4'&&lid){e.preventDefault();document.getElementById('tb-line-note')&&document.getElementById('tb-line-note').click();return;}
     if(e.key==='F3'&&lid){e.preventDefault();document.getElementById('tb-line-price')&&document.getElementById('tb-line-price').click();return;}
     if(e.key==='F2'&&lid){e.preventDefault();document.getElementById('tb-line-qty')&&document.getElementById('tb-line-qty').click();return;}
@@ -729,11 +866,8 @@
       if(cff)cff.submit();
     });
     var holdOrd=document.getElementById('pos-btn-hold-order');
-    if(holdOrd)holdOrd.addEventListener('click',function(){
-      var hf=document.getElementById('tb-hold-form');
-      if(!hf)return;
-      if(!confirm('تعليق الطلب؟'))return;
-      hf.requestSubmit();
+    if(holdOrd)holdOrd.addEventListener('click',function(e){
+      if(!confirm('تعليق الطلب؟'))e.preventDefault();
     });
     if(cf){cf.addEventListener('keydown',function(e){
       if(e.key!=='Enter')return;
@@ -756,19 +890,17 @@
       if(pb)pb.click();
     },true);}
 
-    if(cf){cf.addEventListener('submit',function(e){
-      if(!pmVal||!pmVal.value){
-        e.preventDefault();
+    function validateCheckoutBeforeSubmit(){
+      if(!pmVal||!String(pmVal.value||'').trim()){
         showToast('اختر طريقة الدفع أولاً','error');
-        return;
+        return false;
       }
       var onPm=document.querySelector('#pay-methods .pm-btn.on');
       if(onPm&&(onPm.getAttribute('data-ledger')||'')==='ar'){
         var hid=document.getElementById('pay-cust-id');
         if(!hid||!String(hid.value||'').trim()){
-          e.preventDefault();
           showToast('اختر عميلاً للدفع الآجل','error');
-          return;
+          return false;
         }
       }
       if(onPm&&onPm.getAttribute('data-needs-payer')==='1'){
@@ -777,11 +909,50 @@
         var n=pn?String(pn.value||'').trim():'';
         var p=ph?String(ph.value||'').replace(/\D/g,'').trim():'';
         if(n.length<2||p.length<8){
-          e.preventDefault();
           showToast('أدخل اسم المحوّل ورقم الجوال','error');
+          return false;
         }
       }
-    })}
+      return true;
+    }
+
+    if(cf&&cf.getAttribute('data-pos-checkout-bound')!=='1'){
+      cf.setAttribute('data-pos-checkout-bound','1');
+      cf.addEventListener('submit',function(e){
+        e.preventDefault();
+        if(!validateCheckoutBeforeSubmit())return;
+        var fd=new FormData(cf);
+        fetch(cf.action,{
+          method:'POST',
+          headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+          body:new URLSearchParams(fd),
+          credentials:'same-origin'
+        })
+        .then(function(r){
+          return r.json().then(function(j){return{ok:r.ok,json:j};}).catch(function(){
+            return{ok:false,json:{error:'تعذر قراءة الاستجابة من الخادم'}};
+          });
+        })
+        .then(function(res){
+          var j=res.json||{};
+          if(!res.ok||j.ok===false){
+            showToast(j.error||'تعذر إتمام الدفع','error');
+            return;
+          }
+          if(j.redirect){
+            window.location.href=j.redirect;
+            return;
+          }
+          if(j.refresh_cart){
+            var m=j.message||'تم تسجيل الدفعة';
+            return refreshCart().then(function(){showToast(m,'success');});
+          }
+          if(j.message)showToast(j.message,'success');
+          return refreshCart();
+        })
+        .catch(function(){showToast('تعذر الاتصال بالخادم','error');});
+      });
+    }
 
     function setupPayerHints(){
       var inp=document.getElementById('pay-payer-name');
@@ -888,11 +1059,4 @@
   });
 })();
 </script>
-<style>
-.pos-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);padding:10px 24px;border-radius:10px;font-family:var(--font);font-size:.9rem;font-weight:600;z-index:9999;opacity:0;transition:all .3s ease;pointer-events:none}
-.pos-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.pos-toast.success{background:var(--c-green);color:#fff}
-.pos-toast.error{background:var(--c-red);color:#fff}
-.pos-toast.info{background:var(--c-primary);color:#fff}
-</style>
 {% endblock %}
