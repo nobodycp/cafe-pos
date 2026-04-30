@@ -45,7 +45,7 @@
                 <a href="{% url 'shell:supplier_statement' r.supplier.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">كشف</a>
                 <a href="{% url 'shell:supplier_payment' r.supplier.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">سداد</a>
                 <a href="{% url 'shell:supplier_edit' r.supplier.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
-                <form method="post" action="{% url 'shell:supplier_delete' r.supplier.pk %}" class="inline m-0" onsubmit="return confirm('حذف المورد نهائياً؟ يُسمح فقط إن لم تكن هناك فواتير شراء.');">
+                <form method="post" action="{% url 'shell:supplier_delete' r.supplier.pk %}" class="inline m-0">
                   {% csrf_token %}
                   <button type="submit" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px] text-danger border-danger/40">حذف</button>
                 </form>

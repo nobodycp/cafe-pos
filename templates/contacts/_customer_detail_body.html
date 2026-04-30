@@ -73,9 +73,9 @@
             </td>
             <td class="p-3 border-b border-gray-100 dark:border-gray-700">
               {% if contacts_ns == 'shell' %}
-              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
+              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0">
               {% else %}
-              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0" onsubmit="return confirm('حذف هذا القيد وتحديث رصيد العميل؟');">
+              <form method="post" action="{% url 'shell:customer_ledger_delete' customer.pk e.pk %}" class="inline m-0">
               {% endif %}
                 {% csrf_token %}
                 <button type="submit" class="text-xs font-bold text-danger hover:underline bg-transparent border-none cursor-pointer p-0">حذف</button>

@@ -23,7 +23,7 @@
             {% for e in enriched %}
             <tr>
               <td class="font-bold">{{ e.component.name_ar }}</td><td>{{ e.component.unit.name_ar|default:"—" }}</td><td>{{ e.display_qty }} {{ e.display_unit }}</td><td>{{ e.unit_cost|floatformat:2|intcomma }}</td><td class="font-bold text-danger">{{ e.line_cost|floatformat:2|intcomma }}</td><td>{{ e.on_hand|floatformat:2|intcomma }}</td><td>{{ e.max_units|floatformat:0 }}</td>
-              <td><form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}" onsubmit="return confirm('حذف المكوّن من المعادلة؟');">{% csrf_token %}<button type="submit">حذف</button></form></td>
+              <td><form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}">{% csrf_token %}<button type="submit">حذف</button></form></td>
             </tr>
             {% empty %}
             <tr><td colspan="8" class="text-center text-muted p-10">لا توجد مكوّنات في معادلة التصنيع.</td></tr>

@@ -231,12 +231,12 @@
           .then(function(_ref) {
             btn.disabled = false;
             if (!_ref.ok) {
-              alert(_ref.j.error || 'تعذّر الإنشاء');
+              (window.shellToast || function(m){})(_ref.j.error || 'تعذّر الإنشاء', 'error');
               return;
             }
             setSelected(String(_ref.j.id), _ref.j.name_ar, _ref.j.unit_id ? String(_ref.j.unit_id) : '', _ref.j.unit_name || '');
           })
-          .catch(function() { btn.disabled = false; alert('خطأ شبكة'); });
+          .catch(function() { btn.disabled = false; (window.shellToast || function(m){})('خطأ شبكة', 'error'); });
       });
     });
   }
@@ -308,10 +308,10 @@
         .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
         .then(function(res) {
           createBtn.disabled = false;
-          if (!res.ok) { alert(res.j.error || 'تعذر إنشاء الوحدة'); return; }
+          if (!res.ok) { (window.shellToast || function(m){})(res.j.error || 'تعذر إنشاء الوحدة', 'error'); return; }
           setSelected(String(res.j.id), res.j.name_ar);
         })
-        .catch(function() { createBtn.disabled = false; alert('خطأ شبكة'); });
+        .catch(function() { createBtn.disabled = false; (window.shellToast || function(m){})('خطأ شبكة', 'error'); });
     });
   }
 
@@ -553,10 +553,10 @@
         .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
         .then(function(res) {
           createBtn.disabled = false;
-          if (!res.ok) { alert(res.j.error || 'تعذر إنشاء المورد'); return; }
+          if (!res.ok) { (window.shellToast || function(m){})(res.j.error || 'تعذر إنشاء المورد', 'error'); return; }
           setSupplier(String(res.j.id), res.j.name_ar);
         })
-        .catch(function() { createBtn.disabled = false; alert('خطأ شبكة'); });
+        .catch(function() { createBtn.disabled = false; (window.shellToast || function(m){})('خطأ شبكة', 'error'); });
     });
   })();
 

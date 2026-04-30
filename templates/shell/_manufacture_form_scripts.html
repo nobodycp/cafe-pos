@@ -101,10 +101,10 @@
         .then(function(r) { return r.json().then(function(j) { return {ok: r.ok, j: j}; }); })
         .then(function(res) {
           createBtn.disabled = false;
-          if (!res.ok) { alert(res.j.error || 'تعذر إنشاء التصنيف'); return; }
+          if (!res.ok) { (window.shellToast || function(m){})(res.j.error || 'تعذر إنشاء التصنيف', 'error'); return; }
           selectCategory(String(res.j.id), res.j.name_ar);
         })
-        .catch(function() { createBtn.disabled = false; alert('خطأ شبكة'); });
+        .catch(function() { createBtn.disabled = false; (window.shellToast || function(m){})('خطأ شبكة', 'error'); });
     });
   }
 })();

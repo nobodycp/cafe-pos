@@ -22,8 +22,6 @@ from apps.billing.tab_service import (
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.models import Customer
-from apps.core.forms import TreasuryVoucherForm
-from apps.core.treasury_services import recent_treasury_voucher_logs
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.payment_methods import (
     credit_method_codes,
@@ -58,6 +56,33 @@ def _get_order_for_session(order_id, **extra_filters):
 
 def _money(s: str) -> Decimal:
     return Decimal(str(s).replace(",", ".").strip() or "0")
+
+
+def _parse_pos_discount_input(raw: str) -> tuple[Decimal, Decimal]:
+    """
+    حقل خصم واحد: مبلغ ثابت افتراضياً، أو نسبة إذا وُجدت علامة % (أو ٪ العربية).
+    يُرجع (discount_amount, discount_percent)؛ يُصفّر الحقل الآخر.
+    """
+    t = (raw or "").strip().replace("\u066a", "%").replace("٪", "%")
+    if not t:
+        return Decimal("0"), Decimal("0")
+    is_percent = "%" in t
+    core = t.replace("%", "").strip()
+    if not core:
+        return Decimal("0"), Decimal("0")
+    try:
+        val = _money(core)
+    except (InvalidOperation, ValueError):
+        return Decimal("0"), Decimal("0")
+    if is_percent:
+        if val < 0:
+            val = Decimal("0")
+        if val > Decimal("100"):
+            val = Decimal("100")
+        return Decimal("0"), val
+    if val < 0:
+        val = Decimal("0")
+    return val, Decimal("0")
 
 
 def _payments_from_checkout_form(request, remaining: Decimal) -> list:
@@ -208,17 +233,6 @@ def pos_main(request):
 
     lang = request.LANGUAGE_CODE or "ar"
 
-    home_tab = (request.GET.get("home") or "").strip()
-    if home_tab not in ("vouchers", "new"):
-        home_tab = "new"
-    treasury_voucher_form = None
-    treasury_next = ""
-    recent_treasury_rows = []
-    if session and not order:
-        treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
-        treasury_next = reverse("pos:main") + "?home=vouchers"
-        recent_treasury_rows = list(recent_treasury_voucher_logs(limit=10))
-
     return render(
         request,
         "pos/main.html",
@@ -238,10 +252,6 @@ def pos_main(request):
 
             "ui_lang": lang,
             "cafe_name": settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR),
-            "pos_home_initial": home_tab,
-            "treasury_voucher_form": treasury_voucher_form,
-            "treasury_next": treasury_next,
-            "recent_treasury_rows": recent_treasury_rows,
         },
     )
 
@@ -703,62 +713,18 @@ def order_note(request, order_id):
 @require_POST
 def order_discount(request, order_id):
     order = _get_order_for_session(order_id, status=Order.Status.OPEN)
-    try:
-        order.discount_amount = _money(request.POST.get("discount_amount", "0"))
-        order.discount_percent = _money(request.POST.get("discount_percent", "0"))
-    except (InvalidOperation, ValueError):
-        pass
+    if "discount_value" in request.POST:
+        order.discount_amount, order.discount_percent = _parse_pos_discount_input(
+            request.POST.get("discount_value", "")
+        )
+    else:
+        try:
+            order.discount_amount = _money(request.POST.get("discount_amount", "0"))
+            order.discount_percent = _money(request.POST.get("discount_percent", "0"))
+        except (InvalidOperation, ValueError):
+            pass
     order.save(update_fields=["discount_amount", "discount_percent", "updated_at"])
     return _ajax_or_redirect(request)
-
-
-@login_required
-def order_split(request, order_id):
-    """Split selected lines from an order into a new order (for bill splitting)."""
-    order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
-    if SaleInvoice.objects.filter(order=order).exists():
-        messages.error(request, "لا يمكن التقسيم أثناء تعديل فاتورة مسجّلة. أكمل التعديل أو ألغِ الطلب.")
-        return redirect("pos:main")
-    lines = list(order.lines.select_related("product").all())
-
-    if request.method == "POST":
-        selected_ids = [int(x) for x in request.POST.getlist("line_ids") if x.isdigit()]
-        if not selected_ids:
-            messages.error(request, "اختر أصنافاً لنقلها")
-            return redirect("pos:order_split", order_id=order.pk)
-
-        from django.db import transaction as db_transaction
-        with db_transaction.atomic():
-            session = SessionService.require_open_session()
-            matching_lines = list(order.lines.filter(pk__in=selected_ids))
-            if not matching_lines:
-                messages.error(request, "لم يتم نقل أي أصناف")
-                return redirect("pos:main")
-
-            new_order = Order.objects.create(
-                work_session=session,
-                order_type=order.order_type,
-                table=order.table,
-                table_session=order.table_session,
-                customer=order.customer,
-            )
-            for line in matching_lines:
-                line.order = new_order
-                line.save(update_fields=["order", "updated_at"])
-            moved = len(matching_lines)
-
-            log_audit(request.user, "pos.order.split", "pos.Order", order.pk, {
-                "new_order": new_order.pk, "moved_lines": moved
-            })
-
-        request.session["active_pos_order_id"] = new_order.id
-        messages.success(request, f"تم تقسيم الطلب — طلب جديد #{new_order.pk} ({moved} أصناف)")
-        return redirect("pos:main")
-
-    return render(request, "pos/order_split.html", {
-        "order": order,
-        "lines": lines,
-    })
 
 
 @login_required
@@ -844,16 +810,23 @@ def order_checkout(request, order_id):
         return redirect("pos:main")
 
     def _ok_receipt(inv_pk: int, flash_msg: str):
+        action = (request.POST.get("checkout_action") or "save").strip()
         if is_xhr:
-            return JsonResponse(
-                {
-                    "ok": True,
-                    "redirect": reverse("pos:receipt", kwargs={"invoice_id": inv_pk}),
-                    "message": flash_msg,
-                }
-            )
+            if action == "save_print":
+                rel = reverse("pos:receipt", kwargs={"invoice_id": inv_pk}) + "?embed=1"
+                return JsonResponse(
+                    {
+                        "ok": True,
+                        "message": flash_msg,
+                        "refresh_cart": True,
+                        "receipt_embed_url": rel,
+                    }
+                )
+            return JsonResponse({"ok": True, "message": flash_msg, "refresh_cart": True})
         messages.success(request, flash_msg)
-        return redirect("pos:receipt", invoice_id=inv_pk)
+        if action == "save_print":
+            return redirect("pos:receipt", invoice_id=inv_pk)
+        return redirect("pos:main")
 
     def _ok_tables_floor(flash_msg: str):
         if is_xhr:
@@ -1056,11 +1029,10 @@ def receipt_print(request, invoice_id):
     lang = request.LANGUAGE_CODE or "ar"
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
     pm_label_map = {r["code"]: r["label_ar"] for r in load_payment_method_rows()}
-    return render(
-        request,
-        "pos/receipt_preview.html",
-        {"invoice": inv, "cafe_name": cafe, "pm_label_map": pm_label_map},
-    )
+    ctx = {"invoice": inv, "cafe_name": cafe, "pm_label_map": pm_label_map}
+    if request.GET.get("embed") == "1":
+        return render(request, "pos/receipt_embed.html", ctx)
+    return render(request, "pos/receipt_preview.html", ctx)
 
 
 @login_required

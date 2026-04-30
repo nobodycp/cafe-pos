@@ -36,7 +36,7 @@
               <td>
                 <div class="flex gap-2 items-center">
                   <a href="{% url 'shell:invoice_detail' inv.pk %}">عرض</a>
-                  <form method="post" action="{% url 'shell:sale_invoice_delete' inv.pk %}" class="m-0" onsubmit="return confirm('حذف الفاتورة نهائياً؟');">
+                  <form method="post" action="{% url 'shell:sale_invoice_delete' inv.pk %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="reason" value="حذف نهائي من قائمة الفواتير">
                     <input type="hidden" name="next" value="{% url 'shell:invoice_list' %}">

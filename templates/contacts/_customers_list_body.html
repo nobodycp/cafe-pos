@@ -36,7 +36,7 @@
                 <a href="{% url 'shell:customer_statement' c.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">كشف</a>
                 <a href="{% url 'shell:customer_payment' c.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">سداد</a>
                 <a href="{% url 'shell:customer_edit' c.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
-                <form method="post" action="{% url 'shell:customer_delete' c.pk %}" class="inline m-0" onsubmit="return confirm('حذف العميل «{{ c.name_ar }}» نهائياً؟');">
+                <form method="post" action="{% url 'shell:customer_delete' c.pk %}" class="inline m-0">
                   {% csrf_token %}
                   <button type="submit" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px] text-danger border-danger/40">حذف</button>
                 </form>

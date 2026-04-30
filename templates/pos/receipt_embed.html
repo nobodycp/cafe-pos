@@ -1,0 +1,40 @@
+{% load core_extras %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>إيصال {{ invoice.invoice_number }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e4e4e7; font-family: Cairo, Tahoma, sans-serif; }
+    .pos-embed-wrap { padding: 6px; display: flex; justify-content: center; align-items: flex-start; min-height: 100%; }
+    #receipt-printable {
+      width: 80mm; max-width: 100%; background: #fff; color: #111;
+      padding: 5mm 4mm; font-size: 11px; line-height: 1.35;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+      border: 1px solid #d4d4d8;
+    }
+    .no-print { margin-top: 8px; text-align: center; }
+    .no-print button {
+      padding: 6px 14px; font-size: 11px; font-weight: 800; border-radius: 6px;
+      border: 1px solid #1e3a5f; background: #1e3a5f; color: #fff; cursor: pointer;
+    }
+    .no-print button:hover { background: #163051; }
+    @media print {
+      body { background: #fff; }
+      .pos-embed-wrap { padding: 0; }
+      .no-print { display: none !important; }
+      #receipt-printable { box-shadow: none; border: none; width: 80mm; }
+    }
+  </style>
+</head>
+<body>
+<div class="pos-embed-wrap">
+  <div id="receipt-printable">
+    {% include "pos/_receipt_thermal_core.html" %}
+  </div>
+</div>
+<p class="no-print"><button type="button" onclick="window.print()">طباعة</button></p>
+</body>
+</html>

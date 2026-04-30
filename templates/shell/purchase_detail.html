@@ -12,7 +12,7 @@
     <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
       <h1>فاتورة شراء {{ invoice.invoice_number }}</h1>
       <div class="flex gap-2 flex-wrap no-print">
-        <form method="post" action="{% url 'shell:purchase_delete' invoice.pk %}" class="m-0" onsubmit="return confirm('حذف فاتورة الشراء نهائياً مع كل ما يتبعها من مخزون وقيود وسدادات؟ لا يمكن التراجع.');">
+        <form method="post" action="{% url 'shell:purchase_delete' invoice.pk %}" class="m-0">
           {% csrf_token %}
           <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg border-2 border-danger text-danger font-bold text-sm">حذف نهائي</button>
         </form>

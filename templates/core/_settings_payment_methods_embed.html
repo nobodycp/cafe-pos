@@ -60,7 +60,7 @@
                 تعديل
               </a>
               {% if m.code != "cash" %}
-              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
+              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;">
                 {% csrf_token %}
                 <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-danger/40 text-danger text-xs font-bold hover:bg-danger/10 transition-colors">
                   حذف
@@ -73,7 +73,7 @@
                 تعديل
               </a>
               {% if m.code != "cash" %}
-              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;" onsubmit="return confirm('حذف «{{ m.label_ar }}»؟');">
+              <form method="post" action="{% url 'shell:payment_method_delete' m.pk %}" style="margin:0;">
                 {% csrf_token %}
                 <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-danger/40 text-danger text-xs font-bold hover:bg-danger/10 transition-colors">
                   حذف

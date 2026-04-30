@@ -343,6 +343,30 @@
 }
 .animate-fade-in { animation: fadeIn .15s ease; }
 
+/*
+ * رسائل الغلاف (Django messages + Alpine toast) — نفس ألوان theme في shell/base.html
+ * !important يغلب Tailwind/Alpine إن وُجد تعارض على الخلفية
+ */
+.app-shell-toast-msg {
+  background-clip: padding-box;
+}
+.app-shell-toast-msg--error {
+  background-color: #d63031 !important;
+  color: #fff !important;
+}
+.app-shell-toast-msg--success {
+  background-color: #00b894 !important;
+  color: #fff !important;
+}
+.app-shell-toast-msg--info {
+  background-color: #74b9ff !important;
+  color: #1f2937 !important;
+}
+.app-shell-toast-msg--warning {
+  background-color: #fdcb6e !important;
+  color: #1f2937 !important;
+}
+
 /* ── Print styles ── */
 @media print {
   body * { visibility: hidden; }

@@ -73,7 +73,7 @@
           <td class="py-2 px-2">
             <div class="flex flex-wrap gap-1.5 items-center justify-end">
               <a href="{% url 'shell:invoice_detail' row.invoice.pk %}" class="text-[10px] font-bold text-primary hover:underline">عرض</a>
-              <form method="post" action="{% url 'shell:sale_invoice_delete' row.invoice.pk %}" class="inline" onsubmit="return confirm('حذف الفاتورة نهائياً من النظام؟');">
+              <form method="post" action="{% url 'shell:sale_invoice_delete' row.invoice.pk %}" class="inline">
                 {% csrf_token %}
                 <input type="hidden" name="reason" value="حذف من تقرير المبيعات">
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">

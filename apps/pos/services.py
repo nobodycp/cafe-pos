@@ -203,17 +203,31 @@ def set_line_note(*, order: Order, line_id: int, line_note: str, user) -> None:
 
 @transaction.atomic
 def set_line_unit_price(*, order: Order, line_id: int, unit_price: Decimal, user) -> None:
+    """
+    unit_price هنا = السعر الفعّال للوحدة المعروض في الكاشير (أساس + إضافات المعدّل).
+    يُخزَّن في السطر كـ unit_price أساسي بحيث أن (أساس + extra_unit_price) = القيمة المُدخَلة.
+    """
     if order.status != Order.Status.OPEN or order.is_held:
         raise ValueError("ORDER_NOT_OPEN")
     line = OrderLine.objects.select_for_update().filter(pk=line_id, order=order).first()
     if not line:
         raise ValueError("LINE_NOT_FOUND")
-    up = as_decimal(unit_price).quantize(Decimal("0.01"))
-    if up < 0:
+    eff = as_decimal(unit_price).quantize(Decimal("0.01"))
+    if eff < 0:
         raise ValueError("INVALID_UNIT_PRICE")
-    line.unit_price = up
+    extra = as_decimal(line.extra_unit_price).quantize(Decimal("0.01"))
+    new_base = (eff - extra).quantize(Decimal("0.01"))
+    if new_base < 0:
+        new_base = Decimal("0")
+    line.unit_price = new_base
     line.save(update_fields=["unit_price", "updated_at"])
-    log_audit(user, "pos.line.unit_price", "pos.Order", order.pk, {"line": line_id, "unit_price": str(up)})
+    log_audit(
+        user,
+        "pos.line.unit_price",
+        "pos.Order",
+        order.pk,
+        {"line": line_id, "effective_unit": str(eff), "unit_price_base": str(new_base)},
+    )
 
 
 @transaction.atomic

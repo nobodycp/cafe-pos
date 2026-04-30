@@ -12,6 +12,11 @@
   <script>
   tailwind.config = {
     darkMode: 'class',
+    safelist: [
+      'bg-success', 'bg-danger', 'bg-info', 'bg-warning',
+      'text-white', 'text-gray-800', 'text-gray-900',
+      'dark:bg-sky-700', 'dark:text-white',
+    ],
     theme: {
       extend: {
         fontFamily: { sans: ['Cairo', 'sans-serif'] },
@@ -33,29 +38,35 @@
 <body class="font-sans bg-[#e8eaed] dark:bg-gray-950 text-gray-800 dark:text-gray-100 overflow-hidden antialiased"
       x-data="toastManager()" @toast.window="addToast($event.detail)">
 
-  <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+  <script>
+  (function() {
+    window.shellToast = function(msg, type) {
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { msg: String(msg || ''), type: type || 'error' }
+      }));
+    };
+  })();
+  </script>
+
+  <div id="app-shell-toast-stack" class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-1.5 pointer-events-none max-w-[min(90vw,22rem)] w-max">
     <template x-for="t in toasts" :key="t.id">
-      <div x-show="t.show" x-transition:enter="transition ease-out duration-300"
+      <div x-show="t.show"
+           x-text="t.msg"
+           x-transition:enter="transition ease-out duration-300"
            x-transition:enter-start="opacity-0 -translate-y-4" x-transition:enter-end="opacity-100 translate-y-0"
            x-transition:leave="transition ease-in duration-200"
            x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-4"
-           :class="{
-             'bg-success text-white': t.type === 'success',
-             'bg-danger text-white': t.type === 'error',
-             'bg-primary text-white': t.type === 'info',
-             'bg-warning text-gray-800': t.type === 'warning'
-           }"
-           class="pointer-events-auto px-5 py-3 rounded-xl font-bold text-sm shadow-lg">
-        <span x-text="t.msg"></span>
+           class="app-shell-toast-msg pointer-events-auto px-4 py-2 rounded-lg font-bold text-xs shadow-md animate-fade-in min-w-0 max-w-full leading-snug"
+           :class="'app-shell-toast-msg--' + (['success','error','info','warning'].indexOf(t.type) >= 0 ? t.type : 'info')">
       </div>
     </template>
   </div>
 
   {% if messages %}
-  <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9998] flex flex-col gap-2" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)">
+  <div id="app-shell-django-messages" class="fixed top-4 left-1/2 -translate-x-1/2 z-[9998] flex flex-col gap-1.5 max-w-[min(90vw,22rem)] w-max" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3500)">
     {% for m in messages %}
-    <div class="px-6 py-3 rounded-xl font-bold text-sm shadow-lg animate-fade-in
-      {% if 'error' in m.tags %}bg-danger text-white{% elif 'success' in m.tags %}bg-success text-white{% elif 'warning' in m.tags %}bg-warning text-gray-800{% else %}bg-info text-gray-800{% endif %}">
+    <div class="app-shell-toast-msg px-4 py-2 rounded-lg font-bold text-xs shadow-md animate-fade-in min-w-0 max-w-full leading-snug
+      {% if 'error' in m.tags %}app-shell-toast-msg--error{% elif 'success' in m.tags %}app-shell-toast-msg--success{% elif 'warning' in m.tags %}app-shell-toast-msg--warning{% else %}app-shell-toast-msg--info{% endif %}">
       {{ m }}
     </div>
     {% endfor %}
@@ -153,16 +164,55 @@
 
   <script>
   function toastManager() {
+    const MAX_VISIBLE = 4;
+    const DISPLAY_MS = 2800;
+    const LEAVE_MS = 280;
     return {
       toasts: [],
       addToast(detail) {
-        const id = Date.now();
-        this.toasts.push({ id, msg: detail.msg || detail.message || '', type: detail.type || 'info', show: true });
-        setTimeout(() => {
-          const t = this.toasts.find(x => x.id === id);
-          if (t) t.show = false;
-          setTimeout(() => { this.toasts = this.toasts.filter(x => x.id !== id); }, 300);
-        }, 3000);
+        let typ = detail.type || 'info';
+        if (typ === 'danger') typ = 'error';
+        if (!['success', 'error', 'info', 'warning'].includes(typ)) typ = 'info';
+        const msg = String(detail.msg || detail.message || '');
+
+        for (let i = this.toasts.length - 1; i >= 0; i--) {
+          const row = this.toasts[i];
+          if (row.show && row.msg === msg && row.type === typ) {
+            if (row._hideT) clearTimeout(row._hideT);
+            row._hideT = setTimeout(() => {
+              row.show = false;
+              row._hideT = null;
+              setTimeout(() => {
+                this.toasts = this.toasts.filter((x) => x.id !== row.id);
+              }, LEAVE_MS);
+            }, DISPLAY_MS);
+            return;
+          }
+        }
+
+        const visible = this.toasts.filter((t) => t.show);
+        if (visible.length >= MAX_VISIBLE) {
+          const oldest = this.toasts.find((t) => t.show);
+          if (oldest) {
+            if (oldest._hideT) clearTimeout(oldest._hideT);
+            oldest.show = false;
+            oldest._hideT = null;
+            setTimeout(() => {
+              this.toasts = this.toasts.filter((x) => x.id !== oldest.id);
+            }, LEAVE_MS);
+          }
+        }
+
+        const id = Date.now() * 10000 + Math.floor(Math.random() * 10000);
+        const row = { id, msg, type: typ, show: true, _hideT: null };
+        row._hideT = setTimeout(() => {
+          row.show = false;
+          row._hideT = null;
+          setTimeout(() => {
+            this.toasts = this.toasts.filter((x) => x.id !== id);
+          }, LEAVE_MS);
+        }, DISPLAY_MS);
+        this.toasts.push(row);
       }
     };
   }

@@ -42,7 +42,7 @@
               <td>
                 <div class="flex flex-wrap items-center justify-end gap-1">
                   <a href="{% url 'shell:expense_edit' e.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
-                  <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="inline m-0" onsubmit="return confirm('حذف المصروف وقيوده نهائياً؟');">
+                  <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="inline m-0">
                     {% csrf_token %}
                     <button type="submit" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px] text-danger border-danger/40">حذف</button>
                   </form>

@@ -1,0 +1,45 @@
+{% comment %}
+جدول منتجات الكاشير (شكل Excel) — يُضمَّن مع product_rows = قائمة المنتجات
+{% endcomment %}
+<table class="pos-product-xl w-full text-[11px] tabular-nums" dir="rtl">
+  <thead>
+    <tr>
+      <th class="pos-pxl-num">#</th>
+      <th class="pos-pxl-name text-start">الصنف</th>
+      <th class="pos-pxl-price text-end">السعر</th>
+      <th class="pos-pxl-cat text-start max-w-[7rem]">القسم</th>
+      <th class="pos-pxl-act text-center">إضافة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in product_rows %}
+    <tr class="pos-pxl-row {% if p.modifier_group_count %}pos-pxl-row--mod{% else %}pos-pxl-row--quick{% endif %}"
+        {% if p.modifier_group_count %}data-customize-url="{% url 'pos:customize_product' current_order.pk p.pk %}"{% endif %}>
+      <td class="pos-pxl-num text-muted font-mono">{{ forloop.counter }}</td>
+      <td class="pos-pxl-name pos-pxl-name-cell font-bold text-gray-900 dark:text-gray-100">
+        <span class="inline-flex items-center gap-0.5 min-w-0 max-w-full" title="{{ p.name_ar|escape }}">
+          <span class="truncate">{{ p.name_ar }}</span>
+          {% if p.modifier_group_count %}
+          <span class="shrink-0 rounded px-0.5 text-[8px] font-extrabold bg-amber-400 text-gray-900 border border-amber-700 leading-none">+</span>
+          {% endif %}
+        </span>
+      </td>
+      <td class="pos-pxl-price font-bold text-primary whitespace-nowrap">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</td>
+      <td class="pos-pxl-cat text-muted truncate max-w-[7rem]" title="{% if p.category %}{{ p.category.name_ar|escape }}{% endif %}">{% if p.category %}{{ p.category.name_ar }}{% else %}—{% endif %}</td>
+      <td class="pos-pxl-act p-0 align-middle text-center">
+        {% if p.modifier_group_count %}
+        <span class="pos-pxl-modhint" title="اضغط الصف للتخصيص">⋯</span>
+        {% else %}
+        <form method="post" action="{% url 'pos:order_add' current_order.pk %}" class="pos-pxl-addform m-0 inline-block align-middle">{% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ p.pk }}">
+          <input type="hidden" name="qty" value="1">
+          <button type="submit" class="pos-pxl-plus" title="إضافة">+</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="pos-pxl-empty">لا توجد أصناف</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -57,7 +57,7 @@
                   <a href="{% url 'shell:recipe_list' p.pk %}" class="manufacturing-formula-link">معادلة التصنيع</a>
                   {% endif %}
                   <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
-                  <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0" onsubmit="return confirm('حذف المنتج نهائياً؟');">{% csrf_token %}<button type="submit">حذف</button></form>
+                  <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0">{% csrf_token %}<button type="submit">حذف</button></form>
                 </div>
               </td>
             </tr>
@@ -78,7 +78,7 @@
               <td>
                 <div class="flex gap-2 items-center">
                   <a href="{% url 'shell:unit_edit' u.pk %}">تعديل</a>
-                  <form method="post" action="{% url 'shell:unit_delete' u.pk %}" class="m-0" onsubmit="return confirm('حذف الوحدة «{{ u.name_ar }}»؟');">
+                  <form method="post" action="{% url 'shell:unit_delete' u.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit">حذف</button>
                   </form>
@@ -103,7 +103,7 @@
               <td>
                 <div class="flex gap-2 items-center">
                   <a href="{% url 'shell:category_edit' cat.pk %}">تعديل</a>
-                  <form method="post" action="{% url 'shell:category_delete' cat.pk %}" class="m-0" onsubmit="return confirm('حذف التصنيف «{{ cat.name_ar }}»؟');">
+                  <form method="post" action="{% url 'shell:category_delete' cat.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit">حذف</button>
                   </form>

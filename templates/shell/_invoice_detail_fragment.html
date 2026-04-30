@@ -36,8 +36,7 @@
           {% endif %}
         {% endif %}
         <button type="button" onclick="window.print()" class="inline-flex items-center justify-center h-9 px-3 rounded-lg bg-primary text-white font-bold text-xs hover:bg-primary-dk cursor-pointer">طباعة</button>
-        <form method="post" action="{% url 'shell:sale_invoice_delete' invoice.pk %}" class="m-0"
-          onsubmit="return confirm('سيتم حذف الفاتورة نهائياً بعد عكس المخزون والقيود والذمم. لا يمكن التراجع. متابعة؟');">
+        <form method="post" action="{% url 'shell:sale_invoice_delete' invoice.pk %}" class="m-0">
           {% csrf_token %}
           <input type="hidden" name="next" value="{% if invoice_embedded %}{% url 'pos:main' %}{% else %}{% url 'shell:invoice_detail' invoice.pk %}{% endif %}">
           {% if invoice_embedded %}

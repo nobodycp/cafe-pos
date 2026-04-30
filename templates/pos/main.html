@@ -1,5 +1,5 @@
 {% extends "shell/base.html" %}
-{% load static %}
+{% load static core_extras %}
 {% block title %}الكاشير — {{ cafe_name }}{% endblock %}
 {% block nav_on_orders %}on{% endblock %}
 {% block cashier_body %}
@@ -10,15 +10,66 @@
 .pos-cat-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
 .pm-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
 .ts-tile.st-free{border-color:#00b894}
-.ts-tile.st-busy{border-color:#fdcb6e;background:rgba(253,203,110,.06)}
+.ts-tile.st-busy,.ts-tile.st-occupied,.ts-tile.st-partial,.ts-tile.st-open_empty{border-color:#fdcb6e;background:rgba(253,203,110,.06)}
 .ts-tile.st-mine,.ts-tile.st-active{border-color:#1e3a5f;background:#e2e8f0}
 .dark .ts-tile.st-mine,.dark .ts-tile.st-active{background:rgba(30,58,95,.2)}
-.dark .ts-tile.st-busy{background:rgba(253,203,110,.08)}
+.dark .ts-tile.st-busy,.dark .ts-tile.st-occupied,.dark .ts-tile.st-partial,.dark .ts-tile.st-open_empty{background:rgba(253,203,110,.08)}
+/* شريط الطاولات — صف قائمة: اسم | متبقي | زر */
+.pos-tables-strip .ts-tile-row{display:flex;flex-direction:row;align-items:center;gap:0.35rem;padding:0.35rem 0.45rem;flex-wrap:nowrap}
+.pos-tables-strip .ts-tile-row .t-name{flex:1 1 0;min-width:0;text-align:right;font-size:0.75rem;line-height:1.2}
+.pos-tables-strip .ts-tile-row .t-amt{flex:0 0 auto;min-width:4.25rem;text-align:end;font-variant-numeric:tabular-nums;font-size:0.625rem;line-height:1.2}
+.pos-tables-strip .ts-tile-row .t-link{flex:0 0 auto;margin-top:0;width:auto;min-width:3.35rem;padding:0 0.35rem;height:1.65rem;font-size:0.625rem}
+/* عمود الطاولات: نصف علوي (قائمة + تمرير) / نصف سفلي فارغ للتوسعة — 50٪–50٪ */
+.pos-tables-strip{display:flex;flex-direction:column;min-height:0;align-self:stretch}
+.pos-split-half{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column}
+.pos-tables-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable}
+.pos-tables-scroll{scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9}
+.dark .pos-tables-scroll{scrollbar-color:#64748b #1e293b}
+.pos-tables-scroll::-webkit-scrollbar{width:8px}
+.pos-tables-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+.pos-tables-scroll::-webkit-scrollbar-track{background:#f1f5f9}
+.dark .pos-tables-scroll::-webkit-scrollbar-thumb{background:#64748b}
+.dark .pos-tables-scroll::-webkit-scrollbar-track{background:#0f172a}
 .cust-ac-hit{display:block;width:100%;padding:8px 12px;text-align:right;font-size:.85rem;border:none;background:none;cursor:pointer;font-family:inherit;color:inherit}
 .cust-ac-hit:hover{background:#eef0ff}
 .dark .cust-ac-hit:hover{background:rgba(108,92,231,.12)}
 .prod-ac-hit.ac-active{background:rgba(108,92,231,.1)}
 .dark .prod-ac-hit.ac-active{background:rgba(108,92,231,.2)}
+/* المنتجات: النصف العلوي 50٪ = بحث + تابات + جدول (تمرير داخلي)؛ النصف السفلي فارغ */
+.pos-products-main{display:flex;flex-direction:column;flex:1 1 0;min-height:0;height:100%;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.dark .pos-products-main{border-color:#475569;background:#111827}
+.pos-products-main .pos-search-strip{flex-shrink:0;padding:4px 6px;border-bottom:1px solid #e2e8f0;position:relative;z-index:30;background:#fff}
+.dark .pos-products-main .pos-search-strip{border-color:#334155;background:#111827}
+.pos-products-main .pos-search-strip input{height:1.65rem;min-height:1.65rem;padding-top:0;padding-bottom:0;font-size:11px;line-height:1.2}
+.pos-products-main .pos-search-strip .pos-search-ico{width:14px;height:14px;inset-inline-start:8px}
+.pos-products-scroll{flex:1 1 0;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable;border-bottom-left-radius:5px;border-bottom-right-radius:5px}
+.pos-products-scroll{scrollbar-width:thin;scrollbar-color:#94a3b8 #f1f5f9}
+.dark .pos-products-scroll{scrollbar-color:#64748b #1e293b}
+.pos-products-scroll::-webkit-scrollbar{width:8px}
+.pos-products-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:6px}
+.pos-products-scroll::-webkit-scrollbar-track{background:#f1f5f9}
+.dark .pos-products-scroll::-webkit-scrollbar-thumb{background:#64748b}
+.dark .pos-products-scroll::-webkit-scrollbar-track{background:#0f172a}
+.pos-product-xl thead th{position:sticky;top:0;z-index:2}
+.pos-product-xl{border-collapse:collapse;width:100%;table-layout:fixed}
+.pos-product-xl thead th{background:#e2e8f0;color:#334155;font-weight:800;padding:4px 6px;border:1px solid #cbd5e1;font-size:10px;line-height:1.2}
+.dark .pos-product-xl thead th{background:#334155;color:#e2e8f0;border-color:#475569}
+.pos-product-xl tbody td{border:1px solid #cbd5e1;padding:2px 5px;vertical-align:middle;font-size:11px;line-height:1.2}
+.dark .pos-product-xl tbody td{border-color:#475569}
+.pos-pxl-row--quick,.pos-pxl-row--mod{cursor:pointer}
+.pos-pxl-row--quick:active,.pos-pxl-row--mod:active{background:rgba(30,58,95,.08)!important}
+.pos-pxl-plus{display:inline-flex;align-items:center;justify-content:center;height:1.35rem;min-height:1.35rem;padding:0 6px;font-size:10px;font-weight:800;line-height:1;border-radius:4px;border:0;cursor:pointer;background:#1e3a5f;color:#fff}
+.pos-pxl-plus:hover{background:#163051}
+.pos-pxl-modhint{display:block;padding:1px 0;font-size:9px;color:#94a3b8;pointer-events:none}
+.pos-product-xl tbody tr:nth-child(even){background:#f8fafc}
+.dark .pos-product-xl tbody tr:nth-child(even){background:rgba(30,41,59,.45)}
+.pos-product-xl tbody tr:hover{background:#eef2ff}
+.dark .pos-product-xl tbody tr:hover{background:rgba(51,65,85,.55)}
+.pos-pxl-num{width:1.75rem;text-align:center}
+.pos-pxl-name-cell{overflow:hidden;width:38%}
+.pos-pxl-price{width:4.5rem}
+.pos-pxl-act{width:3.25rem}
+.pos-pxl-empty{text-align:center;padding:12px;color:#64748b;font-size:11px}
 #product-search-hits::-webkit-scrollbar{width:4px}
 #product-search-hits::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
 </style>
@@ -44,15 +95,14 @@
 </div>
 
 {% elif not current_order %}
-{# ─── بدون طلب نشط: عرض مكتبي — طلب + سندات معاً (8 / 4) ─── #}
-<div class="flex flex-col flex-1 min-h-0 overflow-hidden" id="pos-home-root" data-initial-tab="{{ pos_home_initial|default:'new' }}">
+{# ─── بدون طلب نشط: بدء طلب + طلبات مفتوحة ─── #}
+<div class="flex flex-col flex-1 min-h-0 overflow-hidden" id="pos-home-root">
   <div class="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-300 dark:border-gray-700 bg-[#e8eaed] dark:bg-gray-950">
-    <span class="text-sm font-bold text-gray-800 dark:text-gray-100">بدء طلب وسندات</span>
-    <span class="text-[10px] text-muted hidden lg:inline">الطلبات يساراً · السندات يميناً</span>
+    <span class="text-sm font-bold text-gray-800 dark:text-gray-100">بدء طلب</span>
   </div>
 
-  <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
-    <div class="lg:col-span-8 flex flex-col gap-3 min-h-0 p-3 lg:pe-2 overflow-y-auto lg:overflow-hidden border-b lg:border-b-0 lg:border-e border-gray-300 dark:border-gray-700">
+  <div class="flex-1 min-h-0 overflow-hidden">
+    <div class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       <section class="shrink-0">
         <h2 class="text-sm font-bold text-gray-600 dark:text-gray-400 mb-2">نوع الطلب</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -122,28 +172,8 @@
       </section>
       {% endif %}
     </div>
-
-    <aside id="pos-vouchers-col" class="lg:col-span-4 flex flex-col min-h-0 p-2 lg:ps-2 overflow-y-auto bg-[#e8eaed] dark:bg-gray-950">
-      {% if treasury_voucher_form %}
-        {% include "core/_pos_home_treasury_panel.html" %}
-      {% else %}
-        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">سندات</h2>
-        <p class="text-sm text-muted">افتح وردية لتسجيل السندات من هنا.</p>
-      {% endif %}
-    </aside>
   </div>
 </div>
-<script>
-(function() {
-  var root = document.getElementById('pos-home-root');
-  if (!root) return;
-  var initial = (root.dataset.initialTab || 'new').trim();
-  if (initial === 'vouchers') {
-    var col = document.getElementById('pos-vouchers-col');
-    if (col) setTimeout(function() { col.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
-  }
-})();
-</script>
 
 {% else %}
 {# ═══════════════════════════════════════════════ #}
@@ -153,95 +183,84 @@
 <div class="flex flex-1 min-h-0 flex-row dir-ltr">
 
 {# ─── LEFT (physical): Cart / invoice ─── #}
-<div class="pos-cart-column w-[clamp(240px,32vw,480px)] min-w-[232px] max-w-[min(500px,42vw)] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col min-h-0 h-full dir-rtl" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+<div class="pos-cart-column relative w-[clamp(248px,31vw,480px)] min-w-[240px] max-w-[min(520px,41vw)] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col min-h-0 h-full dir-rtl" id="pos-cart" data-cart-url="{% url 'pos:cart_fragment' %}">
+  <div id="pos-receipt-embed-overlay" class="hidden absolute inset-0 z-[360] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="pos-receipt-embed-title" dir="rtl">
+    <button type="button" id="pos-receipt-embed-backdrop" class="absolute inset-0 cursor-default border-0 bg-zinc-900/45 p-0" aria-label="إغلاق"></button>
+    <div class="relative z-[1] m-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-500 bg-zinc-100 shadow-xl dark:border-zinc-600 dark:bg-zinc-900">
+      <div class="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-300 bg-white px-2 py-1.5 dark:border-zinc-600 dark:bg-zinc-800">
+        <span id="pos-receipt-embed-title" class="text-[11px] font-extrabold text-zinc-800 dark:text-zinc-100">معاينة الإيصال</span>
+        <button type="button" id="pos-receipt-embed-close" class="rounded border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-800 hover:bg-zinc-200 dark:border-zinc-500 dark:bg-zinc-700 dark:text-white dark:hover:bg-zinc-600">إغلاق</button>
+      </div>
+      <div class="flex min-h-0 flex-1 justify-center overflow-auto p-2">
+        <iframe id="pos-receipt-embed-iframe" class="h-[min(70vh,30rem)] w-[min(302px,92%)] shrink-0 rounded-sm border border-zinc-400 bg-white shadow-md dark:border-zinc-500" title="إيصال البيع"></iframe>
+      </div>
+    </div>
+  </div>
   {% include "pos/_cart_fragment.html" %}
 </div>
 
-{# ─── CENTER: Products ─── #}
-<div class="pos-products flex-1 flex flex-col overflow-hidden bg-[#e8eaed] dark:bg-gray-950 p-2 dir-rtl">
-  <div class="relative mb-2" id="product-search-wrap">
-    <svg class="absolute start-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="search" placeholder="اسم أو باركود…" autocomplete="off" id="pos-search-input"
-           class="w-full h-8 ps-8 pe-2 rounded-sm border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs outline-none">
-    <div id="product-search-hits" class="absolute top-full start-0 end-0 z-50 mt-px bg-white dark:bg-gray-800 border border-gray-400 dark:border-gray-600 max-h-[280px] overflow-y-auto shadow-sm" style="display:none"></div>
-  </div>
+{# ─── CENTER: Products — 50٪ علوي (واجهة المنتجات) + 50٪ سفلي فارغ للتوسعة #}
+<div class="pos-products flex-1 flex flex-col min-h-0 overflow-hidden gap-1.5 bg-[#e8eaed] dark:bg-gray-950 p-2 dir-rtl">
+  <div class="pos-split-half min-h-0">
+    <div class="pos-products-main">
+    <div class="pos-search-strip relative shrink-0" id="product-search-wrap">
+      <svg class="pos-search-ico absolute top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="search" placeholder="اسم أو باركود…" autocomplete="off" id="pos-search-input"
+             class="w-full ps-7 pe-2 rounded-sm border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 outline-none">
+      <div id="product-search-hits" class="absolute top-full start-0 end-0 z-[400] mt-px bg-white dark:bg-gray-800 border border-gray-400 dark:border-gray-600 max-h-[min(40vh,220px)] overflow-y-auto shadow-md rounded-sm" style="display:none"></div>
+    </div>
 
-  <div class="flex gap-1 mb-2 overflow-x-auto pb-0.5" role="tablist">
-    <button type="button" class="pos-cat-btn on px-2 h-7 rounded-sm text-[11px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 shrink-0 bg-white dark:bg-gray-800" data-tab="featured" role="tab">الأكثر مبيعاً</button>
-    {% for sec in product_sections %}
-    <button type="button" class="pos-cat-btn px-2 h-7 rounded-sm text-[11px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shrink-0" data-tab="cat-{{ sec.category.pk }}" role="tab">{{ sec.category.name_ar }} <span class="opacity-70">({{ sec.count }})</span></button>
-    {% endfor %}
-  </div>
-
-  <div id="panel-featured" class="cat-panel is-visible flex-1 overflow-y-auto min-h-0">
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5">
-      {% for p in featured_rows %}
-      {% if p.modifier_group_count %}
-      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 hover:border-[#1e3a5f] no-underline text-inherit">
-        <div class="relative w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}<span class="absolute -top-0.5 -start-0.5 bg-amber-400 text-[8px] font-bold text-gray-900 px-0.5 leading-none border border-amber-700">+</span></div>
-        <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[9px] text-gray-500 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
-      </a>
-      {% else %}
-      <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
-        <input type="hidden" name="product_id" value="{{ p.pk }}">
-        <input type="hidden" name="qty" value="1">
-        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 cursor-pointer hover:border-[#1e3a5f]">
-          <div class="w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}</div>
-          <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div>{% if p.category %}<div class="text-[9px] text-gray-500 truncate">{{ p.category.name_ar }}</div>{% endif %}</div>
-        </button>
-      </form>
-      {% endif %}
+    <div class="flex gap-1 shrink-0 overflow-x-auto px-1.5 py-0.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/80" role="tablist">
+      <button type="button" class="pos-cat-btn on px-2 h-6 rounded-sm text-[10px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 shrink-0 bg-white dark:bg-gray-800" data-tab="featured" role="tab">الأكثر مبيعاً</button>
+      {% for sec in product_sections %}
+      <button type="button" class="pos-cat-btn px-2 h-6 rounded-sm text-[10px] font-bold whitespace-nowrap border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 shrink-0" data-tab="cat-{{ sec.category.pk }}" role="tab">{{ sec.category.name_ar }} <span class="opacity-70">({{ sec.count }})</span></button>
       {% endfor %}
     </div>
-  </div>
 
-  {% for sec in product_sections %}
-  <div id="panel-cat-{{ sec.category.pk }}" class="cat-panel flex-1 overflow-y-auto min-h-0">
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-1.5">
-      {% for p in sec.product_rows %}
-      {% if p.modifier_group_count %}
-      <a href="{% url 'pos:customize_product' current_order.pk p.pk %}" class="pos-item group bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 hover:border-[#1e3a5f] no-underline text-inherit">
-        <div class="relative w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}<span class="absolute -top-0.5 -start-0.5 bg-amber-400 text-[8px] font-bold text-gray-900 px-0.5 leading-none border border-amber-700">+</span></div>
-        <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
-      </a>
-      {% else %}
-      <form method="post" action="{% url 'pos:order_add' current_order.pk %}">{% csrf_token %}
-        <input type="hidden" name="product_id" value="{{ p.pk }}">
-        <input type="hidden" name="qty" value="1">
-        <button type="submit" class="pos-item group w-full bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-1.5 flex flex-col items-center gap-1 cursor-pointer hover:border-[#1e3a5f]">
-          <div class="w-10 h-10 rounded-sm bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-bold text-gray-800 dark:text-gray-100">{{ p.name_ar.0 }}</div>
-          <div class="text-center min-w-0 w-full"><div class="text-[11px] font-bold truncate leading-tight">{{ p.name_ar }}</div><div class="text-[10px] text-[#1e3a5f] dark:text-sky-400 font-bold mt-0.5">{{ p.selling_price }} {{ POS_SETTINGS.currency_symbol }}</div></div>
-        </button>
-      </form>
-      {% endif %}
+    <div class="pos-products-scroll bg-white dark:bg-gray-900">
+      <div id="panel-featured" class="cat-panel is-visible min-h-0">
+        {% include "pos/_product_table.html" with product_rows=featured_rows %}
+      </div>
+      {% for sec in product_sections %}
+      <div id="panel-cat-{{ sec.category.pk }}" class="cat-panel min-h-0">
+        {% include "pos/_product_table.html" with product_rows=sec.product_rows %}
+      </div>
       {% endfor %}
     </div>
+    </div>
   </div>
-  {% endfor %}
+  <div id="pos-products-lower-slot" class="pos-split-half pos-products-lower min-h-0 flex flex-col overflow-hidden">
+    <div class="min-h-0 flex-1 rounded-md bg-[#e8eaed] dark:bg-gray-950" aria-hidden="true"></div>
+  </div>
 </div>
 
-{# ─── RIGHT (physical): Tables mini-strip ─── #}
-<div class="w-[168px] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto p-1 gap-1 dir-rtl">
-  <div class="text-[10px] font-bold text-gray-500 px-1 py-0.5 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
-  {% for row in floor_rows %}
-  <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile st-{{ row.status }} block rounded-sm border border-gray-300 dark:border-gray-600 p-1.5">
-    {% csrf_token %}
-    <input type="hidden" name="table_id" value="{{ row.table.pk }}">
-    {% if row.session and row.session.customer_id %}
-    <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
-    {% endif %}
-    <span class="t-name block text-xs font-bold truncate">{{ row.table.name_ar }}</span>
-    {% if row.status != 'free' %}
-    <span class="t-amt block text-[10px] font-semibold text-primary mt-0.5">{{ row.grand }} {{ POS_SETTINGS.currency_symbol }}</span>
-    {% if row.customer_label %}<span class="t-cust block text-[9px] text-muted truncate">{{ row.customer_label }}</span>{% endif %}
-    {% endif %}
-    <button type="submit" class="t-link w-full h-7 rounded-sm bg-gray-200 dark:bg-gray-700 text-[10px] font-bold text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 mt-1">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
-  </form>
-  {% endfor %}
-  <button type="button" class="h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
-  <div class="mt-auto pt-1">
-    <a href="{% url 'pos:tables_floor' %}" class="block text-center text-[10px] font-bold text-[#1e3a5f] hover:underline">الكل</a>
+{# ─── RIGHT (physical): Tables — 50٪ علوي (قائمة + تمرير + أزرار) + 50٪ سفلي فارغ #}
+<div class="pos-tables-strip w-[clamp(220px,28vw,380px)] min-w-[200px] max-w-[min(420px,40vw)] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 overflow-hidden p-1.5 gap-1.5 dir-rtl">
+  <div class="pos-split-half min-h-0 gap-1">
+    <div class="shrink-0 text-[10px] font-bold text-gray-500 px-0.5 py-1 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
+    <div class="pos-tables-scroll flex flex-col gap-1" role="region" aria-label="قائمة الطاولات">
+      {% for row in floor_rows %}
+      <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile ts-tile-row st-{{ row.status }} shrink-0 rounded-sm border border-gray-300 dark:border-gray-600"
+            title="{% if row.customer_label %}{{ row.customer_label|escape }}{% endif %}">
+        {% csrf_token %}
+        <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+        {% if row.session and row.session.customer_id %}
+        <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
+        {% endif %}
+        <span class="t-name font-bold truncate">{{ row.table.name_ar }}</span>
+        <span class="t-amt font-semibold {% if row.status == 'free' %}text-muted{% else %}text-primary{% endif %}">
+          {% if row.status == 'free' %}—{% else %}{{ row.remaining|dec_plain }} {{ POS_SETTINGS.currency_symbol }}{% endif %}
+        </span>
+        <button type="submit" class="t-link rounded-sm bg-gray-200 dark:bg-gray-700 font-bold text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600">{% if row.status == 'free' %}فتح{% else %}استئناف{% endif %}</button>
+      </form>
+      {% endfor %}
+    </div>
+    <button type="button" class="shrink-0 h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
+    <div class="shrink-0 pt-1">
+      <a href="{% url 'pos:tables_floor' %}" class="block text-center text-[10px] font-bold text-[#1e3a5f] hover:underline">الكل</a>
+    </div>
   </div>
+  <div id="pos-tables-lower-slot" class="pos-split-half min-h-0 rounded-md bg-white dark:bg-gray-900" aria-hidden="true"></div>
 </div>
 
 {# طبقة عرض آخر فاتورة داخل الكاشير (بدون نافذة جديدة) #}
@@ -282,8 +301,9 @@
   {% if current_order %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
   var selectedLineId=null;
 
-  /* ── AJAX cart refresh ── */
-  function refreshCart(){
+  /* ── AJAX cart refresh (يحافظ على السطر والتركيز بعد التحديث) ── */
+  function refreshCart(opts){
+    opts=opts||{};
     var cart=document.getElementById('pos-cart');
     if(!cart)return Promise.resolve();
     return fetch(CART_URL,{headers:{'X-Requested-With':'XMLHttpRequest'}})
@@ -291,11 +311,53 @@
       .then(function(html){
         cart.innerHTML=html;
         initCartInteractions();
+        if(opts.clearSelection){
+          selectedLineId=null;
+          return;
+        }
+        var fid=opts.focusLineId!=null&&opts.focusLineId!==''?String(opts.focusLineId):selectedLineId;
+        var trF=null;
+        if(fid){
+          trF=cart.querySelector('tr.cart-line-item[data-line-id="'+fid+'"]');
+          if(trF)setSelectedCartLine(trF);
+          else selectedLineId=null;
+        }
+        var fk=opts.focusKind;
+        if(fid&&fk&&trF){
+          requestAnimationFrame(function(){
+            var row=cart.querySelector('tr.cart-line-item[data-line-id="'+fid+'"]');
+            if(!row)return;
+            if(fk==='price'){
+              var inp=row.querySelector('input[name="unit_price"]');
+              if(inp){inp.focus();try{inp.select()}catch(x){}}
+            }else if(fk==='qtyPlus'){
+              var h=row.querySelector('input[name="qty_delta"][value="1"]');
+              var fo=h&&h.closest('form');
+              var b=fo&&fo.querySelector('button[type="submit"]');
+              if(b)b.focus();
+            }else if(fk==='qtyMinus'){
+              var h2=row.querySelector('input[name="qty_delta"][value="-1"]');
+              var fo2=h2&&h2.closest('form');
+              var b2=fo2&&fo2.querySelector('button[type="submit"]');
+              if(b2)b2.focus();
+            }
+          });
+        }
       });
   }
 
   /* ── AJAX form submit → refresh cart ── */
   function ajaxSubmit(form){
+    var action=String(form.action||'');
+    var isRemove=action.indexOf('/remove/')>=0;
+    var lineTr=form.closest&&form.closest('tr.cart-line-item');
+    var focusLineId=lineTr?lineTr.getAttribute('data-line-id'):null;
+    var focusKind=null;
+    if(!isRemove&&lineTr){
+      if(form.querySelector('input[name="qty_delta"][value="1"]'))focusKind='qtyPlus';
+      else if(form.querySelector('input[name="qty_delta"][value="-1"]'))focusKind='qtyMinus';
+      else if(form.querySelector('input[name="unit_price"]'))focusKind='price';
+    }
     var data=new FormData(form);
     return fetch(form.action,{
       method:'POST',
@@ -308,17 +370,40 @@
         if(d.message)showToast(d.message,'success');
         else if(form.action.indexOf('unit-price')!==-1)showToast('تم السعر','success');
       }
-      return refreshCart();
-    }).catch(function(){return refreshCart()});
+      if(isRemove)return refreshCart({clearSelection:true});
+      return refreshCart({focusLineId:focusLineId,focusKind:focusKind});
+    }).catch(function(){
+      return refreshCart(isRemove?{clearSelection:true}:{focusLineId:focusLineId,focusKind:focusKind});
+    });
   }
 
   /* ── Toast notifications — نفس حاوية shell/base.html (Alpine toastManager + Tailwind) ── */
   function showToast(msg,type){
     var m=msg==null?'':String(msg);
     var k=type||'info';
+    if(k==='danger')k='error';
     if(k!=='success'&&k!=='error'&&k!=='info'&&k!=='warning')k='info';
     window.dispatchEvent(new CustomEvent('toast',{detail:{msg:m,type:k}}));
   }
+  function closePosReceiptEmbed(){
+    var ov=document.getElementById('pos-receipt-embed-overlay');
+    var fr=document.getElementById('pos-receipt-embed-iframe');
+    if(fr)fr.src='about:blank';
+    if(ov){ov.classList.add('hidden');ov.setAttribute('aria-hidden','true');}
+  }
+  function openPosReceiptEmbed(url){
+    if(!url)return;
+    var ov=document.getElementById('pos-receipt-embed-overlay');
+    var fr=document.getElementById('pos-receipt-embed-iframe');
+    if(!ov||!fr)return;
+    fr.src=url;
+    ov.classList.remove('hidden');
+    ov.setAttribute('aria-hidden','false');
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.id==='pos-receipt-embed-close'||(e.target.closest&&e.target.closest('#pos-receipt-embed-close')))closePosReceiptEmbed();
+    if(e.target.id==='pos-receipt-embed-backdrop')closePosReceiptEmbed();
+  });
 
   function closePosInvoiceOverlay(){
     var ov=document.getElementById('pos-invoice-overlay');
@@ -450,6 +535,24 @@
     });
   }
   initProductForms();
+
+  /* ── صف جدول المنتجات: ضغط الصف = إضافة أو تخصيص (بدون الاعتماد على الزر فقط) ── */
+  (function initProductTableRowClick(){
+    var sc=document.querySelector('.pos-products-scroll');
+    if(!sc)return;
+    sc.addEventListener('click',function(e){
+      var tr=e.target.closest('tr.pos-pxl-row');
+      if(!tr||!sc.contains(tr))return;
+      if(e.target.closest('button,a,input,label'))return;
+      var cu=tr.getAttribute('data-customize-url');
+      if(cu){window.location.href=cu;return;}
+      var f=tr.querySelector('form.pos-pxl-addform');
+      if(f){
+        if(typeof f.requestSubmit==='function')f.requestSubmit();
+        else{var sb=f.querySelector('button[type="submit"]');if(sb)sb.click();}
+      }
+    });
+  })();
 
   /* ── Product search autocomplete ── */
   function initProductSearch(){
@@ -600,9 +703,120 @@
     if(tr){tr.classList.add('is-selected');selectedLineId=tr.getAttribute('data-line-id');}
     else{selectedLineId=null;}
   }
+  function focusSiblingRowPrice(tr,dir){
+    var cart=document.getElementById('pos-cart');
+    if(!cart||!tr)return;
+    var next=dir<0?tr.previousElementSibling:tr.nextElementSibling;
+    while(next&&!next.classList.contains('cart-line-item'))
+      next=dir<0?next.previousElementSibling:next.nextElementSibling;
+    if(!next)return;
+    var inp=next.querySelector('input[name="unit_price"]');
+    setSelectedCartLine(next);
+    if(inp){inp.focus();try{inp.select()}catch(e){}}
+  }
+  function focusQtyPlusButton(tr){
+    if(!tr)return;
+    var h=tr.querySelector('input[name="qty_delta"][value="1"]');
+    var fo=h&&h.closest('form');
+    var b=fo&&fo.querySelector('button[type="submit"]');
+    if(b)b.focus();
+  }
+  function focusSiblingCartRow(tr,dir){
+    if(!tr)return;
+    var next=dir<0?tr.previousElementSibling:tr.nextElementSibling;
+    while(next&&!next.classList.contains('cart-line-item'))
+      next=dir<0?next.previousElementSibling:next.nextElementSibling;
+    if(!next)return;
+    setSelectedCartLine(next);
+    focusQtyPlusButton(next);
+  }
+  document.addEventListener('keydown',function posCartTableNav(e){
+    var t=e.target;
+    if(!t||!t.closest||!t.closest('#pos-cart'))return;
+    var tr=t.closest('tr.cart-line-item');
+    if(!tr)return;
+    if(t.matches&&t.matches('input[name="unit_price"]')){
+      if(e.key==='Tab'){
+        e.preventDefault();
+        focusSiblingRowPrice(tr,e.shiftKey?-1:1);
+        return;
+      }
+      if(e.key==='ArrowDown'){e.preventDefault();focusSiblingRowPrice(tr,1);return;}
+      if(e.key==='ArrowUp'){e.preventDefault();focusSiblingRowPrice(tr,-1);return;}
+      return;
+    }
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      focusSiblingCartRow(tr,e.key==='ArrowDown'?1:-1);
+    }
+  },true);
   function lineUrl(suffix){
     if(!ORDER_ADD_URL)return '';
     return ORDER_ADD_URL.replace(/\/add\/$/,'/'+suffix);
+  }
+  function openLineNoteModal(lineId,currentNote){
+    showModal('ملاحظة على الصنف','<textarea id="modal-note-input" rows="3" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="اكتب ملاحظة...">'+escHtml(currentNote||'')+'</textarea>',function(){
+      var note=document.getElementById('modal-note-input').value;
+      fetch(lineUrl('line/'+lineId+'/note/'),{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
+        body:'line_note='+encodeURIComponent(note)
+      }).then(function(r){return r.json().catch(function(){return{ok:true}})})
+      .then(function(d){
+        if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
+        return refreshCart({focusLineId:String(lineId),focusKind:null}).then(function(){showToast('تم حفظ الملاحظة','success')});
+      });
+    });
+  }
+  function posCartTbDeleteLine(){
+    var tr=getSelectedCartLine();
+    if(!tr){showToast('اختر سطراً','error');return;}
+    var lid=tr.getAttribute('data-line-id');
+    var body=new URLSearchParams();
+    body.set('csrfmiddlewaretoken',CSRF);
+    fetch(lineUrl('remove/'+lid+'/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+      .then(function(r){return r.json().catch(function(){return{ok:true};});})
+      .then(function(d){
+        if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
+        return refreshCart({clearSelection:true});
+      });
+  }
+  function posCartTbLineNote(){
+    var tr=getSelectedCartLine();
+    if(!tr){showToast('اختر سطراً','error');return;}
+    var ne=tr.querySelector('.js-line-note');
+    var raw=ne?ne.textContent:'';
+    openLineNoteModal(tr.getAttribute('data-line-id'),raw);
+  }
+  function posCartTbLinePrice(){
+    var tr=getSelectedCartLine();
+    if(!tr){showToast('اختر سطراً','error');return;}
+    var lid=tr.getAttribute('data-line-id');
+    var cur=tr.getAttribute('data-unit-price')||'0';
+    showModal('سعر الوحدة','<input type="number" id="modal-price-inp" step="0.01" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
+      var v=document.getElementById('modal-price-inp').value;
+      var body=new URLSearchParams();
+      body.set('unit_price',v);
+      body.set('csrfmiddlewaretoken',CSRF);
+      fetch(lineUrl('line/'+lid+'/unit-price/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+        .then(function(r){return r.json()})
+        .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart({focusLineId:String(lid),focusKind:'price'})});
+    });
+  }
+  function posCartTbLineQty(){
+    var tr=getSelectedCartLine();
+    if(!tr){showToast('اختر سطراً','error');return;}
+    var lid=tr.getAttribute('data-line-id');
+    var cur=tr.getAttribute('data-qty')||'1';
+    showModal('الكمية','<input type="number" id="modal-qty-inp" step="0.001" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
+      var v=document.getElementById('modal-qty-inp').value;
+      var body=new URLSearchParams();
+      body.set('set_quantity',v);
+      body.set('csrfmiddlewaretoken',CSRF);
+      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+        .then(function(r){return r.json()})
+        .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart({focusLineId:String(lid),focusKind:'qtyPlus'})});
+    });
   }
 
   /* ── Intercept all cart forms ── */
@@ -612,8 +826,6 @@
     cart.querySelectorAll('.ajax-cart-form').forEach(function(f){
       f.addEventListener('submit',function(e){
         e.preventDefault();
-        var confirmMsg=f.getAttribute('data-confirm');
-        if(confirmMsg&&!confirm(confirmMsg))return;
         ajaxSubmit(f);
       });
     });
@@ -621,98 +833,27 @@
       el.addEventListener('click',function(e){
         if(e.target.closest('button')||e.target.closest('form'))return;
         setSelectedCartLine(el);
+        try{el.focus({preventScroll:true});}catch(x){try{el.focus();}catch(y){}}
       });
     });
-    function openLineNoteModal(lineId,currentNote){
-      showModal('ملاحظة على الصنف','<textarea id="modal-note-input" rows="3" class="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:ring-2 focus:ring-primary outline-none resize-none" placeholder="اكتب ملاحظة...">'+escHtml(currentNote||'')+'</textarea>',function(){
-        var note=document.getElementById('modal-note-input').value;
-        fetch(lineUrl('line/'+lineId+'/note/'),{
-          method:'POST',
-          headers:{'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
-          body:'line_note='+encodeURIComponent(note)
-        }).then(function(r){return r.json().catch(function(){return{ok:true}})})
-        .then(function(d){
-          if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
-          return refreshCart().then(function(){showToast('تم حفظ الملاحظة','success')});
-        });
+    var tableScroll=cart.querySelector('.pos-cart-table-scroll');
+    if(tableScroll){
+      tableScroll.addEventListener('pointerenter',function(){
+        var ae=document.activeElement;
+        if(ae&&tableScroll.contains(ae))return;
+        var rows=cart.querySelectorAll('tr.cart-line-item');
+        if(!rows.length)return;
+        var cur=getSelectedCartLine();
+        var pick=(cur&&cart.contains(cur))?cur:rows[0];
+        setSelectedCartLine(pick);
+        focusQtyPlusButton(pick);
       });
     }
-    function bindTb(id,fn){
-      var b=document.getElementById(id);
-      if(b)b.addEventListener('click',fn);
-    }
-    bindTb('tb-line-delete',function(){
-      var tr=getSelectedCartLine();
-      if(!tr){showToast('اختر سطراً','error');return;}
-      if(!confirm('حذف السطر؟'))return;
-      var lid=tr.getAttribute('data-line-id');
-      var body=new URLSearchParams();
-      body.set('csrfmiddlewaretoken',CSRF);
-      fetch(lineUrl('remove/'+lid+'/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
-        .then(function(r){return r.json().catch(function(){return{ok:true};});})
-        .then(function(d){
-          if(d&&d.ok===false&&d.error){showToast(d.error,'error');return;}
-          return refreshCart();
-        });
-    });
-    bindTb('tb-line-note',function(){
-      var tr=getSelectedCartLine();
-      if(!tr){showToast('اختر سطراً','error');return;}
-      var ne=tr.querySelector('.js-line-note');
-      var raw=ne?ne.textContent:'';
-      openLineNoteModal(tr.getAttribute('data-line-id'),raw);
-    });
-    bindTb('tb-line-price',function(){
-      var tr=getSelectedCartLine();
-      if(!tr){showToast('اختر سطراً','error');return;}
-      var lid=tr.getAttribute('data-line-id');
-      var cur=tr.getAttribute('data-unit-price')||'0';
-      showModal('سعر الوحدة','<input type="number" id="modal-price-inp" step="0.01" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
-        var v=document.getElementById('modal-price-inp').value;
-        var body=new URLSearchParams();
-        body.set('unit_price',v);
-        body.set('csrfmiddlewaretoken',CSRF);
-        fetch(lineUrl('line/'+lid+'/unit-price/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
-          .then(function(r){return r.json()})
-          .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart()});
-      });
-    });
-    bindTb('tb-line-qty',function(){
-      var tr=getSelectedCartLine();
-      if(!tr){showToast('اختر سطراً','error');return;}
-      var lid=tr.getAttribute('data-line-id');
-      var cur=tr.getAttribute('data-qty')||'1';
-      showModal('الكمية','<input type="number" id="modal-qty-inp" step="0.001" min="0" class="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 text-sm" value="'+escHtml(String(cur))+'">',function(){
-        var v=document.getElementById('modal-qty-inp').value;
-        var body=new URLSearchParams();
-        body.set('set_quantity',v);
-        body.set('csrfmiddlewaretoken',CSRF);
-        fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
-          .then(function(r){return r.json()})
-          .then(function(d){if(!d.ok&&d.error)showToast(d.error,'error');return refreshCart()});
-      });
-    });
-    bindTb('tb-new-invoice',function(){
-      var hf=document.getElementById('tb-hold-form');
-      if(!hf||!ORDER_ADD_URL)return;
-      if(!confirm('تعليق الطلب الحالي والانتقال لشاشة جديدة؟'))return;
-      var body=new URLSearchParams(new FormData(hf));
-      fetch(hf.action,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
-        .then(function(r){return r.json()})
-        .then(function(d){
-          if(d&&d.ok)window.location.href=POS_MAIN_URL;
-          else showToast((d&&d.error)||'تعذر التعليق','error');
-        }).catch(function(){showToast('تعذر التعليق','error')});
-    });
-    bindTb('tb-open-drawer',function(){
-      showToast('الدرج: يُفتح من برنامج الطابعة المحلي أو اختصار الطابعة','info');
-    });
     var lastInvBtn=document.getElementById('tb-last-sale-invoice');
     if(lastInvBtn)lastInvBtn.addEventListener('click',function(e){
       e.preventDefault();
       if(e.shiftKey&&LAST_INVOICE_URL){openPosInvoiceOverlay();return;}
       if(!RESUME_LAST_INVOICE_URL){showToast('فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال.','info');return;}
-      if(!confirm('تحميل آخر فاتورة الوردية في السلة للتعديل؟ يُعلّق الطلب الحالي إن وُجد.'))return;
       var body=new URLSearchParams();
       body.set('csrfmiddlewaretoken',CSRF);
       fetch(RESUME_LAST_INVOICE_URL,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body,credentials:'same-origin'})
@@ -767,6 +908,11 @@
     var inSearch=ae&&ae.id==='pos-search-input';
     if(inSearch&&(e.key==='Delete'||e.key==='F2'||e.key==='F3'||e.key==='F4'))return;
     if(tag==='textarea')return;
+    if(ae&&ae.closest&&ae.closest('#pos-cart')){
+      var nm=ae.name||'';
+      if(tag==='input'&&(nm==='unit_price'||nm==='discount_value'||nm==='discount_amount'||nm==='discount_percent')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
+      if(tag==='input'&&ae.type==='text'&&(e.key==='+'||e.key==='-'||e.key==='='))return;
+    }
     if(tag==='input'&&ae.type!=='button'&&ae.type!=='submit'){
       if(['F2','F3','F4','F9','Escape'].indexOf(e.key)<0&&e.key!=='Delete'&&e.key!=='+'&&e.key!=='-')return;
     }
@@ -777,6 +923,12 @@
       if(invOv&&invOv.style.display==='flex'){
         e.preventDefault();
         closePosInvoiceOverlay();
+        return;
+      }
+      var recOv=document.getElementById('pos-receipt-embed-overlay');
+      if(recOv&&!recOv.classList.contains('hidden')){
+        e.preventDefault();
+        closePosReceiptEmbed();
         return;
       }
       var aeEsc=document.activeElement;
@@ -796,24 +948,31 @@
     }
     if(e.key==='F9'){
       e.preventDefault();
+      var cf9=document.getElementById('checkout-form');
       var pb=document.getElementById('pay-btn');
-      if(pb){pb.focus();pb.click();}
+      if(cf9&&pb){
+        pb.focus();
+        if(typeof cf9.requestSubmit==='function')cf9.requestSubmit(pb);
+        else pb.click();
+      }
       return;
     }
-    if(e.key==='F4'&&lid){e.preventDefault();document.getElementById('tb-line-note')&&document.getElementById('tb-line-note').click();return;}
-    if(e.key==='F3'&&lid){e.preventDefault();document.getElementById('tb-line-price')&&document.getElementById('tb-line-price').click();return;}
-    if(e.key==='F2'&&lid){e.preventDefault();document.getElementById('tb-line-qty')&&document.getElementById('tb-line-qty').click();return;}
-    if(e.key==='Delete'&&lid){e.preventDefault();document.getElementById('tb-line-delete')&&document.getElementById('tb-line-delete').click();return;}
+    if(e.key==='F4'&&lid){e.preventDefault();posCartTbLineNote();return;}
+    if(e.key==='F3'&&lid){e.preventDefault();posCartTbLinePrice();return;}
+    if(e.key==='F2'&&lid){e.preventDefault();posCartTbLineQty();return;}
+    if(e.key==='Delete'&&lid){e.preventDefault();posCartTbDeleteLine();return;}
     if((e.key==='+'||e.key==='=')&&lid){
       e.preventDefault();
       var body=new URLSearchParams();body.set('qty_delta','1');body.set('csrfmiddlewaretoken',CSRF);
-      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body}).then(function(){return refreshCart()});
+      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:body})
+        .then(function(){return refreshCart({focusLineId:lid,focusKind:'qtyPlus'})});
       return;
     }
     if(e.key==='-'&&lid){
       e.preventDefault();
       var b2=new URLSearchParams();b2.set('qty_delta','-1');b2.set('csrfmiddlewaretoken',CSRF);
-      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:b2}).then(function(){return refreshCart()});
+      fetch(lineUrl('line/'+lid+'/adjust/'),{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},body:b2})
+        .then(function(){return refreshCart({focusLineId:lid,focusKind:'qtyMinus'})});
     }
   },true);
 
@@ -823,6 +982,7 @@
     var pmVal=document.getElementById('pay-mode-val');
     var cf=document.getElementById('checkout-form');
     var payBtn=document.getElementById('pay-btn');
+    var payPrintBtn=document.getElementById('pay-print-btn');
     var epPanel=document.getElementById('ep-payer-panel');
     var arCustPanel=document.getElementById('pay-ar-customer-panel');
     var payAmt=document.getElementById('pay-amt');
@@ -852,27 +1012,23 @@
       if(epPanel)epPanel.classList.toggle('hidden',!needPayer);
       if(arCustPanel)arCustPanel.classList.toggle('hidden',!isAr);
       syncPayAmountDefault({force:true});
-      if(payBtn){
-        if(m){payBtn.style.opacity='1';payBtn.style.pointerEvents='auto';}
-        else{payBtn.style.opacity='0.55';payBtn.style.pointerEvents='auto';}
-      }
+      [payBtn,payPrintBtn].forEach(function(pb){
+        if(!pb)return;
+        if(m){pb.style.opacity='1';pb.style.pointerEvents='auto';}
+        else{pb.style.opacity='0.55';pb.style.pointerEvents='auto';}
+      });
     }
     pmBtns.forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-m'))})});
 
     var cancelOrd=document.getElementById('pos-btn-cancel-order');
     if(cancelOrd)cancelOrd.addEventListener('click',function(){
-      if(!confirm('إلغاء الطلب بالكامل؟'))return;
       var cff=document.getElementById('pos-cancel-order-form');
       if(cff)cff.submit();
-    });
-    var holdOrd=document.getElementById('pos-btn-hold-order');
-    if(holdOrd)holdOrd.addEventListener('click',function(e){
-      if(!confirm('تعليق الطلب؟'))e.preventDefault();
     });
     if(cf){cf.addEventListener('keydown',function(e){
       if(e.key!=='Enter')return;
       var t=e.target;if(!t)return;
-      if(t.id==='pay-btn')return;
+      if(t.id==='pay-btn'||t.id==='pay-print-btn')return;
       if(t.tagName==='TEXTAREA')return;
       if(t.tagName==='BUTTON'&&t.type==='button')return;
       var pch=document.getElementById('pay-cust-hits');
@@ -886,8 +1042,12 @@
         if(pa&&!String(pa.textContent||'').includes('لا نتائج'))return;
       }
       e.preventDefault();
+      var cfEnt=document.getElementById('checkout-form');
       var pb=document.getElementById('pay-btn');
-      if(pb)pb.click();
+      if(cfEnt&&pb){
+        if(typeof cfEnt.requestSubmit==='function')cfEnt.requestSubmit(pb);
+        else pb.click();
+      }
     },true);}
 
     function validateCheckoutBeforeSubmit(){
@@ -921,7 +1081,7 @@
       cf.addEventListener('submit',function(e){
         e.preventDefault();
         if(!validateCheckoutBeforeSubmit())return;
-        var fd=new FormData(cf);
+        var fd=new FormData(cf,e.submitter||undefined);
         fetch(cf.action,{
           method:'POST',
           headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
@@ -938,6 +1098,13 @@
           if(!res.ok||j.ok===false){
             showToast(j.error||'تعذر إتمام الدفع','error');
             return;
+          }
+          if(j.receipt_embed_url){
+            var em=j.message||'تم إتمام البيع';
+            return refreshCart().then(function(){
+              showToast(em,'success');
+              openPosReceiptEmbed(j.receipt_embed_url);
+            });
           }
           if(j.redirect){
             window.location.href=j.redirect;
