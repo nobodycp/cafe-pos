@@ -22,6 +22,7 @@ from apps.billing.tab_service import (
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.models import Customer
+from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.payment_methods import (
     credit_method_codes,
@@ -233,6 +234,12 @@ def pos_main(request):
 
     lang = request.LANGUAGE_CODE or "ar"
 
+    treasury_voucher_form = None
+    treasury_next = ""
+    if session and order:
+        treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
+        treasury_next = reverse("pos:main")
+
     return render(
         request,
         "pos/main.html",
@@ -252,6 +259,8 @@ def pos_main(request):
 
             "ui_lang": lang,
             "cafe_name": settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR),
+            "treasury_voucher_form": treasury_voucher_form,
+            "treasury_next": treasury_next,
         },
     )
 
