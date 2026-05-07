@@ -4,8 +4,9 @@ import json
 from decimal import Decimal
 from typing import Optional, Sequence, Tuple
 
-from django.db import transaction
-from django.db.models import F
+from django.db import models, transaction
+from django.db.models import Count, F, Sum, Value
+from django.db.models.functions import Coalesce
 
 from apps.catalog.models import Product, ProductModifierOption
 from apps.contacts.models import Customer
@@ -13,6 +14,25 @@ from apps.core.decimalutil import as_decimal
 from apps.core.models import log_audit
 from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
+
+
+def open_orders_with_lines_queryset(work_session):
+    """
+    طلبات مفتوحة تُعتبر «نشطة» فقط إذا وُجدت أسطر بكمية إجمالية > 0.
+    طلب بلا أصناف لا يُحسب ضمن الطلبات المفتوحة (صالة / سفري / توصيل).
+    """
+    return (
+        Order.objects.filter(work_session=work_session, status=Order.Status.OPEN)
+        .annotate(
+            line_count=Count("lines", distinct=True),
+            total_qty=Coalesce(
+                Sum("lines__quantity"),
+                Value(Decimal("0")),
+                output_field=models.DecimalField(max_digits=14, decimal_places=3),
+            ),
+        )
+        .filter(line_count__gt=0, total_qty__gt=0)
+    )
 
 
 def _modifiers_payload(options: Sequence[ProductModifierOption]) -> list:

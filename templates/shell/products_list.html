@@ -3,34 +3,30 @@
 {% block title %}المنتجات{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
-    <span class="pos-shell-toolbar-title">المنتجات</span>
-    <span class="pos-shell-toolbar-hint hidden lg:inline">الأصناف، التصنيفات، والوحدات</span>
-    <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-  </div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title="المنتجات" toolbar_hint="الأصناف، التصنيفات، والوحدات" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="mb-2">
       <form method="get" class="flex gap-1.5 items-center max-w-md">
         <input type="hidden" name="tab" value="{{ active_tab }}">
-        <input type="text" name="q" value="{{ q }}" placeholder="بحث بالاسم..." class="h-8 text-xs flex-1">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
+        <input type="text" name="q" value="{{ q }}" placeholder="بحث بالاسم..." class="ds-input flex-1 min-w-0 w-full">
         <button type="submit" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs">بحث</button>
       </form>
     </div>
-    <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
-      <div class="ds-tabs border-0 mb-0 p-0 gap-1">
-        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'products' %}is-active{% endif %}">المنتجات</a>
-        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'units' %}is-active{% endif %}">الوحدات</a>
-        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}" class="ds-tab no-underline {% if active_tab == 'categories' %}is-active{% endif %}">التصنيفات</a>
+    <div class="ds-shell-context-bar">
+      <div class="ds-shell-subtabs">
+        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'products' %} is-active{% endif %}">المنتجات</a>
+        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'units' %} is-active{% endif %}">الوحدات</a>
+        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'categories' %} is-active{% endif %}">التصنيفات</a>
       </div>
-      <div class="flex gap-1.5 flex-wrap items-center">
+      <div class="flex gap-1.5 flex-wrap items-center shrink-0">
       {% if active_tab == "products" %}
-      <a href="{% url 'shell:product_workspace' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">منتج جديد</a>
-      <a href="{% url 'shell:manufactured_product_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تصنيع منتج</a>
+      <a href="{% url 'shell:product_workspace' %}" class="ds-btn ds-btn-primary whitespace-nowrap">منتج جديد</a>
+      <a href="{% url 'shell:manufactured_product_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">تصنيع منتج</a>
       {% elif active_tab == "units" %}
-      <a href="{% url 'shell:unit_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">وحدة جديدة</a>
+      <a href="{% url 'shell:unit_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">وحدة جديدة</a>
       {% else %}
-      <a href="{% url 'shell:category_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تصنيف جديد</a>
+      <a href="{% url 'shell:category_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">تصنيف جديد</a>
       {% endif %}
       </div>
     </div>
@@ -39,7 +35,7 @@
         {% if active_tab == "products" %}
         <table class="w-full text-sm ds-table">
           <thead>
-            <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th></tr>
+            <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[18rem] w-[18rem]">إجراءات</th></tr>
           </thead>
           <tbody>
             {% for p in products %}
@@ -50,14 +46,14 @@
               <td>{{ p.get_product_type_display }}</td>
               <td>{% if p.is_stock_tracked %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-info/15 text-info">نعم</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-warning/20 text-yellow-700">لا</span>{% endif %}</td>
               <td>{% if p.is_active %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/15 text-success">نشط</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/15 text-danger">معطّل</span>{% endif %}</td>
-              <td>
-                <div class="flex gap-2 items-center">
-                  <a href="{% url 'shell:product_edit' p.pk %}">تعديل</a>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:product_edit' p.pk %}" class="ds-btn">تعديل</a>
                   {% if p.product_type == 'manufactured' %}
-                  <a href="{% url 'shell:recipe_list' p.pk %}" class="manufacturing-formula-link">معادلة التصنيع</a>
+                  <a href="{% url 'shell:recipe_list' p.pk %}" class="ds-btn manufacturing-formula-link">معادلة التصنيع</a>
                   {% endif %}
-                  <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
-                  <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0">{% csrf_token %}<button type="submit">حذف</button></form>
+                  <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
+                  <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn text-danger border-danger/40">حذف</button></form>
                 </div>
               </td>
             </tr>
@@ -68,19 +64,19 @@
         </table>
         {% elif active_tab == "units" %}
         <table class="w-full text-sm ds-table">
-          <thead><tr><th>الرمز</th><th>الاسم</th><th>الإنجليزي</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>الرمز</th><th>الاسم</th><th>الإنجليزي</th><th class="text-center whitespace-nowrap min-w-[9rem] w-[9rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for u in units %}
             <tr>
               <td>{{ u.code }}</td>
               <td class="font-semibold">{{ u.name_ar }}</td>
               <td>{% if u.name_en %}{{ u.name_en }}{% else %}—{% endif %}</td>
-              <td>
-                <div class="flex gap-2 items-center">
-                  <a href="{% url 'shell:unit_edit' u.pk %}">تعديل</a>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:unit_edit' u.pk %}" class="ds-btn">تعديل</a>
                   <form method="post" action="{% url 'shell:unit_delete' u.pk %}" class="m-0">
                     {% csrf_token %}
-                    <button type="submit">حذف</button>
+                    <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
                   </form>
                 </div>
               </td>
@@ -92,7 +88,7 @@
         </table>
         {% else %}
         <table class="w-full text-sm ds-table">
-          <thead><tr><th>التصنيف</th><th>الرئيسي</th><th>الترتيب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>التصنيف</th><th>الرئيسي</th><th>الترتيب</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[9rem] w-[9rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for cat in categories %}
             <tr>
@@ -100,12 +96,12 @@
               <td>{% if cat.parent %}{{ cat.parent.name_ar }}{% else %}—{% endif %}</td>
               <td>{{ cat.sort_order }}</td>
               <td>{% if cat.is_active %}نشط{% else %}معطل{% endif %}</td>
-              <td>
-                <div class="flex gap-2 items-center">
-                  <a href="{% url 'shell:category_edit' cat.pk %}">تعديل</a>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:category_edit' cat.pk %}" class="ds-btn">تعديل</a>
                   <form method="post" action="{% url 'shell:category_delete' cat.pk %}" class="m-0">
                     {% csrf_token %}
-                    <button type="submit">حذف</button>
+                    <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
                   </form>
                 </div>
               </td>
@@ -116,6 +112,7 @@
           </tbody>
         </table>
         {% endif %}
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

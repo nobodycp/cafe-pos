@@ -17,7 +17,7 @@
     </div>
     <div>
       <h3 class="text-base font-extrabold text-danger">طلبات مفتوحة ({{ open_orders|length }})</h3>
-      <p class="text-xs text-muted mt-0.5">يجب تسويتها قبل إغلاق الوردية</p>
+      <p class="text-xs text-muted mt-0.5">يجب تسويتها أو إلغاؤها قبل إغلاق الوردية (زر «إلغاء» لكل طلب).</p>
     </div>
   </div>
   <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -27,6 +27,7 @@
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">رقم الطلب</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الطاولة</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">النوع</th>
+          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase w-28">إجراء</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -35,6 +36,17 @@
           <td class="p-3 font-bold text-primary">#{{ o.pk }}</td>
           <td class="p-3 text-gray-600 dark:text-gray-400">{{ o.table.name_ar|default:"—" }}</td>
           <td class="p-3 text-gray-600 dark:text-gray-400">{{ o.get_order_type_display }}</td>
+          <td class="p-3">
+            <form method="post" action="{% url 'pos:order_cancel' o.pk %}" class="inline m-0"
+                  onsubmit="return confirm('إلغاء الطلب #{{ o.pk }}؟ لا يمكن التراجع.');">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="session_summary">
+              <button type="submit"
+                      class="h-9 rounded-lg border border-danger/40 bg-danger/10 px-3 text-xs font-bold text-danger hover:bg-danger/20 dark:border-danger/50 dark:bg-danger/15 dark:hover:bg-danger/25 transition-colors">
+                إلغاء
+              </button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>

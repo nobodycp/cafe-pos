@@ -5,12 +5,14 @@
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">{{ title }}</span>
     <span class="flex-1"></span>
-    {% if employee %}
-    <a href="{% url 'shell:employee_detail' employee.pk %}" class="shell-toolbar-link">← الموظف</a>
-    {% else %}
-    <a href="{% url 'shell:employees' %}" class="shell-toolbar-link">← الموظفون</a>
-    {% endif %}
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      {% if employee %}
+      <a href="{% url 'shell:employee_detail' employee.pk %}" class="shell-toolbar-link">← الموظف</a>
+      {% else %}
+      <a href="{% url 'shell:employees' %}" class="shell-toolbar-link">← الموظفون</a>
+      {% endif %}
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl">

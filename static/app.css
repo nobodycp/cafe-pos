@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
+
 /* ── Minimal custom CSS (Tailwind CDN handles the rest) ── */
 /*
   هيكل التطبيق:
@@ -8,8 +10,6 @@
 .app-viewport-surface {
   position: relative;
 }
-
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
 
 /* Prevent FOUC with Alpine.js */
 [x-cloak] { display: none !important; }
@@ -51,6 +51,13 @@
   --ds-font-section: 0.875rem;
   --ds-font-label: 0.8125rem;
   --ds-font-small: 0.6875rem;
+  /* Shell chrome (align with Tailwind theme in templates/_tailwind_config.html) */
+  --ds-app-bg-dark: #030712;
+  --ds-side-nav-bg: #f0f1f5;
+  --ds-side-nav-dark-bg: #111827;
+  --ds-topbar-dark: #0c1929;
+  --ds-border-shell: #d1d5db;
+  --ds-border-viewport: #d1d5db;
 }
 
 .dark {
@@ -61,6 +68,188 @@
 
 .ds-viewport {
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Shell layout surfaces (#app-shell, login) — use instead of raw hex in templates */
+.ds-bg-page {
+  background-color: var(--ds-bg);
+}
+.dark .ds-bg-page {
+  background-color: var(--ds-app-bg-dark);
+}
+.ds-bg-shell-column {
+  background-color: var(--ds-bg);
+}
+.dark .ds-bg-shell-column {
+  background-color: var(--ds-app-bg-dark);
+}
+.ds-bg-side-nav {
+  background-color: var(--ds-side-nav-bg);
+  border-inline-start: 1px solid var(--ds-border-shell);
+}
+.dark .ds-bg-side-nav {
+  background-color: var(--ds-side-nav-dark-bg);
+  border-color: #374151;
+}
+.ds-bg-topbar {
+  background-color: var(--ds-primary);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+.dark .ds-bg-topbar {
+  background-color: var(--ds-topbar-dark);
+}
+.ds-bg-viewport {
+  background-color: var(--ds-bg);
+}
+.dark .ds-bg-viewport {
+  background-color: var(--ds-app-bg-dark);
+}
+.ds-brand-mark {
+  background-color: var(--ds-primary);
+  border: 1px solid var(--ds-primary-dk);
+  color: #fff;
+}
+
+/* صف أزرار إجراءات أسفل شريط العنوان (صفحات مثل المخزون) */
+.ds-page-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+/* روابط أقسام داخل الصفحة (مثل اختصارات المخزون) — نفس لغة الشريط دون تلوين كامل */
+.ds-shell-dest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ds-primary);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.ds-shell-dest:hover {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  color: var(--ds-primary-dk);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.dark .ds-shell-dest {
+  background: rgba(31, 41, 55, 0.92);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #93c5fd;
+}
+.dark .ds-shell-dest:hover {
+  border-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.12);
+  color: #bfdbfe;
+}
+
+/* شريط سياق تحت العنوان: تبويبات فرعية + زر رئيسي */
+.ds-shell-context-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid var(--ds-border-shell);
+  background: rgba(248, 250, 252, 0.95);
+}
+.dark .ds-shell-context-bar {
+  background: rgba(17, 24, 39, 0.65);
+  border-color: #374151;
+}
+
+/* تبويبات أقسام المصروفات / المحاسبة — شريط مجمّع */
+.ds-shell-subtabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.3rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--ds-radius-sm);
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+}
+.ds-shell-context-bar .ds-shell-subtabs {
+  margin-bottom: 0;
+}
+
+/* تقارير الغلاف / إعدادات الغلاف: تبويبات كثيرة — تمرير أفقي */
+.ds-shell-subtabs.reports-nav-tabs,
+.ds-shell-subtabs.settings-nav-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.dark .ds-shell-subtabs {
+  background: #0f172a;
+  border-color: #334155;
+}
+.ds-shell-subtab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: calc(var(--ds-radius-sm) - 1px);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-decoration: none !important;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  color: var(--ds-text);
+  background: transparent;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.dark .ds-shell-subtab {
+  color: #e5e7eb;
+}
+.ds-shell-subtab:hover {
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(15, 23, 42, 0.08);
+  color: var(--ds-primary);
+}
+.dark .ds-shell-subtab:hover {
+  background: rgba(51, 65, 85, 0.6);
+  border-color: #475569;
+  color: #93c5fd;
+}
+.ds-shell-subtab.is-active {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary-dk);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.ds-shell-subtab.is-active:hover {
+  background: var(--ds-primary-dk);
+  color: #fff;
+}
+.dark .ds-shell-subtab.is-active:hover {
+  color: #fff;
+}
+
+.app-shell-nav-icon {
+  width: 22px;
+  height: 22px;
 }
 
 /* لوحات داخل الغلاف — حدود موحّدة دون تظليل ثقيل */
@@ -103,6 +292,33 @@
 .ds-btn-primary:hover {
   background: var(--ds-primary-dk);
   color: #fff;
+}
+
+/* أزرار إجراءات داخل خلايا الجدول — صف أفقي بلا لف */
+.ds-table-actions {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+}
+.ds-table-actions .ds-btn,
+.ds-table-actions button.ds-btn {
+  min-height: 1.65rem;
+  height: 1.65rem;
+  padding: 0 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ds-table-actions form {
+  display: inline-flex;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* جداول قوائم الشل: صفوف مدمجة */
@@ -387,6 +603,32 @@
 /* ══════════════════════════════════════════════════════════ */
 /* ══  GLOBAL FORM SYSTEM — WCAG AA Compliant              ══ */
 /* ══════════════════════════════════════════════════════════ */
+/*
+ * اتفاقية ودجات Django (apps/*/forms.py):
+ *   form-input  — حقول نص/رقم/بريد/هاتف/اختيار/textarea (يُضاف إلى attrs.class مع الحقول أدناه)
+ *   form-check  — CheckboxInput بجانب تسمية في القالب
+ *   tabular-nums — أرقام محاذاة (مبالغ، هواتف) كصنف إضافي بجانب form-input
+ * أخطاء التحقق: is-invalid أو aria-invalid="true" (قواعد «Error state» أدناه)
+ * حقول مدمجة في شريط أدوات: .ds-input (أقصر من ارتفاع الحقل الافتراضي)
+ */
+
+.form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--ds-row);
+}
+.form-check input[type="checkbox"],
+.form-check input[type="radio"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  accent-color: var(--ds-primary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Shared input selector ── */
 input[type="text"],
@@ -470,7 +712,7 @@ input[type="checkbox"],
 input[type="radio"] {
   width: 1.25rem;
   height: 1.25rem;
-  accent-color: #1e3a5f;
+  accent-color: var(--ds-primary);
   cursor: pointer;
   border: 1.5px solid #9ca3af;
 }
@@ -651,22 +893,22 @@ button:active, .btn:active, [type="submit"]:active {
 
 /* ── POS shell module pages: match the order-board visual language ── */
 .pos-shell-page {
-  background: #e8eaed;
+  background: var(--ds-bg);
 }
 .dark .pos-shell-page {
-  background: #030712;
+  background: var(--ds-app-bg-dark);
 }
 .pos-shell-toolbar {
-  background: #e8eaed;
-  border-bottom: 1px solid #d1d5db;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.96) 100%);
+  border-bottom: 1px solid var(--ds-border-shell);
 }
 .pos-shell-toolbar.ds-toolbar-like {
   align-items: center;
   gap: 0.5rem 0.75rem;
 }
 .dark .pos-shell-toolbar {
-  background: #030712;
-  border-color: #374151;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
 }
 .pos-shell-toolbar-title {
   color: #1f2937;
@@ -682,23 +924,165 @@ button:active, .btn:active, [type="submit"]:active {
   font-size: .625rem;
   font-weight: 600;
 }
-/* روابط الرجوع في شريط الغلاف — بديل عن تكرار Tailwind في القوالب */
-.shell-toolbar-link {
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 700;
-  color: #1e3a5f;
+/* تجميع روابط الرجوع/السياق في شريط الغلاف */
+.shell-toolbar-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* روابط فرعية في شريط الغلاف — حبوب (pill) موحّدة */
+.shell-toolbar-link,
+button.shell-toolbar-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: var(--ds-primary);
   text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
 }
-.shell-toolbar-link:hover {
-  color: #163051;
+.shell-toolbar-link:hover,
+button.shell-toolbar-link:hover {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  color: var(--ds-primary-dk);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
-.dark .shell-toolbar-link {
+.shell-toolbar-link:focus-visible,
+button.shell-toolbar-link:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+}
+.dark .shell-toolbar-link,
+.dark button.shell-toolbar-link {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(148, 163, 184, 0.35);
   color: #93c5fd;
 }
-.dark .shell-toolbar-link:hover {
+.dark .shell-toolbar-link:hover,
+.dark button.shell-toolbar-link:hover {
+  border-color: #60a5fa;
+  background: rgba(59, 130, 246, 0.14);
   color: #bfdbfe;
 }
+
+/* زر تمييز داخل مجموعة روابط الشريط (مثل «تعديل القيد») */
+.shell-toolbar-link.shell-toolbar-link--primary {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary-dk);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.shell-toolbar-link.shell-toolbar-link--primary:hover {
+  background: var(--ds-primary-dk);
+  border-color: var(--ds-primary-dk);
+  color: #fff;
+}
+.dark .shell-toolbar-link.shell-toolbar-link--primary:hover {
+  color: #fff;
+}
+
+.shell-toolbar-actions .ds-btn.ds-btn-primary {
+  min-height: 1.65rem;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  border-radius: 9999px;
+}
+
+/* ── Shell topbar (unit shortcuts) — [_topbar_nav.html] ── */
+.ds-topbar-header {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+.dark .ds-topbar-header {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.ds-topbar-nav__row {
+  justify-content: flex-end;
+}
+.ds-topbar-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.ds-topbar-nav__link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.ds-topbar-nav__link.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+.ds-topbar-nav__ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ds-topbar-nav__ic svg,
+.ds-topbar-nav__ic .app-shell-nav-icon {
+  width: 14px;
+  height: 14px;
+}
+.ds-topbar-nav__more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  font-family: inherit;
+}
+.ds-topbar-nav__more-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.ds-topbar-nav__dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+.ds-topbar-nav__dropdown-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.ds-topbar-nav__dropdown-link.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
 .pos-shell-content > .flex:first-child > h1:only-child,
 .pos-shell-content > .flex:first-child > h1:first-child {
   display: none;
@@ -811,38 +1195,9 @@ button:active, .btn:active, [type="submit"]:active {
 .pos-shell-content button.rounded-lg {
   border-radius: .125rem !important;
 }
-.pos-shell-content .settings-tab {
-  height: 1.75rem !important;
-  min-height: 1.75rem !important;
-  padding: .25rem .625rem !important;
-  border: 1px solid #9ca3af !important;
-  border-radius: .125rem !important;
-  margin-bottom: 0 !important;
-  background: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #1f2937 !important;
-  font-size: .6875rem !important;
-  font-weight: 800 !important;
-  line-height: 1 !important;
-  box-shadow: none !important;
-}
-.dark .pos-shell-content .settings-tab {
-  background: #1f2937;
-  border-color: #4b5563 !important;
-  color: #e5e7eb !important;
-}
-.pos-shell-content .settings-tab.active {
-  background: #1e3a5f !important;
-  border-color: #163051 !important;
-  color: #fff !important;
-}
-.pos-shell-content #settingsTabs {
-  gap: .25rem !important;
-  border-bottom: 0 !important;
-  margin-bottom: .75rem !important;
-  padding-bottom: .125rem;
+/* تبويبات صفحة الإعدادات — نفس ds-shell-subtabs (لا تكرار أنماط قديمة) */
+.pos-shell-content nav#settingsTabs.ds-shell-subtabs {
+  margin-bottom: 0.75rem;
 }
 .pos-shell-content .settings-section > div.bg-white {
   border: 1px solid #d1d5db !important;

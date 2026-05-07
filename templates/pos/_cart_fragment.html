@@ -1,7 +1,7 @@
 {% load core_extras %}
 {# عمود العربة: flex عمودي — رأس ≤150px | جدول flex:1 | سفلية ≤170px #}
 <style>
-#pos-cart.pos-cart-column{
+#pos-cart{
   height:100%;min-height:0;display:flex;flex-direction:column;
   container-type:inline-size;container-name:poscart;
 }
@@ -110,7 +110,7 @@
 .dark .pos-cart-lines.pos-cart-lines--excel tbody tr.cart-line-item:hover{background:rgba(51,65,85,.55)!important}
 /* سعر السطر: نفس كثافة عمود السعر في المنتجات */
 #pos-cart .pos-cart-lines input[type=number][name=unit_price]{
-  width:100%!important;max-width:4.5rem!important;min-width:0!important;box-sizing:border-box!important;
+  width:100%!important;max-width:6rem!important;min-width:4.25rem!important;box-sizing:border-box!important;
   min-height:1.35rem!important;height:1.35rem!important;padding:0 4px!important;
   font-size:11px!important;font-weight:800!important;line-height:1.2!important;
   border:1px solid #cbd5e1!important;border-radius:4px!important;
@@ -188,20 +188,20 @@
 }
 .dark .pos-cart-total-bar{background:#000;border-bottom-color:#525252}
 .pos-cart-total-bar__grid{
-  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px 8px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr) minmax(0,1fr);align-items:center;gap:2px 6px;
   direction:ltr;min-height:0;
 }
-.pos-ctb-side-l{text-align:left;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-end:2px}
-.pos-ctb-side-r{text-align:right;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-start:2px}
-.pos-ctb-k{font-size:9px;font-weight:700;color:#737373;line-height:1.1}
-.pos-ctb-v{font-size:11px;font-weight:800;color:#e5e5e5;font-variant-numeric:tabular-nums;line-height:1.15}
+.pos-ctb-side-l{text-align:left;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-end:2px;min-width:0}
+.pos-ctb-side-r{text-align:right;display:flex;flex-direction:column;gap:0;justify-content:center;padding-inline-start:2px;min-width:0}
+.pos-ctb-k{font-size:8px;font-weight:700;color:#737373;line-height:1.1}
+.pos-ctb-v{font-size:10px;font-weight:800;color:#e5e5e5;font-variant-numeric:tabular-nums;line-height:1.15;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pos-ctb-v--disc{color:#fda4af}
-.pos-ctb-center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0}
-.pos-ctb-hero-lbl{font-size:9px;font-weight:800;color:#a3a3a3;line-height:1}
-/* المبلغ الأخضر: افتراضي آمن؛ عند دعم container queries يتبع عرض العربة فقط */
-.pos-ctb-hero-amt{font-size:clamp(1rem,2.6vw,1.42rem);font-weight:900;line-height:1;font-variant-numeric:tabular-nums;color:#34d399;white-space:nowrap}
+.pos-ctb-center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-width:0;max-width:100%;padding-inline:2px}
+.pos-ctb-hero-lbl{font-size:8px;font-weight:800;color:#a3a3a3;line-height:1.1;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+/* المبلغ الأخضر: يعتمد على عرض العربة (cqi) لتجنّب تداخل مع الأعمدة الجانبية */
+.pos-ctb-hero-amt{font-size:clamp(0.8rem,9cqi,1.2rem);font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums;color:#34d399;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @supports (font-size:1cqi){
-  .pos-ctb-hero-amt{font-size:clamp(1rem,11cqi,1.42rem)}
+  .pos-ctb-hero-amt{font-size:clamp(0.8rem,10cqi,1.2rem)}
 }
 .pos-ctb-hero-amt .pos-ctb-cur{font-size:55%;font-weight:700;color:#a7f3d0;margin-inline-start:2px}
 .pos-ctb-extras{font-size:9px;font-weight:600;color:#737373;text-align:center;line-height:1.1}
@@ -281,7 +281,10 @@
 #pos-cart #ep-payer-panel,#pos-cart #pay-ar-customer-panel{gap:4px;padding:0;margin:0}
 </style>
 {% if not current_order %}
-<div class="flex items-center justify-center text-muted text-xs py-6">لا يوجد طلب نشط</div>
+<div class="pos-cart-inner flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-3 py-6 text-center" dir="rtl">
+  <p class="m-0 text-xs font-bold text-gray-600 dark:text-gray-300">لا يوجد طلب في السلة</p>
+  <p class="m-0 max-w-[15rem] text-[10px] leading-snug text-muted">ابدأ سفري أو توصيل من الأزرار أدناه، أو افتح طاولة من الشبكة، أو استأنف طلباً من «طلبات مفتوحة».</p>
+</div>
 {% else %}
 <div class="pos-cart-inner" dir="rtl">
 
@@ -339,8 +342,7 @@
           <th class="w-6 text-center">#</th>
           <th class="text-start min-w-0">الاسم</th>
             <th class="w-[5.25rem] text-center">كمية</th>
-            <th class="w-14 text-center">سعر</th>
-            <th class="w-11 text-center">خصم</th>
+            <th class="w-[6.25rem] text-center">سعر</th>
           <th class="w-14 text-end">مجموع</th>
             <th class="w-6 text-center"></th>
         </tr>
@@ -373,7 +375,7 @@
             </div>
           </td>
           <td class="text-center">
-              <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form inline-block w-full max-w-[4.25rem] mx-auto" title="سعر الوحدة{% if line.extra_unit_price %} (+{{ line.extra_unit_price }}){% endif %}">
+              <form method="post" action="{% url 'pos:order_line_unit_price' current_order.pk line.pk %}" class="ajax-cart-form inline-block w-full max-w-[5.75rem] mx-auto" title="سعر الوحدة{% if line.extra_unit_price %} (+{{ line.extra_unit_price }}){% endif %}">
               {% csrf_token %}
               <input type="number" name="unit_price" step="0.01" min="0" inputmode="decimal" lang="en"
                 value="{{ crow.effective_unit|dec_plain }}"
@@ -381,7 +383,6 @@
               <button type="submit" class="sr-only">ok</button>
             </form>
           </td>
-          <td class="text-center text-muted tabular-nums">{% if crow.alloc_discount > 0 %}{{ crow.alloc_discount }}{% else %}—{% endif %}</td>
           <td class="text-end font-bold text-primary tabular-nums leading-none">{{ crow.line_net }}</td>
           <td class="text-center">
             <form method="post" action="{% url 'pos:order_remove' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
@@ -460,7 +461,8 @@
       <div class="hidden grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="pay-ar-customer-panel">
         <div class="relative min-w-0 pos-ar-cust-wrap">
           <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
-          <input type="search" id="pay-cust-search" placeholder="اسم العميل…" autocomplete="off" aria-label="اختيار عميل للدفع الآجل"
+          <input type="hidden" name="customer_name_draft" id="pay-cust-name-draft" value="">
+          <input type="search" id="pay-cust-search" placeholder="بحث عميل للآجل… (لا يوجد؟ + عميل)" autocomplete="off" aria-label="اختيار عميل للدفع الآجل"
             value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
             class="pos-ar-cust rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
           <div id="pay-cust-hits" class="absolute top-full start-0 end-0 z-50 mt-px bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-b max-h-[120px] overflow-y-auto shadow-lg text-[10px]" style="display:none"></div>
@@ -471,8 +473,8 @@
       <div class="pos-checkout-row3" dir="ltr">
         <button type="button" class="pos-ca-btn pos-ca-cancel" id="pos-btn-cancel-order" title="إلغاء الطلب كاملاً">إلغاء</button>
         <button type="submit" class="pos-ca-btn pos-ca-hold" id="pos-btn-hold-order" form="tb-hold-form" title="تعليق الطلب">تعليق</button>
-        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" name="checkout_action" value="save" title="دفع وحفظ الفاتورة (بدون الانتقال للطباعة)">دفع<span class="pos-ca-kbd">F9</span></button>
-        <button type="submit" class="pos-ca-btn pos-ca-pay-print" id="pay-print-btn" name="checkout_action" value="save_print" title="دفع ثم معاينة الإيصال للطباعة">دفع وطباعة</button>
+        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع وحفظ الفاتورة (بدون الانتقال للطباعة)">دفع<span class="pos-ca-kbd">F9</span></button>
+        <button type="submit" class="pos-ca-btn pos-ca-pay-print" id="pay-print-btn" title="دفع ثم معاينة الإيصال للطباعة">دفع وطباعة</button>
         <div class="pos-ca-amt-wrap" id="pos-ca-amt-wrap">
           <label for="pay-amt" class="sr-only">مبلغ الدفعة</label>
           <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{{ tab_balance|dec_plain }}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">

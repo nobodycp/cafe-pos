@@ -198,6 +198,24 @@ class PosSettings(models.Model):
     # ── الإيصال ──
     receipt_header = models.TextField(_("رأس الإيصال (نص إضافي)"), blank=True)
     receipt_footer = models.TextField(_("تذييل الإيصال (نص إضافي)"), blank=True)
+    receipt_logo_url = models.CharField(
+        _("رابط شعار الإيصال الحراري"),
+        max_length=500,
+        blank=True,
+        help_text=_("مسار كامل أو نسبي (مثل /static/pos/logo.png) يُعرض أعلى الإيصال."),
+    )
+    receipt_slogan_ar = models.CharField(
+        _("شعار ترويجي على الإيصال (عربي)"),
+        max_length=300,
+        blank=True,
+        help_text=_("سطر قبل صندوق الهاتف والعنوان (مثل: جودة وعروض على طول)."),
+    )
+    receipt_stamp_text = models.CharField(
+        _("نص الختم على الإيصال"),
+        max_length=240,
+        blank=True,
+        help_text=_("أسطر تفصلها فاصلة منقوطة (;) لتظهر داخل الختم المائل."),
+    )
     receipt_show_tax_number = models.BooleanField(_("إظهار الرقم الضريبي على الإيصال"), default=True)
     allow_sale_invoice_edit = models.BooleanField(
         _("السماح بتعديل فاتورة البيع بعد الإصدار"),

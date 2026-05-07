@@ -56,4 +56,10 @@ def resolve_settings_request(
     ctx["active_tab"] = section or "cafe"
     ctx["payment_method_url_namespace"] = payment_method_url_namespace
     ctx.update(build_payment_methods_list_context(request))
+    try:
+        from apps.billing.models import SaleInvoice
+
+        ctx["receipt_preview_invoice_id"] = SaleInvoice.objects.order_by("-pk").values_list("pk", flat=True).first()
+    except Exception:
+        ctx["receipt_preview_invoice_id"] = None
     return ctx

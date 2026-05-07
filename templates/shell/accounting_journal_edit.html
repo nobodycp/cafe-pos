@@ -1,0 +1,81 @@
+{% extends "shell/base.html" %}
+{% block title %}تعديل قيد {{ entry.entry_number }}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">تعديل {{ entry.entry_number }}</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:journal_detail' entry.pk %}" class="shell-toolbar-link">← عرض القيد</a>
+      <a href="{% url 'shell:journal_list' %}" class="shell-toolbar-link">← القيود اليومية</a>
+    </div>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_accounting_tabs.html" with accounting_tab="journal_detail" %}
+    {% if entry.reference_type %}
+    <div class="mb-3 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm text-gray-800 dark:text-gray-100">
+      هذا القيد مرتبط بمرجع في النظام (<code class="text-xs">{{ entry.reference_type }}</code>{% if entry.reference_pk %} #{{ entry.reference_pk }}{% endif %}). تعديل المبالغ أو الحسابات قد لا يطابق المستند الأصلي؛ راجع التأثير على التقارير والمطابقة.
+    </div>
+    {% endif %}
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="{{ entry_form.date.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">التاريخ</label>
+            {{ entry_form.date }}
+            {% for e in entry_form.date.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div>
+          <label for="{{ entry_form.description.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">وصف القيد</label>
+          {{ entry_form.description }}
+          {% for e in entry_form.description.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+        </div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">أسطر القيد</h2>
+        <p class="text-xs text-muted mb-3">كل سطر إما مدين أو دائن (ليس الاثنين). مجموع المدين يجب أن يساوي مجموع الدائن. يمكنك حذف سطر أو إضافة سطر جديد من الصف الفارغ.</p>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+        <div class="mb-2 text-danger text-sm font-semibold">{% for e in formset.non_form_errors %}<p>{{ e }}</p>{% endfor %}</div>
+        {% endif %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-600">
+                <th class="text-right py-2 px-1 font-bold">الحساب</th>
+                <th class="text-right py-2 px-1 font-bold">البيان</th>
+                <th class="text-right py-2 px-1 font-bold w-28">مدين</th>
+                <th class="text-right py-2 px-1 font-bold w-28">دائن</th>
+                <th class="text-center py-2 px-1 font-bold w-16">حذف</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in formset %}
+              <tr class="border-b border-gray-100 dark:border-gray-700 align-top">
+                <td class="py-2 px-1">{{ f.id }}{{ f.account }}{% for e in f.account.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1">{{ f.description }}{% for e in f.description.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1">{{ f.debit }}{% for e in f.debit.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1">{{ f.credit }}{% for e in f.credit.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1 text-center">{% if f.DELETE %}{{ f.DELETE }}{% endif %}</td>
+              </tr>
+              {% if f.non_field_errors %}
+              <tr><td colspan="5" class="pb-2 text-danger text-xs">{% for e in f.non_field_errors %}{{ e }}{% endfor %}</td></tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" class="h-11 px-6 rounded-lg bg-primary text-white font-bold text-sm">حفظ التعديلات</button>
+        <a href="{% url 'shell:journal_detail' entry.pk %}" class="h-11 px-6 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm inline-flex items-center">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

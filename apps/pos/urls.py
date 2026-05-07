@@ -9,7 +9,6 @@ urlpatterns = [
     path("", views.pos_main, name="main"),
     path("settings/", views.redirect_pos_settings_to_app, {"tail": ""}, name="settings_redirect"),
     path("settings/<path:tail>/", views.redirect_pos_settings_to_app, name="settings_redirect_tail"),
-    path("tables/", views.tables_floor, name="tables_floor"),
     path("tables/open/", views.table_open, name="table_open"),
     path("tables/quick-create/", views.table_quick_create, name="table_quick_create"),
     path("customers/search/", views.customers_search, name="customers_search"),
@@ -41,5 +40,6 @@ urlpatterns = [
         name="sale_invoice_edit_panel",
     ),
     path("receipt/<int:invoice_id>/", views.receipt_print, name="receipt"),
+    path("receipt/live-preview/", views.receipt_live_preview, name="receipt_live_preview"),
     path("receipt/<int:invoice_id>/raw/", views.receipt_raw, name="receipt_raw"),
 ]

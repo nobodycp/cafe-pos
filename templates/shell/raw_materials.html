@@ -1,12 +1,58 @@
 {% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}المواد الخام{% endblock %}
+{% block title %}المواد الخام{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
+{% url 'shell:inventory_home' as shell_inventory_home_url %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">المواد الخام</span><span class="flex-1"></span><a href="{% url 'shell:inventory_home' %}" class="text-xs font-bold text-primary">← المخزون</a></div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title="المواد الخام" toolbar_hint="أرصدة وتكلفة المواد الخام" toolbar_back_url=shell_inventory_home_url toolbar_back_label="← المخزون" toolbar_back_title="المخزون" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="flex justify-between items-center mb-3"><h1>المواد الخام</h1><a href="{% url 'shell:raw_material_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">إضافة مادة خام</a></div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>المادة الخام</th><th>الوحدة</th><th>الكمية الحالية</th><th>متوسط التكلفة</th><th>القيمة</th><th>الحد الأدنى</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody>{% for e in materials %}<tr><td class="font-bold">{{ e.material.name_ar }}</td><td>{{ e.material.unit.name_ar|default:"—" }}</td><td class="font-semibold {% if e.low %}text-danger{% endif %}">{{ e.on_hand|floatformat:2 }}</td><td>{{ e.avg_cost|floatformat:4|intcomma }}</td><td class="font-semibold">{{ e.value|floatformat:2|intcomma }}</td><td>{{ e.material.min_stock_level|floatformat:2 }}</td><td>{% if e.low %}<span class="text-danger font-bold">منخفض</span>{% else %}<span class="text-success font-bold">متوفر</span>{% endif %}</td><td><div class="flex gap-2 items-center"><a href="{% url 'shell:raw_material_edit' e.material.pk %}">تعديل</a><form method="post" action="{% url 'shell:raw_material_delete' e.material.pk %}" class="m-0">{% csrf_token %}<button type="submit">حذف</button></form></div></td></tr>{% empty %}<tr><td colspan="8" class="p-8 text-center text-muted">لا توجد مواد خام.</td></tr>{% endfor %}</tbody></table></div></div>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <span class="ds-section-title m-0">المواد الخام</span>
+      <span class="flex-1"></span>
+      <a href="{% url 'shell:raw_material_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة مادة خام</a>
+    </div>
+    <div class="ds-panel">
+      <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+        <table class="w-full text-sm ds-table">
+          <thead>
+            <tr>
+              <th>المادة الخام</th>
+              <th>الوحدة</th>
+              <th>الكمية الحالية</th>
+              <th>متوسط التكلفة</th>
+              <th>القيمة</th>
+              <th>الحد الأدنى</th>
+              <th>الحالة</th>
+              <th class="text-center whitespace-nowrap min-w-[9rem] w-[9rem]">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in materials %}
+            <tr>
+              <td class="font-bold">{{ e.material.name_ar }}</td>
+              <td>{{ e.material.unit.name_ar|default:"—" }}</td>
+              <td class="font-semibold {% if e.low %}text-danger{% endif %}">{{ e.on_hand|floatformat:2 }}</td>
+              <td>{{ e.avg_cost|floatformat:4|intcomma }}</td>
+              <td class="font-semibold">{{ e.value|floatformat:2|intcomma }}</td>
+              <td>{{ e.material.min_stock_level|floatformat:2 }}</td>
+              <td>{% if e.low %}<span class="text-danger font-bold">منخفض</span>{% else %}<span class="text-success font-bold">متوفر</span>{% endif %}</td>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:raw_material_edit' e.material.pk %}" class="ds-btn">تعديل</a>
+                  <form method="post" action="{% url 'shell:raw_material_delete' e.material.pk %}" class="m-0">
+                    {% csrf_token %}
+                    <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="p-8 text-center text-muted">لا توجد مواد خام.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

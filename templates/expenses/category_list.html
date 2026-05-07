@@ -8,14 +8,16 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">تصنيفات دفتر المصروفات</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap gap-1.5 items-center min-w-0">
+    <div class="ds-shell-context-bar">
+      <div class="flex flex-wrap items-center min-w-0">
         {% include "shell/_expenses_tabs.html" with expenses_tab="categories" %}
       </div>
-      <a href="{% url 'shell:expense_category_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center whitespace-nowrap shrink-0">إضافة تصنيف</a>
+      <a href="{% url 'shell:expense_category_create' %}" class="ds-btn ds-btn-primary shrink-0 whitespace-nowrap">إضافة تصنيف</a>
     </div>
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
@@ -24,7 +26,7 @@
             <tr>
               <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">الرمز</th>
               <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">الاسم</th>
-              <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs">إجراءات</th>
+              <th class="p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-center whitespace-nowrap min-w-[7rem] w-[7rem]">إجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -37,8 +39,10 @@
                 <span class="font-semibold">{{ cat.name_ar }}</span>
                 {% if cat.name_en %}<span class="block text-xs text-muted mt-0.5">{{ cat.name_en }}</span>{% endif %}
               </td>
-              <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-                <a href="{% url 'shell:expense_category_edit' cat.pk %}" class="text-primary font-semibold hover:underline">تعديل</a>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:expense_category_edit' cat.pk %}" class="ds-btn">تعديل</a>
+                </div>
               </td>
             </tr>
             {% empty %}

@@ -8,7 +8,9 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="journal" %}
@@ -17,7 +19,7 @@
         <table class="w-full text-sm">
           <thead><tr><th>رقم القيد</th><th>التاريخ</th><th>الوصف</th><th>المرجع</th><th>الحالة</th></tr></thead>
           <tbody>
-            {% for e in entries %}
+            {% for e in page_obj %}
             <tr class="{% if e.is_reversed %}opacity-50{% endif %}">
               <td><a href="{% url 'shell:journal_detail' e.pk %}" class="text-primary font-semibold hover:underline">{{ e.entry_number }}</a></td>
               <td>{{ e.date }}</td>
@@ -30,6 +32,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

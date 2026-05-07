@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
-
-from django.utils import timezone
 
 from apps.contacts.services import record_customer_payment
 from apps.core.models import AuditLog, log_audit
 from apps.expenses.models import ExpenseCategory
-from apps.expenses.services import create_expense
+from apps.expenses.services import create_expense, resolve_expense_category_from_treasury_note
 from apps.payroll.models import Employee, EmployeeAdvance
 from apps.purchasing.services import record_supplier_payment
 
@@ -44,9 +43,13 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
     method: str = cleaned["method"]
     note = (cleaned.get("note") or "").strip()
     party_type = cleaned["party_type"]
+    payment_lines = cleaned.get("payment_lines")
+    voucher_date: date = cleaned["voucher_date"]
 
     if voucher_type == "receipt" and party_type == "customer":
         cust = cleaned["customer"]
+        payer_name = (cleaned.get("payer_name") or "").strip()[:120]
+        payer_phone = (cleaned.get("payer_phone") or "").strip()[:40]
         out = record_customer_payment(
             customer=cust,
             amount=amount,
@@ -54,6 +57,13 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             note=note or "سند قبض",
             user=user,
             work_session=work_session,
+            payer_name=payer_name,
+            payer_phone=payer_phone,
+            payment_lines=payment_lines,
+            entry_date=voucher_date,
+        )
+        split_payload = (
+            [{"method": m, "amount": str(a)} for m, a in payment_lines] if payment_lines else None
         )
         _log_unified_treasury_voucher(
             user,
@@ -63,9 +73,13 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
                 "party_label": cust.name_ar,
                 "amount": str(amount),
                 "method": method,
+                "payment_splits": split_payload,
                 "note": (note or "")[:240],
+                "payer_name": payer_name,
+                "payer_phone": payer_phone,
                 "customer_pk": cust.pk,
                 "ledger_entry_pk": out.pk,
+                "voucher_date": voucher_date.isoformat(),
             },
         )
         return out
@@ -79,6 +93,11 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             note=note or "سند صرف",
             user=user,
             work_session=work_session,
+            payment_lines=payment_lines,
+            entry_date=voucher_date,
+        )
+        split_payload = (
+            [{"method": m, "amount": str(a)} for m, a in payment_lines] if payment_lines else None
         )
         _log_unified_treasury_voucher(
             user,
@@ -88,9 +107,11 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
                 "party_label": sup.name_ar,
                 "amount": str(amount),
                 "method": method,
+                "payment_splits": split_payload,
                 "note": (note or "")[:240],
                 "supplier_pk": sup.pk,
                 "supplier_payment_pk": out.pk,
+                "voucher_date": voucher_date.isoformat(),
             },
         )
         return out
@@ -102,7 +123,7 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             category=cat,
             amount=amount,
             payment_method=method,
-            expense_date=timezone.localdate(),
+            expense_date=voucher_date,
             notes=f"صرف راتب / مستحقات: {emp.name_ar}" + (f" — {note}" if note else ""),
             work_session=work_session,
             user=user,
@@ -136,20 +157,18 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
                 "note": (note or "")[:240],
                 "employee_pk": emp.pk,
                 "expense_pk": exp.pk,
+                "voucher_date": voucher_date.isoformat(),
             },
         )
         return exp
 
     if voucher_type == "disbursement" and party_type == "expense":
-        cat, _ = ExpenseCategory.objects.get_or_create(
-            code=ExpenseCategory.Code.OTHER,
-            defaults={"name_ar": "أخرى", "name_en": "Other"},
-        )
+        cat = resolve_expense_category_from_treasury_note(note)
         exp = create_expense(
             category=cat,
             amount=amount,
             payment_method=method,
-            expense_date=timezone.localdate(),
+            expense_date=voucher_date,
             notes=note or "سند صرف مصاريف",
             work_session=work_session,
             user=user,
@@ -159,7 +178,7 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             "treasury.expense_voucher",
             "expenses.Expense",
             exp.pk,
-            {"amount": str(amount)},
+            {"amount": str(amount), "category_code": cat.code},
         )
         party_lbl = (getattr(exp.category, "name_ar", None) or "مصروف")[:120]
         _log_unified_treasury_voucher(
@@ -171,7 +190,9 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
                 "amount": str(amount),
                 "method": method,
                 "note": (note or "")[:240],
+                "expense_category_code": cat.code,
                 "expense_pk": exp.pk,
+                "voucher_date": voucher_date.isoformat(),
             },
         )
         return exp

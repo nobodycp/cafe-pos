@@ -19,6 +19,8 @@ environ.Env.read_env(BASE_DIR / ".env", overwrite=True)
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=True)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
+# بدون هذا، الافتراضي في Django هو DENY ويُمنع عرض معاينة الإيصال داخل iframe في الكاشير (نفس المنشأ).
+X_FRAME_OPTIONS = "SAMEORIGIN"
 if DEBUG and "*" not in ALLOWED_HOSTS and "testserver" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS = list(ALLOWED_HOSTS) + ["testserver"]
 
@@ -76,6 +78,7 @@ TEMPLATES = [
                 "apps.core.context_processors.ui_labels",
                 "apps.core.context_processors.low_stock_count",
                 "apps.core.context_processors.shell_route_namespaces",
+                "apps.core.context_processors.shell_topbar",
                 "apps.core.context_processors.open_work_session",
             ],
         },
@@ -111,7 +114,7 @@ LANGUAGES = [
     ("en", "English"),
 ]
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -135,4 +138,3 @@ if not DEBUG:
         SECURE_HSTS_PRELOAD = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = "SAMEORIGIN"

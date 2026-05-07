@@ -1,6 +1,7 @@
 """جلسات الطاولات: فتح واستئناف."""
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
@@ -164,6 +165,38 @@ def prepare_work_session_for_shift_close(work_session) -> None:
     close_stale_open_table_sessions_for_work_session(work_session)
 
 
+def table_tile_label(table: DiningTable) -> str:
+    """رقم قصير للعرض على مربع الطاولة (آخر رقم في الاسم أو أول رقم يُعثر عليه)."""
+    s = (table.name_ar or "").strip()
+    if not s:
+        return "?"
+    m = re.search(r"(\d+)\s*$", s)
+    if m:
+        return m.group(1)
+    m2 = re.search(r"(\d+)", s)
+    if m2:
+        return m2.group(1)
+    return s[:2]
+
+
+def table_tile_color(*, status: str, grand: Decimal, paid: Decimal, remaining: Decimal) -> str:
+    """
+    ألوان مربع الطاولة في الكاشير:
+    green — فارغة | yellow — مفتوحة بلا رصيد مستحق | red — بها طلب ومتبقي | blue — دفعة جزئية.
+    """
+    if status == "free":
+        return "green"
+    if status == "open_empty":
+        return "yellow"
+    if status == "partial":
+        return "blue"
+    if status == "occupied":
+        if grand > Decimal("0.005") and remaining > Decimal("0.005"):
+            return "red"
+        return "yellow"
+    return "yellow"
+
+
 def table_session_money_totals(table_session: TableSession) -> dict:
     """إجمالي الفاتورة والمدفوع والمتبقي لكل الطلبات المفتوحة على الجلسة."""
     grand = Decimal("0")
@@ -223,6 +256,8 @@ def floor_rows_for_session(work_session) -> List[dict]:
                     "paid": Decimal("0"),
                     "remaining": Decimal("0"),
                     "customer_label": "",
+                    "tile_label": table_tile_label(t),
+                    "tile_color": "green",
                 })
                 continue
             grand = Decimal("0")
@@ -248,6 +283,8 @@ def floor_rows_for_session(work_session) -> List[dict]:
                 "paid": paid,
                 "remaining": remaining,
                 "customer_label": cust,
+                "tile_label": table_tile_label(t),
+                "tile_color": table_tile_color(status=st, grand=grand, paid=paid, remaining=remaining),
             })
             continue
         m = order_totals.get(
@@ -275,6 +312,8 @@ def floor_rows_for_session(work_session) -> List[dict]:
             "paid": paid,
             "remaining": remaining,
             "customer_label": cust,
+            "tile_label": table_tile_label(t),
+            "tile_color": table_tile_color(status=st, grand=grand, paid=paid, remaining=remaining),
         })
     return rows
 

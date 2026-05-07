@@ -20,6 +20,7 @@ from apps.catalog.models import Category, Product, RecipeLine, Unit
 from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
 from apps.inventory.services import get_unit_cost
 from apps.billing.models import SaleInvoiceLine
+from apps.core.pagination import paginate_queryset
 from apps.pos.models import OrderLine
 from apps.purchasing.models import PurchaseLine
 
@@ -90,28 +91,30 @@ def product_list(request):
     active_tab = request.GET.get("tab", "products")
     if active_tab not in ("products", "units", "categories"):
         active_tab = "products"
-    qs = Product.objects.select_related("category", "unit").exclude(product_type=Product.ProductType.RAW)
-    if q:
-        qs = qs.filter(name_ar__icontains=q)
-    units = Unit.objects.all()
-    categories = Category.objects.select_related("parent").all()
-    if q and active_tab == "units":
-        units = units.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(code__icontains=q))
-    if q and active_tab == "categories":
-        categories = categories.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
+
+    ctx = _catalog_ctx(request, q=q, active_tab=active_tab)
+
+    if active_tab == "products":
+        qs = Product.objects.select_related("category", "unit").exclude(product_type=Product.ProductType.RAW)
+        if q:
+            qs = qs.filter(name_ar__icontains=q)
+        ctx.update(paginate_queryset(request, qs.order_by("name_ar")))
+        ctx["products"] = ctx["page_obj"]
+    elif active_tab == "units":
+        uqs = Unit.objects.all()
+        if q:
+            uqs = uqs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(code__icontains=q))
+        ctx.update(paginate_queryset(request, uqs.order_by("name_ar")))
+        ctx["units"] = ctx["page_obj"]
+    else:
+        cqs = Category.objects.select_related("parent").all()
+        if q:
+            cqs = cqs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
+        ctx.update(paginate_queryset(request, cqs.order_by("sort_order", "name_ar")))
+        ctx["categories"] = ctx["page_obj"]
+
     tpl = _catalog_tpl(request, "shell/products_list.html", "catalog/product_list.html")
-    return render(
-        request,
-        tpl,
-        _catalog_ctx(
-            request,
-            products=qs,
-            units=units,
-            categories=categories,
-            q=q,
-            active_tab=active_tab,
-        ),
-    )
+    return render(request, tpl, ctx)
 
 
 @login_required

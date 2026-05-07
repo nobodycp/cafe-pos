@@ -3,12 +3,7 @@
 {% block nav_on_settings %}on{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
-    <span class="pos-shell-toolbar-title">الإعدادات</span>
-    <span class="pos-shell-toolbar-hint hidden lg:inline">نفس إعدادات الطلبات والدفع داخل الغلاف</span>
-    <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link" title="لوحة الطلبات والبيع">← لوحة الطلبات</a>
-  </div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title="الإعدادات" toolbar_hint="نفس إعدادات الطلبات والدفع داخل الغلاف" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "core/_settings_panel_body.html" %}
   </div>

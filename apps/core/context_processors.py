@@ -13,9 +13,11 @@ def site_branding(request):
 
 
 def ui_labels(request):
-    lang = getattr(request, "LANGUAGE_CODE", None) or "ar"
-    if lang not in ("ar", "en"):
-        lang = "ar"
+    """تسميات شريط الغلاف والوردية — عربي ثابت.
+
+    لا نربطها بـ request.LANGUAGE_CODE: LocaleMiddleware قد يفعّل الإنجليزية من Accept-Language
+    بينما القوالب والواجهة موجهة للعربية فقط، فيظهر نص مثل «Session summary & close» بالخطأ.
+    """
     AR = {
         "nav_pos": "نقطة البيع",
         "nav_inventory": "المخزون",
@@ -39,30 +41,7 @@ def ui_labels(request):
         "lang_ar": "العربية",
         "lang_en": "English",
     }
-    EN = {
-        "nav_pos": "POS",
-        "nav_inventory": "Inventory",
-        "nav_suppliers": "Suppliers",
-        "nav_customers": "Customers",
-        "nav_employees": "Employees",
-        "nav_expenses": "Expenses",
-        "nav_reports": "Reports",
-        "nav_close_session": "Close session",
-        "nav_session_summary": "Session summary & close",
-        "nav_login": "Login",
-        "nav_logout": "Logout",
-        "session_open": "Open session",
-        "session_active": "Active session",
-        "session_none": "No open work session",
-        "opening_cash": "Opening cash",
-        "open_btn": "Open",
-        "close_session": "Close session",
-        "closing_cash": "Closing cash",
-        "close_btn": "Close",
-        "lang_ar": "Arabic",
-        "lang_en": "English",
-    }
-    return {"LBL": EN if lang == "en" else AR}
+    return {"LBL": AR}
 
 
 def low_stock_count(request):
@@ -97,4 +76,73 @@ def shell_route_namespaces(request):
         "accounting_ns": "shell",
         "payroll_ns": "shell",
         "catalog_ns": "shell",
+    }
+
+
+def _shell_topbar_active_id(path: str) -> str:
+    """مفتاح تبويب الشريط العلوي من مسار الطلب تحت /app/."""
+    if not path:
+        return ""
+    marker = "/app/"
+    if marker not in path:
+        return ""
+    rel = path[path.index(marker) + len(marker) :].lstrip("/")
+    rules = (
+        ("billing/invoices", "invoices"),
+        ("invoices/", "invoices"),
+        ("purchase/", "suppliers"),
+        ("suppliers/", "suppliers"),
+        ("products/", "products"),
+        ("inventory/", "inventory"),
+        ("customers/", "customers"),
+        ("expenses/", "expenses"),
+        ("reports/", "reports"),
+        ("accounting/", "accounting"),
+        ("payroll/", "employees"),
+        ("settings/", "settings"),
+    )
+    for prefix, key in rules:
+        if rel.startswith(prefix):
+            return key
+    return ""
+
+
+def shell_topbar(request):
+    """روابط الشريط العلوي للغلاف + تمييز الصفحة النشطة (بدون تكرار في القوالب)."""
+    from django.urls import NoReverseMatch, reverse
+
+    path = getattr(request, "path", "") or ""
+    active = _shell_topbar_active_id(path)
+
+    specs = (
+        ("products", "shell:product_list", "المنتجات", "includes/icons/topbar_products.html"),
+        ("inventory", "shell:inventory_home", "المخزون", "includes/icons/nav_inventory.html"),
+        ("customers", "shell:customers", "العملاء", "includes/icons/nav_customers.html"),
+        ("suppliers", "shell:suppliers", "الموردون", "includes/icons/topbar_suppliers.html"),
+        ("expenses", "shell:expenses", "المصروفات", "includes/icons/topbar_expenses.html"),
+        ("reports", "shell:reports", "التقارير", "includes/icons/nav_reports.html"),
+        ("invoices", "shell:invoice_list", "الفواتير", "includes/icons/topbar_invoices.html"),
+        ("accounting", "shell:accounting_chart", "المحاسبة", "includes/icons/topbar_accounting.html"),
+        ("employees", "shell:employees", "الموظفون", "includes/icons/topbar_employees.html"),
+        ("settings", "shell:settings", "الإعدادات", "includes/icons/nav_settings.html"),
+    )
+    links = []
+    for lid, url_name, label, icon_tpl in specs:
+        try:
+            href = reverse(url_name)
+        except NoReverseMatch:
+            href = "#"
+        links.append(
+            {
+                "id": lid,
+                "href": href,
+                "label": label,
+                "icon_tpl": icon_tpl,
+                "title": label,
+            }
+        )
+
+    return {
+        "shell_topbar_active": active,
+        "shell_topbar_links": links,
     }

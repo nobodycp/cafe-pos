@@ -1,12 +1,16 @@
 from decimal import Decimal
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.accounting.forms import JournalEntryEditForm, make_journal_line_formset
 from apps.accounting.models import Account, JournalEntry, JournalLine
 from apps.accounting.services import account_ledger, profit_and_loss, trial_balance
+from apps.core.models import log_audit
+from apps.core.pagination import paginate_queryset
 from apps.inventory.models import StockBalance
 
 
@@ -99,12 +103,68 @@ def account_ledger_view(request, pk):
 
 @login_required
 def journal_list(request):
-    entries = JournalEntry.objects.select_related("work_session", "user").order_by("-date", "-created_at")[:200]
-    return render(request, "shell/accounting_journal_list.html", {"entries": entries})
+    qs = JournalEntry.objects.select_related("work_session", "user").order_by("-date", "-created_at")
+    ctx = {}
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, "shell/accounting_journal_list.html", ctx)
 
 
 @login_required
 def journal_detail(request, pk):
     entry = get_object_or_404(JournalEntry.objects.select_related("work_session", "user"), pk=pk)
     lines = entry.lines.select_related("account").order_by("-debit", "credit")
-    return render(request, "shell/accounting_journal_detail.html", {"entry": entry, "lines": lines})
+    return render(
+        request,
+        "shell/accounting_journal_detail.html",
+        {"entry": entry, "lines": lines, "can_edit_journal": not entry.is_reversed},
+    )
+
+
+@login_required
+def journal_edit(request, pk):
+    entry = get_object_or_404(JournalEntry.objects.select_related("work_session", "user"), pk=pk)
+    if entry.is_reversed:
+        messages.error(request, "لا يمكن تعديل قيد معكوس.")
+        return redirect("shell:journal_detail", pk=entry.pk)
+
+    LineFormSet = make_journal_line_formset()
+    if request.method == "POST":
+        entry_form = JournalEntryEditForm(request.POST, instance=entry)
+        formset = LineFormSet(
+            request.POST,
+            queryset=JournalLine.objects.filter(entry=entry).select_related("account"),
+        )
+        if entry_form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                entry_form.save()
+                instances = formset.save(commit=False)
+                for obj in instances:
+                    if obj.account_id and (obj.debit > 0 or obj.credit > 0):
+                        obj.entry = entry
+                        obj.save()
+                for obj in formset.deleted_objects:
+                    obj.delete()
+            log_audit(
+                request.user,
+                "accounting.journal_entry.update",
+                "accounting.JournalEntry",
+                str(entry.pk),
+                {"entry_number": entry.entry_number},
+            )
+            messages.success(request, "تم حفظ تعديلات القيد.")
+            return redirect("shell:journal_detail", pk=entry.pk)
+        messages.error(request, "راجع البيانات: القيد يجب أن يبقى متوازناً وسطرين على الأقل.")
+    else:
+        entry_form = JournalEntryEditForm(instance=entry)
+        formset = LineFormSet(
+            queryset=JournalLine.objects.filter(entry=entry).select_related("account"),
+        )
+    return render(
+        request,
+        "shell/accounting_journal_edit.html",
+        {
+            "entry": entry,
+            "entry_form": entry_form,
+            "formset": formset,
+        },
+    )

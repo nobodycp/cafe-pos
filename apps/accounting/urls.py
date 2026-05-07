@@ -11,4 +11,5 @@ urlpatterns = [
     path("pnl/", views.pnl_view, name="pnl"),
     path("journal/", views.journal_list, name="journal_list"),
     path("journal/<int:pk>/", views.journal_detail, name="journal_detail"),
+    path("journal/<int:pk>/edit/", views.journal_edit, name="journal_edit"),
 ]

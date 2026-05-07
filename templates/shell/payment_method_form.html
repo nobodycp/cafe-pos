@@ -7,7 +7,9 @@
     <span class="pos-shell-toolbar-title">{{ title }}</span>
     <span class="pos-shell-toolbar-hint hidden lg:inline">إعدادات طرق الدفع</span>
     <span class="flex-1"></span>
-    <a href="{{ payment_methods_return_url }}" class="shell-toolbar-link">← طرق الدفع</a>
+    <div class="shell-toolbar-actions">
+      <a href="{{ payment_methods_return_url }}" class="shell-toolbar-link">← طرق الدفع</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-3xl">

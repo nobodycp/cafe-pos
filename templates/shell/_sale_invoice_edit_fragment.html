@@ -4,8 +4,10 @@
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
     <span class="pos-shell-toolbar-title">تعديل {{ invoice.invoice_number }}</span>
     <span class="flex-1"></span>
-    <button type="button" class="pos-invoice-back-preview shell-toolbar-link border-0 bg-transparent cursor-pointer text-sm p-0 hover:underline">← المعاينة</button>
-    <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link text-xs" target="_blank" rel="noopener">فتح بالكامل ↗</a>
+    <div class="shell-toolbar-actions">
+      <button type="button" class="pos-invoice-back-preview shell-toolbar-link">← المعاينة</button>
+      <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link" target="_blank" rel="noopener">فتح بالكامل ↗</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 bg-white dark:bg-gray-950">
     {% if not pos_allows_edit %}

@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from typing import Optional
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -8,11 +9,12 @@ from django.db import transaction
 from django.db.models import Max, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Product, Unit
 from apps.core.models import log_audit
+from apps.core.pagination import paginate_queryset
 from apps.core.payment_methods import credit_method_codes, load_payment_method_rows
 from apps.purchasing.forms import SupplierForm, SupplierPaymentForm
 from apps.purchasing.models import (
@@ -31,6 +33,57 @@ from apps.billing.models import SaleInvoiceLine
 
 def _payment_rows():
     return load_payment_method_rows()
+
+
+OPENING_BALANCE_LEDGER_NOTE = "رصيد افتتاحي"
+
+
+def _supplier_opening_ledger_qs(supplier: Supplier):
+    """قيود التسوية المعنونة «رصيد افتتاحي» (يُفترض أنها من إنشاء/تصحيح الرصيد الافتتاحي)."""
+    return SupplierLedgerEntry.objects.filter(
+        supplier=supplier,
+        entry_type=SupplierLedgerEntry.EntryType.ADJUSTMENT,
+        note=OPENING_BALANCE_LEDGER_NOTE,
+    )
+
+
+def _supplier_opening_balance_from_ledger(supplier: Supplier) -> Decimal:
+    agg = _supplier_opening_ledger_qs(supplier).aggregate(s=Sum("amount"))
+    return (agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
+
+
+def _apply_supplier_opening_balance(*, supplier: Supplier, amount: Decimal) -> None:
+    """يستبدل قيود الرصيد الافتتاحي بقيد واحد بالمبلغ الجديد (أو يحذفها إن كان الصفر) ويُحدّث حقل الرصيد."""
+    amount = (amount or Decimal("0")).quantize(Decimal("0.01"))
+    if amount < 0:
+        amount = Decimal("0")
+    _supplier_opening_ledger_qs(supplier).delete()
+    if amount > 0:
+        SupplierLedgerEntry.objects.create(
+            supplier=supplier,
+            entry_type=SupplierLedgerEntry.EntryType.ADJUSTMENT,
+            amount=amount,
+            note=OPENING_BALANCE_LEDGER_NOTE,
+        )
+    supplier.balance = supplier.computed_balance
+    supplier.save(update_fields=["balance", "updated_at"])
+
+
+def _safe_purchase_redirect_next(request) -> Optional[str]:
+    """إعادة توجيه آمنة إلى الكاشير بعد حفظ فاتورة شراء (حقل next في النموذج)."""
+    raw = (request.POST.get("next") or "").strip()
+    if not raw or "\n" in raw or "\r" in raw or ".." in raw or raw.startswith("//"):
+        return None
+    if not raw.startswith("/"):
+        return None
+    path_only = raw.split("?", 1)[0]
+    if not path_only.startswith("/pos"):
+        return None
+    try:
+        resolve(path_only)
+    except Resolver404:
+        return None
+    return raw
 
 
 def _purchase_payments_from_request(request, total: Decimal, errors: list) -> list[tuple[str, Decimal]]:
@@ -209,13 +262,16 @@ def _purchasing_tpl(request, shell_tpl, classic_tpl):
 @login_required
 def supplier_list(request):
     qs = Supplier.objects.filter(is_active=True).select_related("linked_customer").order_by("name_ar")
+    pag = paginate_queryset(request, qs)
     enriched = []
-    for s in qs:
+    for s in pag["page_obj"]:
         cust_bal = s.linked_customer.balance if s.linked_customer else Decimal("0")
         net = (s.balance - cust_bal).quantize(Decimal("0.01"))
         enriched.append({"supplier": s, "customer_balance": cust_bal, "net_balance": net})
     tpl = _purchasing_tpl(request, "shell/suppliers_list.html", "purchasing/suppliers.html")
-    return render(request, tpl, _purchasing_ctx(request, rows=enriched))
+    ctx = _purchasing_ctx(request, rows=enriched)
+    ctx.update(pag)
+    return render(request, tpl, ctx)
 
 
 @login_required
@@ -236,6 +292,7 @@ def supplier_detail(request, pk):
 
 
 @login_required
+@transaction.atomic
 def supplier_create(request):
     from apps.contacts.models import Customer
 
@@ -243,16 +300,10 @@ def supplier_create(request):
         form = SupplierForm(request.POST)
         if form.is_valid():
             supplier = form.save()
-            ob = form.cleaned_data.get("opening_balance") or Decimal("0")
-            if ob > 0:
-                supplier.balance = ob
-                supplier.save(update_fields=["balance"])
-                SupplierLedgerEntry.objects.create(
-                    supplier=supplier,
-                    entry_type=SupplierLedgerEntry.EntryType.ADJUSTMENT,
-                    amount=ob,
-                    note="رصيد افتتاحي",
-                )
+            ob = (form.cleaned_data.get("opening_balance") or Decimal("0")).quantize(Decimal("0.01"))
+            if ob < 0:
+                ob = Decimal("0")
+            _apply_supplier_opening_balance(supplier=supplier, amount=ob)
             if form.cleaned_data.get("also_customer"):
                 cust = Customer.objects.create(
                     name_ar=supplier.name_ar,
@@ -270,16 +321,24 @@ def supplier_create(request):
 
 
 @login_required
+@transaction.atomic
 def supplier_edit(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
         form = SupplierForm(request.POST, instance=supplier)
         if form.is_valid():
             form.save()
-            messages.success(request, "تم تعديل بيانات المورد بنجاح")
+            new_ob = (form.cleaned_data.get("opening_balance") or Decimal("0")).quantize(Decimal("0.01"))
+            if new_ob < 0:
+                new_ob = Decimal("0")
+            _apply_supplier_opening_balance(supplier=supplier, amount=new_ob)
+            messages.success(request, "تم حفظ بيانات المورد.")
             return _purchasing_redirect(request, "supplier_detail", pk=supplier.pk)
     else:
-        form = SupplierForm(instance=supplier)
+        form = SupplierForm(
+            instance=supplier,
+            initial={"opening_balance": _supplier_opening_balance_from_ledger(supplier)},
+        )
     tpl = _purchasing_tpl(request, "shell/suppliers_form.html", "purchasing/supplier_form.html")
     return render(request, tpl, _purchasing_ctx(request, form=form, title="تعديل مورد", supplier=supplier))
 
@@ -384,9 +443,19 @@ def purchase_invoice_create(request, pk):
                         payments=payments,
                     )
                     messages.success(request, f"تم إنشاء فاتورة الشراء {inv.invoice_number} بنجاح")
+                    nu = _safe_purchase_redirect_next(request)
+                    if nu:
+                        return redirect(nu)
                     return _purchasing_redirect(request, "supplier_detail", pk=supplier.pk)
                 except Exception as e:
                     errors.append(f"حدث خطأ: {e}")
+
+    if errors:
+        nu = _safe_purchase_redirect_next(request)
+        if nu:
+            for err in errors:
+                messages.error(request, err)
+            return redirect(nu)
 
     return render(
         request,
@@ -437,9 +506,19 @@ def purchase_invoice_new(request):
                                 payments=payments,
                             )
                             messages.success(request, f"تم إنشاء فاتورة الشراء {inv.invoice_number} بنجاح")
+                            nu = _safe_purchase_redirect_next(request)
+                            if nu:
+                                return redirect(nu)
                             return _purchasing_redirect(request, "supplier_detail", pk=supplier.pk)
                         except Exception as e:
                             errors.append(f"حدث خطأ: {e}")
+
+    if errors:
+        nu = _safe_purchase_redirect_next(request)
+        if nu:
+            for err in errors:
+                messages.error(request, err)
+            return redirect(nu)
 
     return render(
         request,
@@ -737,9 +816,10 @@ def purchase_invoice_list(request):
             Q(invoice_number__icontains=q) | Q(supplier__name_ar__icontains=q)
         )
 
-    invoices = qs[:200]
+    ctx = _purchasing_ctx(request, q=q)
+    ctx.update(paginate_queryset(request, qs))
     tpl = _purchasing_tpl(request, "shell/purchase_list.html", "purchasing/purchase_list.html")
-    return render(request, tpl, _purchasing_ctx(request, invoices=invoices, q=q))
+    return render(request, tpl, ctx)
 
 
 @login_required

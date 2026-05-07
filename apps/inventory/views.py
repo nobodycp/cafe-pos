@@ -1,6 +1,8 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.db.models import DecimalField, F, Value
+from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -9,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Product, RecipeLine
 from apps.core.models import log_audit
+from apps.core.pagination import paginate_queryset
 from apps.core.services import SessionService
 from apps.inventory.forms import RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
@@ -40,7 +43,7 @@ def _inventory_tpl(request, shell_tpl, classic_tpl):
 
 @login_required
 def inventory_home(request):
-    rows = (
+    base_qs = (
         StockBalance.objects.select_related("product", "product__unit")
         .filter(product__is_stock_tracked=True)
         .exclude(product__product_type=Product.ProductType.MANUFACTURED)
@@ -48,23 +51,35 @@ def inventory_home(request):
         .exclude(product__product_type=Product.ProductType.COMMISSION)
         .order_by("product__name_ar")
     )
-    for r in rows:
+    zero_min = Value(Decimal("0"), output_field=DecimalField(max_digits=20, decimal_places=6))
+    low_qs = (
+        base_qs.annotate(_min_lvl=Coalesce(F("product__min_stock_level"), zero_min))
+        .filter(quantity_on_hand__lte=F("_min_lvl"))
+        .order_by("quantity_on_hand")[:40]
+    )
+    low = list(low_qs)
+    for r in low:
         r.value = (r.quantity_on_hand * r.average_cost).quantize(Decimal("0.01"))
-    low = [r for r in rows if r.quantity_on_hand <= (r.product.min_stock_level or 0)]
+
+    pag = paginate_queryset(request, base_qs)
+    balances_page = list(pag["page_obj"])
+    for r in balances_page:
+        r.value = (r.quantity_on_hand * r.average_cost).quantize(Decimal("0.01"))
+    ctx = _inventory_ctx(request, balances=balances_page, low_stock=low)
+    ctx.update(pag)
     return render(
         request,
         _inventory_tpl(request, "shell/inventory_home.html", "inventory/home.html"),
-        _inventory_ctx(request, balances=rows, low_stock=low),
+        ctx,
     )
 
 
 @login_required
 def movement_list(request):
-    mv = (
-        StockMovement.objects.select_related("product", "product__unit")
-        .order_by("-created_at")[:500]
-    )
-    return render(request, _inventory_tpl(request, "shell/inventory_movements.html", "inventory/movements.html"), _inventory_ctx(request, movements=mv))
+    qs = StockMovement.objects.select_related("product", "product__unit").order_by("-created_at")
+    ctx = _inventory_ctx(request)
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, _inventory_tpl(request, "shell/inventory_movements.html", "inventory/movements.html"), ctx)
 
 
 @login_required

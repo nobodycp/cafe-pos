@@ -1,0 +1,104 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}كشف {{ method_label }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="كشف طريقة الدفع" toolbar_hint=method_label %}
+<div class="mb-2 flex flex-wrap items-center gap-2">
+  <a href="{% url 'shell:payment_channels' %}?date_from={{ date_from }}&amp;date_to={{ date_to }}" class="text-xs font-bold text-primary hover:underline">← طرق الدفع والتتبع</a>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <form method="get" class="flex flex-col gap-3">
+    <input type="hidden" name="method" value="{{ method }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <div class="flex flex-wrap gap-2 items-end">
+      <div>
+        <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+      </div>
+      <div class="flex-1 min-w-[12rem] max-w-xl">
+        <label class="block text-[11px] font-bold text-muted mb-0.5">بحث في السطور (النوع، الجهة، التفاصيل)</label>
+        <input type="search" name="q" value="{{ q }}" placeholder="مثال: فاتورة، مورد، مصروف…" class="ds-input w-full h-8 text-xs">
+      </div>
+      <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
+    </div>
+  </form>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي وارد</div>
+    <div class="text-sm font-extrabold text-success tabular-nums">{{ summary.total_in|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي صادر</div>
+    <div class="text-sm font-extrabold text-danger tabular-nums">{{ summary.total_out|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-primary/20 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">الصافي (وارد − صادر)</div>
+    <div class="text-sm font-extrabold text-primary tabular-nums">{{ summary.net|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">عدد السطور</div>
+    <div class="text-sm font-extrabold tabular-nums">{{ row_count }}</div>
+  </div>
+</div>
+<p class="text-[10px] text-muted mb-2">{{ ledger_note }}</p>
+
+<div class="ds-panel mb-2">
+  <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+    <table class="w-full text-sm ds-table">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>الوقت</th>
+          <th>النوع</th>
+          <th>الجهة / الاسم</th>
+          <th>التفاصيل</th>
+          <th class="text-end">وارد</th>
+          <th class="text-end">صادر</th>
+          <th class="text-end">رصيد تراكمي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+        <tr>
+          <td class="whitespace-nowrap font-semibold">{{ row.row_date|date:"Y-m-d" }}</td>
+          <td class="whitespace-nowrap text-muted text-xs">{{ row.sort_at|date:"H:i" }}</td>
+          <td>{{ row.kind_ar }}</td>
+          <td class="font-semibold">
+            {% if row.customer_pk %}
+            <a href="{% url 'shell:customer_detail' row.customer_pk %}" class="text-primary hover:underline">{{ row.party }}</a>
+            {% elif row.supplier_pk %}
+            <a href="{% url 'shell:supplier_detail' row.supplier_pk %}" class="text-primary hover:underline">{{ row.party }}</a>
+            {% else %}
+            {{ row.party }}
+            {% endif %}
+          </td>
+          <td class="text-xs max-w-[20rem]">
+            {% if row.invoice_pk %}
+            <a href="{% url 'shell:invoice_detail' row.invoice_pk %}" class="text-primary font-bold hover:underline">{{ row.detail }}</a>
+            {% elif row.expense_pk %}
+            <a href="{% url 'shell:expense_edit' row.expense_pk %}" class="text-primary hover:underline">{{ row.detail }}</a>
+            {% else %}
+            {{ row.detail }}
+            {% endif %}
+          </td>
+          <td class="text-end tabular-nums font-bold text-success">{% if row.in_display %}{{ row.in_display|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+          <td class="text-end tabular-nums font-bold text-danger">{% if row.out_display %}{{ row.out_display|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+          <td class="text-end tabular-nums font-extrabold">{{ row.running|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="p-8 text-center text-muted">لا حركات لهذه الطريقة في الفترة أو البحث.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% include "shell/_shell_pagination.html" %}
+  </div>
+</div>
+{% include "reports/_reports_shell_end.html" %}
+{% endblock %}

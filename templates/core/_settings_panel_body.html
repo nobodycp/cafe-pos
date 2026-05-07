@@ -1,22 +1,13 @@
-<h1 class="text-2xl font-extrabold text-gray-800 dark:text-gray-100 mb-6">الإعدادات</h1>
-
-{# ── Tabs Navigation ── #}
-<div class="flex gap-0 border-b-2 border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto no-scrollbar" id="settingsTabs">
-  <a href="#cafe" data-tab="cafe"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'cafe' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">معلومات المقهى</a>
-  <a href="#currency" data-tab="currency"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'currency' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">العملة</a>
-  <a href="#tax" data-tab="tax"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'tax' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الضريبة والخدمة</a>
-  <a href="#order" data-tab="order"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'order' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">إعدادات الطلب</a>
-  <a href="#printer" data-tab="printer"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'printer' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الطابعات</a>
-  <a href="#receipt" data-tab="receipt"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'receipt' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">الإيصال</a>
-  <a href="#payment" data-tab="payment"
-     class="settings-tab px-5 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-[2px] transition-colors duration-200 {% if active_tab == 'payment' %}active text-primary border-primary{% else %}text-muted border-transparent hover:text-gray-800 dark:hover:text-gray-200{% endif %}">طرق الدفع</a>
-</div>
+{# عنوان الصفحة في شريط الغلاف — التبويبات بنفس نمط المصروفات/المحاسبة #}
+<nav class="ds-shell-subtabs settings-nav-tabs" id="settingsTabs" role="tablist" aria-label="أقسام الإعدادات">
+  <a href="#cafe" data-tab="cafe" class="ds-shell-subtab{% if active_tab == 'cafe' %} is-active{% endif %}">معلومات المقهى</a>
+  <a href="#currency" data-tab="currency" class="ds-shell-subtab{% if active_tab == 'currency' %} is-active{% endif %}">العملة</a>
+  <a href="#tax" data-tab="tax" class="ds-shell-subtab{% if active_tab == 'tax' %} is-active{% endif %}">الضريبة والخدمة</a>
+  <a href="#order" data-tab="order" class="ds-shell-subtab{% if active_tab == 'order' %} is-active{% endif %}">إعدادات الطلب</a>
+  <a href="#printer" data-tab="printer" class="ds-shell-subtab{% if active_tab == 'printer' %} is-active{% endif %}">الطابعات</a>
+  <a href="#receipt" data-tab="receipt" class="ds-shell-subtab{% if active_tab == 'receipt' %} is-active{% endif %}">الإيصال</a>
+  <a href="#payment" data-tab="payment" class="ds-shell-subtab{% if active_tab == 'payment' %} is-active{% endif %}">طرق الدفع</a>
+</nav>
 
 {# ── معلومات المقهى ── #}
 <div class="settings-section {% if active_tab == 'cafe' %}active{% endif %}" id="tab-cafe">
@@ -49,7 +40,7 @@
         <label class="block text-sm font-semibold text-muted mb-1.5">{{ cafe.cafe_address.label }}</label>
         {{ cafe.cafe_address }}
       </div>
-      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ معلومات المقهى</button>
+      <button type="submit" class="mt-5 ds-btn ds-btn-primary">حفظ معلومات المقهى</button>
     </form>
   </div>
 </div>
@@ -75,7 +66,7 @@
           {{ currency.decimal_places }}
         </div>
       </div>
-      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ العملة</button>
+      <button type="submit" class="mt-5 ds-btn ds-btn-primary">حفظ العملة</button>
     </form>
   </div>
 </div>
@@ -103,7 +94,7 @@
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ tax.tax_included_in_price.label }}</span>
         </label>
       </div>
-      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+      <button type="submit" class="mt-5 ds-btn ds-btn-primary">حفظ</button>
     </form>
   </div>
 </div>
@@ -133,7 +124,7 @@
         </label>
         <p class="text-xs text-muted mt-1.5 mr-7">إلزام اختيار عميل عند الدفع الآجل</p>
       </div>
-      <button type="submit" class="mt-2 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+      <button type="submit" class="mt-4 ds-btn ds-btn-primary">حفظ</button>
     </form>
   </div>
 </div>
@@ -162,7 +153,7 @@
           {{ printer.printer_receipt_label }}
         </div>
       </div>
-      <button type="submit" class="mt-5 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+      <button type="submit" class="mt-5 ds-btn ds-btn-primary">حفظ</button>
     </form>
   </div>
 </div>
@@ -183,6 +174,20 @@
         {{ receipt.receipt_footer }}
       </div>
       <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_logo_url.label }}</label>
+        {{ receipt.receipt_logo_url }}
+        <p class="text-xs text-muted mt-1">{{ receipt.receipt_logo_url.help_text }}</p>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_slogan_ar.label }}</label>
+        {{ receipt.receipt_slogan_ar }}
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_stamp_text.label }}</label>
+        {{ receipt.receipt_stamp_text }}
+        <p class="text-xs text-muted mt-1">{{ receipt.receipt_stamp_text.help_text }}</p>
+      </div>
+      <div class="mb-4">
         <label class="flex items-center gap-3 cursor-pointer">
           {{ receipt.receipt_show_tax_number }}
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.receipt_show_tax_number.label }}</span>
@@ -195,8 +200,33 @@
         </label>
         <p class="text-xs text-muted mt-1.5 mr-7 max-w-xl">{{ receipt.allow_sale_invoice_edit.help_text }}</p>
       </div>
-      <button type="submit" class="mt-2 bg-primary text-white font-bold text-sm hover:bg-primary-dk focus:ring-4 focus:ring-primary/20 transition-all duration-200">حفظ</button>
+      <button type="submit" class="mt-4 ds-btn ds-btn-primary">حفظ</button>
     </form>
+
+    <div class="mt-6 pt-5 border-t border-gray-200 dark:border-gray-600">
+      <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-2">معاينة الإيصال (مباشرة)</h3>
+      <p class="text-xs text-muted mb-3">بعد تعديل الحقول اضغط «حفظ» ثم «تحديث المعاينة». المعاينة تعرض <strong>آخر فاتورة بيع</strong> بالإعدادات الحالية.</p>
+      {% if receipt_preview_invoice_id %}
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <button type="button" id="settings-receipt-preview-refresh" class="ds-btn text-sm font-bold border-2 border-gray-400 dark:border-gray-500 bg-white dark:bg-gray-800">تحديث المعاينة</button>
+        <a href="{% url 'shell:receipt_preview_live' %}" target="_blank" rel="noopener" class="text-sm font-bold text-primary hover:underline">فتح صفحة معاينة كاملة</a>
+      </div>
+      <iframe id="settings-receipt-preview-iframe" title="معاينة الإيصال" class="w-full h-[min(520px,55vh)] border border-gray-300 dark:border-gray-600 rounded-lg bg-white"
+        src="{% url 'pos:receipt' invoice_id=receipt_preview_invoice_id %}?embed=1"></iframe>
+      <script>
+      (function(){
+        var b=document.getElementById("settings-receipt-preview-refresh");
+        var f=document.getElementById("settings-receipt-preview-iframe");
+        if(b&&f)b.addEventListener("click",function(){
+          var base="{% url 'pos:receipt' invoice_id=receipt_preview_invoice_id %}?embed=1";
+          f.src=base+(base.indexOf("?")>=0?"&":"?")+"_="+Date.now();
+        });
+      })();
+      </script>
+      {% else %}
+      <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">لا توجد فاتورة بيع بعد — أنشئ فاتورة من الكاشير لتظهر المعاينة هنا.</p>
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -217,11 +247,7 @@
   function activate(tabId){
     tabs.forEach(t=>{
       const isActive = t.dataset.tab === tabId;
-      t.classList.toggle('active', isActive);
-      t.classList.toggle('text-primary', isActive);
-      t.classList.toggle('border-primary', isActive);
-      t.classList.toggle('text-muted', !isActive);
-      t.classList.toggle('border-transparent', !isActive);
+      t.classList.toggle('is-active', isActive);
     });
     sections.forEach(s=>{s.classList.toggle('active',s.id==='tab-'+tabId)});
     const params = new URLSearchParams(location.search);

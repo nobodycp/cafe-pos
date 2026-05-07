@@ -7,8 +7,10 @@
     <span class="pos-shell-toolbar-title">أرصدة العملاء</span>
     <span class="pos-shell-toolbar-hint hidden lg:inline">العملاء أصحاب الأرصدة فقط</span>
     <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link" title="لوحة الطلبات والبيع">← لوحة الطلبات</a>
-    <a href="{% url 'shell:customers' %}" class="shell-toolbar-link">← قائمة العملاء</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link" title="لوحة الطلبات والبيع">← لوحة الطلبات</a>
+      <a href="{% url 'shell:customers' %}" class="shell-toolbar-link">← قائمة العملاء</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "contacts/_customer_balances_body.html" %}

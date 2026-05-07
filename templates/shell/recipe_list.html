@@ -5,7 +5,9 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">معادلة التصنيع — {{ product.name_ar }}</span><span class="flex-1"></span>
-    <a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary">← المنتجات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:product_list' %}" class="shell-toolbar-link">← المنتجات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="flex justify-between mb-3"><h1>معادلة التصنيع</h1><a href="{% url 'shell:recipe_add' product.pk %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">تعديل/إضافة مكوّنات</a></div>
@@ -18,12 +20,16 @@
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead><tr><th>المكوّن</th><th>الوحدة</th><th>الكمية</th><th>تكلفة الوحدة</th><th>تكلفة المكوّن</th><th>المخزون</th><th>يكفي لـ</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>المكوّن</th><th>الوحدة</th><th>الكمية</th><th>تكلفة الوحدة</th><th>تكلفة المكوّن</th><th>المخزون</th><th>يكفي لـ</th><th class="text-center whitespace-nowrap min-w-[6rem] w-[6rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for e in enriched %}
             <tr>
               <td class="font-bold">{{ e.component.name_ar }}</td><td>{{ e.component.unit.name_ar|default:"—" }}</td><td>{{ e.display_qty }} {{ e.display_unit }}</td><td>{{ e.unit_cost|floatformat:2|intcomma }}</td><td class="font-bold text-danger">{{ e.line_cost|floatformat:2|intcomma }}</td><td>{{ e.on_hand|floatformat:2|intcomma }}</td><td>{{ e.max_units|floatformat:0 }}</td>
-              <td><form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}">{% csrf_token %}<button type="submit">حذف</button></form></td>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn text-danger border-danger/40">حذف</button></form>
+                </div>
+              </td>
             </tr>
             {% empty %}
             <tr><td colspan="8" class="text-center text-muted p-10">لا توجد مكوّنات في معادلة التصنيع.</td></tr>

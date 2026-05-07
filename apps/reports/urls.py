@@ -13,4 +13,5 @@ urlpatterns = [
     path("cash-flow/", views.cash_flow_report, name="cash_flow"),
     path("payroll/", views.payroll_report, name="payroll_report"),
     path("payment-channels/", views.payment_channels_report, name="payment_channels"),
+    path("payment-channels/ledger/", views.payment_channel_ledger, name="payment_channel_ledger"),
 ]

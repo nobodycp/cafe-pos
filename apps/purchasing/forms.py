@@ -1,13 +1,17 @@
+from decimal import Decimal
+
 from django import forms
 
+from apps.core.forms import FlexibleDecimalField
 from apps.core.payment_methods import get_payment_method_choices
 from apps.purchasing.models import Supplier
 
 
 class SupplierForm(forms.ModelForm):
-    opening_balance = forms.DecimalField(
+    opening_balance = FlexibleDecimalField(
         required=False,
         initial=0,
+        min_value=Decimal("0"),
         label="رصيد افتتاحي (مستحق للمورد)",
         widget=forms.NumberInput(attrs={"class": "form-input", "step": "0.01", "placeholder": "0.00"}),
     )

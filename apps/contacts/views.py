@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from apps.core.pagination import paginate_queryset
 from apps.contacts.forms import CustomerForm, CustomerPaymentForm
 from apps.contacts.models import Customer, CustomerLedgerEntry
 from apps.contacts.services import record_customer_payment
@@ -39,7 +40,9 @@ def customer_list(request):
     if q:
         qs = qs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
     tpl = _contacts_tpl(request, "shell/customers_list.html", "contacts/customers.html")
-    return render(request, tpl, _contacts_ctx(request, customers=qs, q=q))
+    ctx = _contacts_ctx(request, q=q)
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, tpl, ctx)
 
 
 @login_required

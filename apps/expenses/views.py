@@ -4,6 +4,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.core.pagination import paginate_queryset
 from apps.core.services import SessionService
 from apps.expenses.forms import ExpenseCategoryForm, ExpenseForm
 from apps.expenses.models import Expense, ExpenseCategory
@@ -12,8 +13,10 @@ from apps.expenses.services import create_expense, delete_expense_permanent
 
 @login_required
 def expense_list(request):
-    qs = Expense.objects.select_related("category").order_by("-expense_date", "-created_at")[:300]
-    return render(request, "expenses/list.html", {"expenses": qs})
+    qs = Expense.objects.select_related("category").order_by("-expense_date", "-created_at")
+    ctx = {}
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, "expenses/list.html", ctx)
 
 
 @login_required

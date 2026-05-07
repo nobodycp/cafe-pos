@@ -77,7 +77,7 @@
     }
   ],
   "key_urls_namespaces": {
-    "pos": "pos:* — main، tables_floor، order_*، cart_fragment، products_search",
+    "pos": "pos:* — main، order_*، cart_fragment، products_search",
     "core": "core:* — session_open/close/summary، settings",
     "billing": "billing:* — فواتير، مرتجعات",
     "catalog": "catalog:* — product_card (ليس product_detail)"
@@ -96,7 +96,9 @@
   "conventions": {
     "admin": "واجهة المستخدم الرئيسية ليست Django Admin — لوحات مخصصة",
     "money": "Decimal في Python؛ لا float للمال",
-    "rtl": "قوالب عربية أولاً"
+    "rtl": "قوالب عربية أولاً",
+    "services_layer": "المنطق المعاملاتي/المحاسبة/المخزون يُفضّل في apps.<app>.services (دوال صريحة، معاملات واضحة). الـ views تنسّق الطلب، تستدعي الخدمة، وتعيد استجابة أو redirect. تجنّب تكرار نفس الكتلة بين عدة views — استخرج إلى دالة خدمة واحدة.",
+    "shell_urls": "مسارات الغلاف تحت apps/core/shell_urls.py؛ مجموعة المحاسبة/الخزينة في apps/core/shell_url_patterns_accounting.py لتسهيل المراجعة."
   },
   "tests_and_checks": {
     "django_check": "python manage.py check",

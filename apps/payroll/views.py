@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decimalutil import as_decimal
+from apps.core.pagination import paginate_queryset
 from apps.core.services import SessionService
 from apps.expenses.models import ExpenseCategory
 from apps.expenses.services import create_expense, delete_expense_permanent
@@ -50,7 +51,9 @@ def _recalc_balance(emp):
 @login_required
 def employee_list(request):
     qs = Employee.objects.filter(is_active=True).order_by("name_ar")
-    return render(request, "payroll/employees.html", {"employees": qs})
+    ctx = {}
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, "payroll/employees.html", ctx)
 
 
 @login_required

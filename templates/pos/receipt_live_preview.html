@@ -1,0 +1,50 @@
+{% extends "shell/base.html" %}
+{% block title %}معاينة الإيصال الحي{% endblock %}
+{% block nav_on_settings %}on{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  {% include "shell/_shell_toolbar.html" with toolbar_title="معاينة الإيصال" toolbar_hint="تعرض آخر فاتورة بيع مع إعدادات الإيصال الحالية — حدّث بعد حفظ الإعدادات" %}
+  <div class="pos-shell-content flex-1 min-h-0 flex flex-col gap-3 p-3 overflow-hidden">
+    {% if iframe_src %}
+    <div class="flex flex-wrap items-center gap-2 shrink-0">
+      <button type="button" id="receipt-preview-refresh" class="ds-btn ds-btn-primary text-sm font-bold">تحديث المعاينة</button>
+      <label class="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200 cursor-pointer">
+        <input type="checkbox" id="receipt-preview-auto" class="rounded border-gray-400">
+        تحديث تلقائي كل 5 ثوانٍ
+      </label>
+      <a href="{% url 'shell:settings' %}?tab=receipt" class="text-sm font-bold text-primary hover:underline">← العودة لتبويب الإيصال</a>
+    </div>
+    <div class="flex-1 min-h-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-zinc-100 dark:bg-zinc-900 p-2 overflow-hidden flex flex-col">
+      <iframe id="receipt-live-iframe" title="معاينة الإيصال" class="w-full flex-1 min-h-[420px] border-0 bg-white rounded" src="{{ iframe_src }}"></iframe>
+    </div>
+    {% else %}
+    <p class="text-sm font-bold text-gray-700 dark:text-gray-200">لا توجد فاتورة بيع في النظام. أنشئ فاتورة من الكاشير ثم عد لهذه الصفحة.</p>
+    <a href="{% url 'pos:main' %}" class="ds-btn ds-btn-primary w-fit text-sm font-bold">فتح الكاشير</a>
+    <a href="{% url 'shell:settings' %}?tab=receipt" class="text-sm font-bold text-primary hover:underline">الإعدادات — الإيصال</a>
+    {% endif %}
+  </div>
+</div>
+{% if iframe_src %}
+<script>
+(function() {
+  var iframe = document.getElementById("receipt-live-iframe");
+  var btn = document.getElementById("receipt-preview-refresh");
+  var auto = document.getElementById("receipt-preview-auto");
+  var base = "{{ iframe_src|escapejs }}";
+  function bustUrl() {
+    var u = new URL(base, window.location.origin);
+    u.searchParams.set("_", String(Date.now()));
+    return u.pathname + u.search + u.hash;
+  }
+  function reload() { if (iframe) iframe.src = bustUrl(); }
+  if (btn) btn.addEventListener("click", reload);
+  var t = null;
+  if (auto) auto.addEventListener("change", function() {
+    if (t) clearInterval(t);
+    t = null;
+    if (auto.checked) t = setInterval(reload, 5000);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

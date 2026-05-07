@@ -1,12 +1,52 @@
 {% extends "shell/base.html" %}
 {% load humanize %}
-{% block title %}الجرد الفعلي{% endblock %}
+{% block title %}الجرد الفعلي{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
+{% url 'shell:inventory_home' as shell_inventory_home_url %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2"><span class="pos-shell-toolbar-title">الجرد الفعلي</span><span class="flex-1"></span><a href="{% url 'shell:inventory_home' %}" class="text-xs font-bold text-primary">← المخزون</a></div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title="الجرد الفعلي" toolbar_hint="مسودات وعمليات معتمدة" toolbar_back_url=shell_inventory_home_url toolbar_back_label="← المخزون" toolbar_back_title="المخزون" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="flex justify-between mb-3"><h1>الجرد الفعلي</h1><a href="{% url 'shell:stocktake_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">جرد جديد</a></div>
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>#</th><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th><th>إجراءات</th></tr></thead><tbody>{% for t in takes %}<tr><td>{{ t.pk }}</td><td>{{ t.created_at|date:"Y/m/d H:i" }}</td><td>{% if t.status == "approved" %}معتمد{% else %}مسودة{% endif %}</td><td>{{ t.note|default:"—" }}</td><td>{% if t.status == "approved" %}<a href="{% url 'shell:stocktake_detail' pk=t.pk %}">عرض</a>{% else %}<a href="{% url 'shell:stocktake_edit' pk=t.pk %}">تعديل</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="p-8 text-center text-muted">لا يوجد عمليات جرد</td></tr>{% endfor %}</tbody></table></div></div>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <span class="ds-section-title m-0">عمليات الجرد</span>
+      <span class="flex-1"></span>
+      <a href="{% url 'shell:stocktake_create' %}" class="ds-btn ds-btn-primary shrink-0">جرد جديد</a>
+    </div>
+    <div class="ds-panel">
+      <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+        <table class="w-full text-sm ds-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>التاريخ</th>
+              <th>الحالة</th>
+              <th>ملاحظات</th>
+              <th class="text-center whitespace-nowrap min-w-[7rem] w-[7rem]">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in takes %}
+            <tr>
+              <td>{{ t.pk }}</td>
+              <td>{{ t.created_at|date:"Y/m/d H:i" }}</td>
+              <td>{% if t.status == "approved" %}معتمد{% else %}مسودة{% endif %}</td>
+              <td>{{ t.note|default:"—" }}</td>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  {% if t.status == "approved" %}
+                  <a href="{% url 'shell:stocktake_detail' pk=t.pk %}" class="ds-btn">عرض</a>
+                  {% else %}
+                  <a href="{% url 'shell:stocktake_edit' pk=t.pk %}" class="ds-btn">تعديل</a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="p-8 text-center text-muted">لا يوجد عمليات جرد</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -8,15 +8,17 @@
     <span class="pos-shell-toolbar-hint hidden lg:inline">تفاصيل فاتورة البيع داخل الغلاف</span>
     {% endif %}
     <span class="flex-1"></span>
-    {% if invoice.customer %}
-    <a href="{% url 'shell:customer_detail' invoice.customer.pk %}" class="shell-toolbar-link" {% if invoice_embedded %}target="_blank" rel="noopener"{% endif %}>← العميل</a>
-    {% endif %}
-    {% if not invoice_embedded %}
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    {% endif %}
-    {% if invoice_embedded %}
-    <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link text-xs" target="_blank" rel="noopener">فتح بالكامل ↗</a>
-    {% endif %}
+    <div class="shell-toolbar-actions">
+      {% if invoice.customer %}
+      <a href="{% url 'shell:customer_detail' invoice.customer.pk %}" class="shell-toolbar-link" {% if invoice_embedded %}target="_blank" rel="noopener"{% endif %}>← العميل</a>
+      {% endif %}
+      {% if not invoice_embedded %}
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+      {% endif %}
+      {% if invoice_embedded %}
+      <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link" target="_blank" rel="noopener">فتح بالكامل ↗</a>
+      {% endif %}
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 bg-white dark:bg-gray-950">
     <div class="flex justify-end items-center mb-4 flex-wrap gap-3">

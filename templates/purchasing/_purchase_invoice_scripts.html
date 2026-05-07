@@ -8,14 +8,33 @@
      data-unit-create-url="{% url 'shell:purchase_unit_quick_create' %}"></div>
 <style>
 .purchase-ac-hits{max-height:min(320px,55vh);overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:260px;}
-.line-product-search + .purchase-ac-hits{min-width:420px;}
+.line-product-search + .purchase-ac-hits{min-width:min(420px,92vw);}
 .purchase-ac-hit{display:block;width:100%;text-align:right;padding:.5rem .75rem;font-size:.875rem;border:0;background:none;cursor:pointer;font-family:inherit;}
 .purchase-ac-hit:hover,.purchase-ac-hit.ac-active{background:#eef0ff;}
 .dark .purchase-ac-hit:hover,.dark .purchase-ac-hit.ac-active{background:rgba(108,92,231,.15);}
 .purchase-line.is-empty:not(.is-visible){display:none}
 .purchase-pay-btn.pay-on{border-color:#1e3a5f;background:#e2e8f0;color:#0f172a}
 .dark .purchase-pay-btn.pay-on{border-color:#3b82f6;background:rgba(30,58,95,.4);color:#fff}
-.purchase-entry-table input{height:2rem!important;font-size:.75rem!important}
+.purchase-entry-table{table-layout:fixed;width:100%;border-collapse:collapse}
+.purchase-entry-table th,.purchase-entry-table td{vertical-align:middle;padding:0.2rem 0.25rem}
+.purchase-entry-table .purchase-col-num{text-align:center;font-size:0.65rem;font-weight:700;color:#64748b}
+.purchase-entry-table .purchase-col-product{min-width:0}
+.purchase-entry-table .purchase-col-product .line-product-search{width:100%;min-width:0;box-sizing:border-box}
+.purchase-entry-table .purchase-col-qty input,.purchase-entry-table .purchase-col-money input{text-align:center;font-variant-numeric:tabular-nums;padding-left:0.15rem;padding-right:0.15rem}
+.purchase-entry-table .purchase-col-total{text-align:end;font-variant-numeric:tabular-nums;font-size:0.75rem}
+.purchase-entry-table .purchase-col-del,.purchase-entry-table .purchase-col-add{text-align:center}
+.purchase-entry-table .purchase-col-add #add-line-btn{flex-shrink:0}
+.purchase-entry-table input{height:2rem!important;font-size:0.75rem!important;box-sizing:border-box}
+.purchase-form--compact .purchase-entry-table th,.purchase-form--compact .purchase-entry-table td{padding:0.12rem 0.18rem}
+.purchase-form--compact .purchase-entry-table col.purchase-col-unit{width:5.25rem!important}
+.purchase-form--compact .purchase-entry-table col.purchase-col-qty{width:3.35rem!important}
+.purchase-form--compact .purchase-entry-table col.purchase-col-money{width:3.35rem!important}
+.purchase-form--compact .purchase-entry-table col.purchase-col-total{width:3.5rem!important}
+.purchase-form--compact .purchase-entry-table col.purchase-col-del{width:2.1rem!important}
+.purchase-form--compact .purchase-entry-table col.purchase-col-add{width:1.85rem!important}
+.purchase-form--compact .purchase-entry-table input{height:1.7rem!important;font-size:0.6875rem!important}
+.purchase-form--compact .purchase-entry-table .purchase-col-num{font-size:0.6rem}
+.purchase-form--compact .purchase-entry-table thead th{font-size:0.65rem;line-height:1.15;padding:0.2rem 0.15rem}
 </style>
 <script>
 (function() {

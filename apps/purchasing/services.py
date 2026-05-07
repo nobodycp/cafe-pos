@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from django.db import transaction
 
@@ -144,6 +145,8 @@ def record_supplier_payment(
     user,
     note: str = "",
     work_session=None,
+    payment_lines: Optional[List[Tuple[str, Decimal]]] = None,
+    entry_date: Optional[date] = None,
 ) -> SupplierPayment:
     """سداد مستقل لمورد (خارج سياق فاتورة شراء)."""
     amt = as_decimal(amount)
@@ -151,40 +154,92 @@ def record_supplier_payment(
         raise ValueError("INVALID_AMOUNT")
 
     session = work_session or SessionService.get_open_session()
-    supplier.balance = (supplier.balance - amt).quantize(Decimal("0.01"))
+
+    lines: List[Tuple[str, Decimal]] = []
+    if payment_lines is not None:
+        for m, a in payment_lines:
+            mc = str(m or "").strip().lower()
+            a2 = as_decimal(a)
+            if a2 <= 0 or not mc:
+                continue
+            if mc not in get_payment_method_codes():
+                raise ValueError("INVALID_PAYMENT_METHOD")
+            lines.append((mc, a2))
+    else:
+        m = str(method or "").strip().lower()
+        if m not in get_payment_method_codes():
+            raise ValueError("INVALID_PAYMENT_METHOD")
+        lines = [(m, amt)]
+
+    if not lines:
+        raise ValueError("INVALID_AMOUNT")
+
+    sum_lines = sum(a for _, a in lines).quantize(Decimal("0.01"))
+    if sum_lines != amt:
+        raise ValueError("PAYMENT_LINES_SUM_MISMATCH")
+
+    pay_out = sum(
+        a for m, a in lines if resolve_ledger_account_code(m) != "AR"
+    ).quantize(Decimal("0.01"))
+    if pay_out <= 0:
+        raise ValueError("INVALID_AMOUNT")
+
+    supplier.balance = (supplier.balance - pay_out).quantize(Decimal("0.01"))
     supplier.save(update_fields=["balance", "updated_at"])
 
-    m = str(method or "").strip().lower()
-    if m not in get_payment_method_codes():
-        raise ValueError("INVALID_PAYMENT_METHOD")
+    primary_method = next(
+        (m for m, a in lines if resolve_ledger_account_code(m) != "AR"),
+        lines[0][0],
+    )
+    note_base = (note or "").strip() or "سداد مستقل"
+    if len(lines) > 1:
+        split_txt = " · ".join(f"{m}:{a}" for m, a in lines)
+        note_base = f"{note_base} — [{split_txt}]"
+    if entry_date:
+        note_base = f"{note_base} · {entry_date.isoformat()}"
 
     sp = SupplierPayment.objects.create(
         supplier=supplier,
         work_session=session,
-        amount=amt,
-        method=m,
-        note=note or "سداد مستقل",
+        amount=pay_out,
+        method=primary_method,
+        note=note_base,
     )
     SupplierLedgerEntry.objects.create(
         supplier=supplier,
         entry_type=SupplierLedgerEntry.EntryType.PAYMENT,
-        amount=-amt,
-        note=note or "سداد مستقل",
+        amount=-pay_out,
+        note=note_base,
         reference_model="purchasing.SupplierPayment",
         reference_pk=str(sp.pk),
     )
 
-    from apps.accounting.services import post_supplier_payment_journal
+    from apps.accounting.services import post_supplier_payment_journal, post_supplier_payment_journal_multi
 
-    post_supplier_payment_journal(
-        supplier=supplier,
-        amount=amt,
-        method=method,
-        reference_type="purchasing.SupplierPayment",
-        reference_pk=str(sp.pk),
-        work_session=session,
-        user=user,
+    use_multi = len(lines) > 1 or any(
+        resolve_ledger_account_code(m) == "AR" and a > 0 for m, a in lines
     )
+    if not use_multi:
+        post_supplier_payment_journal(
+            supplier=supplier,
+            amount=lines[0][1],
+            method=lines[0][0],
+            reference_type="purchasing.SupplierPayment",
+            reference_pk=str(sp.pk),
+            work_session=session,
+            user=user,
+            entry_date=entry_date,
+        )
+    else:
+        post_supplier_payment_journal_multi(
+            supplier=supplier,
+            payments=lines,
+            reference_type="purchasing.SupplierPayment",
+            reference_pk=str(sp.pk),
+            work_session=session,
+            user=user,
+            entry_date=entry_date,
+        )
 
-    log_audit(user, "supplier.payment", "purchasing.Supplier", supplier.pk, {"amount": str(amt)})
+    log_audit(user, "supplier.payment", "purchasing.Supplier", supplier.pk, {"amount": str(pay_out)})
     return sp

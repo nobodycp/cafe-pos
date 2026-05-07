@@ -4,7 +4,9 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">تصنيع منتج</span><span class="flex-1"></span>
-    <a href="{% url 'shell:product_list' %}" class="text-xs font-bold text-primary">← المنتجات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:product_list' %}" class="shell-toolbar-link">← المنتجات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% if errors %}<div class="bg-danger/10 border border-danger/20 rounded-lg p-3 mb-3">{% for e in errors %}<p class="text-danger text-sm font-semibold">{{ e }}</p>{% endfor %}</div>{% endif %}

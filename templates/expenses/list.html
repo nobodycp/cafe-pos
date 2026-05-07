@@ -9,14 +9,16 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">قائمة المصروفات المسجّلة</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap gap-1.5 items-center min-w-0">
+    <div class="ds-shell-context-bar">
+      <div class="flex flex-wrap items-center min-w-0">
         {% include "shell/_expenses_tabs.html" with expenses_tab="list" %}
       </div>
-      <a href="{% url 'shell:expense_create' %}" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center whitespace-nowrap shrink-0">إضافة مصروف</a>
+      <a href="{% url 'shell:expense_create' %}" class="ds-btn ds-btn-primary shrink-0 whitespace-nowrap">إضافة مصروف</a>
     </div>
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none">
@@ -28,23 +30,23 @@
               <th>المبلغ</th>
               <th>طريقة الدفع</th>
               <th>ملاحظات</th>
-              <th class="text-center w-28">إجراءات</th>
+              <th class="text-center whitespace-nowrap min-w-[8rem] w-[8rem]">إجراءات</th>
             </tr>
           </thead>
           <tbody>
-            {% for e in expenses %}
+            {% for e in page_obj %}
             <tr>
               <td>{{ e.expense_date }}</td>
               <td>{{ e.category.name_ar }}</td>
               <td class="font-semibold">{{ e.amount|floatformat:2|intcomma }}</td>
               <td>{{ e.payment_method_label_ar }}</td>
               <td class="text-muted">{{ e.notes|truncatechars:60 }}</td>
-              <td>
-                <div class="flex flex-wrap items-center justify-end gap-1">
-                  <a href="{% url 'shell:expense_edit' e.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل</a>
-                  <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="inline m-0">
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:expense_edit' e.pk %}" class="ds-btn">تعديل</a>
+                  <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="m-0">
                     {% csrf_token %}
-                    <button type="submit" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px] text-danger border-danger/40">حذف</button>
+                    <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
                   </form>
                 </div>
               </td>
@@ -54,6 +56,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

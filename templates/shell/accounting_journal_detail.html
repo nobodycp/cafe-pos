@@ -9,9 +9,13 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">تفاصيل القيد</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'shell:journal_list' %}" class="shell-toolbar-link whitespace-nowrap">← القيود اليومية</a>
-    <span class="select-none text-muted/70 dark:text-gray-500" aria-hidden="true">·</span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      {% if can_edit_journal %}
+      <a href="{% url 'shell:journal_edit' entry.pk %}" class="shell-toolbar-link shell-toolbar-link--primary whitespace-nowrap">تعديل القيد</a>
+      {% endif %}
+      <a href="{% url 'shell:journal_list' %}" class="shell-toolbar-link">← القيود اليومية</a>
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="journal_detail" %}

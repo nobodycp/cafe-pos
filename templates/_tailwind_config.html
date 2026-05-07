@@ -1,0 +1,25 @@
+{# Shared Tailwind CDN theme — keep in sync with :root tokens in static/app.css #}
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  safelist: [
+    'bg-success', 'bg-danger', 'bg-info', 'bg-warning',
+    'text-white', 'text-gray-800', 'text-gray-900',
+    'dark:bg-sky-700', 'dark:text-white',
+  ],
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Cairo', 'sans-serif'] },
+      colors: {
+        primary:    { DEFAULT: '#1e3a5f', dk: '#163051', soft: '#e2e8f0', light: '#3d5a80' },
+        success:    { DEFAULT: '#00b894', light: '#e8f8f5' },
+        danger:     { DEFAULT: '#d63031', light: '#ffe5e5' },
+        warning:    { DEFAULT: '#fdcb6e', light: '#fff8e1' },
+        info:       { DEFAULT: '#74b9ff', light: '#eef6ff' },
+        surface:    { DEFAULT: '#ffffff', dark: '#1e293b' },
+        muted:      '#64748b',
+      }
+    }
+  }
+}
+</script>

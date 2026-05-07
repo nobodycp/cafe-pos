@@ -5,7 +5,9 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">فواتير الشراء</span><span class="flex-1"></span>
-    <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← الموردون</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← الموردون</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
@@ -15,6 +17,7 @@
     </div>
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       <form method="get" class="flex gap-2 flex-wrap items-center flex-1 min-w-0 m-0">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
         <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم المورد..." class="ds-input flex-1 min-w-[200px] max-w-2xl">
         <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
       </form>
@@ -22,22 +25,27 @@
     <div class="ds-panel">
     <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
       <table class="w-full text-sm ds-table">
-        <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الإجمالي</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[6rem] w-[6rem]">إجراءات</th></tr></thead>
         <tbody>
-        {% for inv in invoices %}
+        {% for inv in page_obj %}
           <tr class="{% if inv.is_cancelled %}opacity-50{% endif %}">
             <td><a href="{% url 'shell:purchase_detail' inv.pk %}" class="text-primary hover:underline">{{ inv.invoice_number }}</a></td>
             <td>{{ inv.created_at|date:"Y-m-d H:i" }}</td>
             <td>{{ inv.supplier.name_ar }}</td>
             <td class="font-bold">{{ inv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
             <td><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if inv.payment_status == 'paid' %}bg-success/10 text-success{% elif inv.payment_status == 'partial' %}bg-warning/20 text-yellow-700 dark:text-warning{% else %}bg-danger/10 text-danger{% endif %}">{{ inv.get_payment_status_display }}</span></td>
-            <td><a href="{% url 'shell:purchase_detail' inv.pk %}">عرض</a></td>
+            <td class="text-end align-middle">
+              <div class="ds-table-actions">
+                <a href="{% url 'shell:purchase_detail' inv.pk %}" class="ds-btn">عرض</a>
+              </div>
+            </td>
           </tr>
         {% empty %}
           <tr><td colspan="6" class="p-8 text-center text-muted">لا توجد فواتير شراء</td></tr>
         {% endfor %}
         </tbody>
       </table>
+    {% include "shell/_shell_pagination.html" %}
     </div>
     </div>
   </div>

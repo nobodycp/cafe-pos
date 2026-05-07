@@ -1,17 +1,20 @@
 {% if errors %}
-<div class="bg-danger/5 border-e-4 border-danger rounded-xl p-4 mb-5">
-  {% for err in errors %}<p class="text-danger text-sm font-semibold">{{ err }}</p>{% endfor %}
+<div class="bg-danger/5 border-e-4 border-danger {% if purchase_form_compact %}rounded-md p-2 mb-2{% else %}rounded-xl p-4 mb-5{% endif %}">
+  {% for err in errors %}<p class="text-danger {% if purchase_form_compact %}text-xs{% else %}text-sm{% endif %} font-semibold">{{ err }}</p>{% endfor %}
 </div>
 {% endif %}
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+<div class="bg-white dark:bg-gray-800 {% if purchase_form_compact %}rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm{% else %}rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5{% endif %}">
   {{ purchase_form_state|json_script:"purchase-form-state" }}
-  <form method="post" id="purchase-form">
+  <form method="post" id="purchase-form" class="{% if purchase_form_compact %}purchase-form--compact{% endif %}"{% if purchase_form_action %} action="{{ purchase_form_action }}"{% endif %}>
     {% csrf_token %}
+    {% if purchase_next %}
+    <input type="hidden" name="next" value="{{ purchase_next }}">
+    {% endif %}
 
     {% if suppliers %}
-    <div class="mb-4 max-w-xl relative">
-      <label>المورد</label>
+    <div class="{% if purchase_form_compact %}mb-2 max-w-none{% else %}mb-4 max-w-xl{% endif %} relative">
+      <label class="{% if purchase_form_compact %}text-xs{% endif %}">المورد</label>
       <input type="hidden" name="supplier_id" id="purchase-supplier-id">
       <input type="hidden" name="supplier_label" id="purchase-supplier-label">
       <input type="text" id="purchase-supplier-search" autocomplete="off" placeholder="ابحث عن المورد أو أضف مورد جديد" class="w-full">
@@ -22,36 +25,40 @@
     </div>
     {% endif %}
 
-    <h2 class="text-lg font-bold text-gray-800 dark:text-white mb-1">الأصناف</h2>
-    <div class="overflow-x-auto overflow-y-visible">
+    <h2 class="{% if purchase_form_compact %}text-sm{% else %}text-lg{% endif %} font-bold text-gray-800 dark:text-white {% if purchase_form_compact %}mb-0.5{% else %}mb-1{% endif %}">الأصناف</h2>
+    <div class="overflow-x-auto overflow-y-visible -mx-0.5 {% if purchase_form_compact %}px-0.5{% endif %}">
       <table class="w-full text-sm purchase-entry-table" id="lines-table">
         <colgroup>
-          <col class="w-10">
-          <col>
-          <col class="w-28">
-          <col class="w-24">
-          <col class="w-28">
-          <col class="w-24">
-          <col class="w-28">
-          <col class="w-16">
+          <col class="purchase-col-num" style="width:1.75rem">
+          <col class="purchase-col-product">
+          <col class="purchase-col-unit" style="width:5.75rem">
+          <col class="purchase-col-qty" style="width:3.75rem">
+          <col class="purchase-col-money" style="width:3.75rem">
+          <col class="purchase-col-money" style="width:3.75rem">
+          <col class="purchase-col-total" style="width:4rem">
+          <col class="purchase-col-del" style="width:2.35rem">
+          <col class="purchase-col-add" style="width:2rem">
         </colgroup>
         <thead>
           <tr>
-            <th>#</th>
-            <th>المنتج</th>
-            <th>الوحدة</th>
-            <th>الكمية</th>
-            <th>تكلفة الوحدة</th>
-            <th>الخصم</th>
-            <th>الإجمالي</th>
-            <th>حذف</th>
+            <th class="purchase-col-num">#</th>
+            <th class="purchase-col-product">المنتج</th>
+            <th class="purchase-col-unit">الوحدة</th>
+            <th class="purchase-col-qty">الكمية</th>
+            <th class="purchase-col-money">تكلفة الوحدة</th>
+            <th class="purchase-col-money">الخصم</th>
+            <th class="purchase-col-total">الإجمالي</th>
+            <th class="purchase-col-del">حذف</th>
+            <th class="purchase-col-add p-0" title="إضافة بند">
+              <button type="button" id="add-line-btn" class="inline-flex h-7 w-7 items-center justify-center rounded border border-emerald-600 bg-emerald-50 text-emerald-800 text-base font-extrabold leading-none hover:bg-emerald-100 dark:border-emerald-500 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/40" aria-label="إضافة بند">+</button>
+            </th>
           </tr>
         </thead>
         <tbody id="lines-body">
           {% for i in range20 %}
           <tr class="purchase-line" data-idx="{{ i }}">
-            <td class="line-num">{{ forloop.counter }}</td>
-            <td>
+            <td class="line-num purchase-col-num">{{ forloop.counter }}</td>
+            <td class="purchase-col-product min-w-0">
               <input type="hidden" name="product_{{ i }}" value="" class="line-product-id">
               <div class="relative overflow-visible z-30">
                 <input type="text" autocomplete="off" dir="rtl" class="line-product-search w-full" data-idx="{{ i }}" placeholder="ابحث عن صنف…">
@@ -63,7 +70,7 @@
                 </div>
               </div>
             </td>
-            <td>
+            <td class="purchase-col-unit">
               <input type="hidden" name="unit_{{ i }}" value="" class="line-unit-id">
               <div class="relative overflow-visible z-20">
                 <input type="text" autocomplete="off" class="line-unit-search w-full" data-idx="{{ i }}" placeholder="الوحدة">
@@ -73,20 +80,19 @@
                 </div>
               </div>
             </td>
-            <td><input type="number" name="qty_{{ i }}" step="0.01" min="0" class="line-qty w-full" data-idx="{{ i }}" placeholder="0"></td>
-            <td><input type="number" name="cost_{{ i }}" step="0.01" min="0" class="line-cost w-full" data-idx="{{ i }}" placeholder="0.00"></td>
-            <td><input type="number" name="discount_{{ i }}" step="0.01" min="0" class="line-discount w-full" data-idx="{{ i }}" placeholder="0.00"></td>
-            <td class="line-total font-bold" data-idx="{{ i }}">0.00</td>
-            <td><button type="button" class="remove-line-btn text-danger font-bold cursor-pointer bg-transparent border-0" data-idx="{{ i }}">حذف</button></td>
+            <td class="purchase-col-qty"><input type="number" name="qty_{{ i }}" step="0.01" min="0" class="line-qty w-full min-w-0" data-idx="{{ i }}" placeholder="0"></td>
+            <td class="purchase-col-money"><input type="number" name="cost_{{ i }}" step="0.01" min="0" class="line-cost w-full min-w-0" data-idx="{{ i }}" placeholder="0.00"></td>
+            <td class="purchase-col-money"><input type="number" name="discount_{{ i }}" step="0.01" min="0" class="line-discount w-full min-w-0" data-idx="{{ i }}" placeholder="0.00"></td>
+            <td class="line-total purchase-col-total font-bold tabular-nums" data-idx="{{ i }}">0.00</td>
+            <td class="purchase-col-del"><button type="button" class="remove-line-btn text-danger text-[11px] font-bold cursor-pointer bg-transparent border-0 p-0.5 leading-tight" data-idx="{{ i }}">حذف</button></td>
+            <td class="purchase-col-add"></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
-    <button type="button" id="add-line-btn" class="inline-flex items-center justify-center h-9 px-4 rounded-lg bg-success text-white font-bold text-sm mt-3">+ إضافة بند</button>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 max-w-3xl">
+    <div class="grid grid-cols-1 md:grid-cols-3 {% if purchase_form_compact %}gap-2 mt-3 max-w-none{% else %}gap-3 mt-5 max-w-3xl{% endif %}">
       <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
         <span class="block text-xs text-muted font-bold mb-1">الإجمالي</span>
         <span id="purchase-subtotal" class="font-extrabold text-primary">0.00</span>
@@ -101,15 +107,15 @@
       </div>
     </div>
 
-    <h2 class="text-lg font-bold text-gray-800 dark:text-white mt-5 mb-2">طريقة الدفع</h2>
+    <h2 class="{% if purchase_form_compact %}text-sm mt-3 mb-1{% else %}text-lg mt-5 mb-2{% endif %} font-bold text-gray-800 dark:text-white">طريقة الدفع</h2>
     <input type="hidden" name="pay_method" id="purchase-pay-method" value="">
-    <div class="flex flex-wrap gap-1.5" id="purchase-pay-methods">
+    <div class="flex flex-wrap {% if purchase_form_compact %}gap-1{% else %}gap-1.5{% endif %}" id="purchase-pay-methods">
       {% for row in payment_method_rows %}
-      <button type="button" class="purchase-pay-btn h-8 px-3 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
+      <button type="button" class="purchase-pay-btn {% if purchase_form_compact %}h-7 px-2 text-[10px]{% else %}h-8 px-3 text-xs{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
       {% endfor %}
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 max-w-xl">
+    <div class="grid grid-cols-1 md:grid-cols-2 {% if purchase_form_compact %}gap-2 mt-3 max-w-none{% else %}gap-3 mt-4 max-w-xl{% endif %}">
       <div>
         <label>المبلغ المدفوع</label>
         <input type="number" name="pay_amount" id="purchase-paid-amount" step="0.01" min="0" placeholder="0.00">
@@ -120,6 +126,6 @@
       </div>
     </div>
 
-    <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>
+    <button type="submit" class="w-full {% if purchase_form_compact %}h-9 mt-3 text-sm{% else %}h-11 mt-5{% endif %} rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>
   </form>
 </div>

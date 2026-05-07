@@ -2,7 +2,6 @@
 
 from django.urls import path
 
-from apps.accounting import views as accounting_views
 from apps.billing import views as billing_views
 from apps.catalog import views as catalog_views
 from apps.contacts import views as contacts_views
@@ -12,13 +11,17 @@ from apps.core import views as core_views
 from apps.expenses import views as expenses_views
 from apps.inventory import views as inventory_views
 from apps.payroll import views as payroll_views
+from apps.pos import views as pos_views
 from apps.purchasing import views as purchasing_views
 from apps.reports import views as reports_views
+
+from apps.core.shell_url_patterns_accounting import urlpatterns_accounting
 
 app_name = "shell"
 
 urlpatterns = [
     path("settings/", shell_views.settings_page, name="settings"),
+    path("settings/receipt-preview/", pos_views.receipt_live_preview, name="receipt_preview_live"),
     path(
         "settings/payment-methods/",
         payment_method_pages.payment_method_list_page,
@@ -127,18 +130,16 @@ urlpatterns = [
     path("reports/cash-flow/", reports_views.cash_flow_report, name="cash_flow"),
     path("reports/payroll/", reports_views.payroll_report, name="payroll_report"),
     path("reports/payment-channels/", reports_views.payment_channels_report, name="payment_channels"),
+    path(
+        "reports/payment-channels/ledger/",
+        reports_views.payment_channel_ledger,
+        name="payment_channel_ledger",
+    ),
     path("billing/invoices/", billing_views.sale_invoice_list, name="invoice_list"),
     path("billing/invoices/<int:pk>/delete/", billing_views.sale_invoice_delete, name="sale_invoice_delete"),
     path("billing/invoices/customer/<int:customer_id>/", billing_views.customer_invoices, name="customer_invoices"),
     path("billing/invoices/<int:invoice_pk>/return/", billing_views.sale_return_create, name="sale_return"),
-    path("accounting/accounts/", accounting_views.chart_of_accounts, name="accounting_chart"),
-    path("accounting/accounts/<int:pk>/ledger/", accounting_views.account_ledger_view, name="account_ledger"),
-    path("accounting/trial-balance/", accounting_views.trial_balance_view, name="trial_balance"),
-    path("accounting/pnl/", accounting_views.pnl_view, name="pnl"),
-    path("accounting/journal/", accounting_views.journal_list, name="journal_list"),
-    path("accounting/journal/<int:pk>/", accounting_views.journal_detail, name="journal_detail"),
-    path("accounting/treasury/", core_views.treasury, name="accounting_treasury"),
-    path("accounting/treasury/party-search/", core_views.treasury_party_search, name="treasury_party_search"),
+    *urlpatterns_accounting,
     path("payroll/", payroll_views.employee_list, name="employees"),
     path("payroll/create/", payroll_views.employee_create, name="employee_create"),
     path("payroll/<int:pk>/", payroll_views.employee_detail, name="employee_detail"),

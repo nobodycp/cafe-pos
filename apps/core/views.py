@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Optional
 
@@ -11,13 +12,16 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.contacts.customer_lookup import active_customers_search_qs
+from apps.contacts.models import Customer
+from apps.core.models import log_audit
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.treasury_services import recent_treasury_voucher_logs, submit_treasury_voucher
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.payroll.models import Employee
 from apps.pos.forms import DiningTableForm
-from apps.pos.models import DiningTable, Order, TableSession
+from apps.pos.models import DiningTable, TableSession
+from apps.pos.services import open_orders_with_lines_queryset
 from apps.pos.table_service import prepare_work_session_for_shift_close
 from apps.purchasing.models import Supplier
 
@@ -124,6 +128,26 @@ def treasury_party_search(request):
 
 @login_required
 @require_POST
+def treasury_customer_quick_create(request):
+    """إنشاء عميل سريع من سند الصندوق (JSON) — دون اشتراط وردية POS."""
+    try:
+        body = json.loads(request.body.decode() or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON غير صالح"}, status=400)
+    name_ar = (body.get("name_ar") or "").strip()[:200]
+    if len(name_ar) < 2:
+        return JsonResponse({"error": "أدخل اسم عميل بحرفين على الأقل"}, status=400)
+    phone = (body.get("phone") or "").strip()[:32]
+    existing = Customer.objects.filter(name_ar__iexact=name_ar, is_active=True).first()
+    if existing:
+        return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "reused": True})
+    c = Customer.objects.create(name_ar=name_ar, name_en="", phone=phone)
+    log_audit(request.user, "contacts.customer.quick_create_treasury", "contacts.Customer", c.pk, {})
+    return JsonResponse({"id": c.pk, "name_ar": c.name_ar, "reused": False})
+
+
+@login_required
+@require_POST
 def open_session_view(request):
     raw = request.POST.get("opening_cash", "0")
     try:
@@ -153,15 +177,15 @@ def close_session_view(request):
     ws = SessionService.get_open_session()
     if ws:
         prepare_work_session_for_shift_close(ws)
-        if Order.objects.filter(work_session=ws, status=Order.Status.OPEN).exists():
+        if open_orders_with_lines_queryset(ws).exists():
             request.session["flash_error"] = (
                 "لا يمكن إغلاق الوردية: يوجد طلبات مفتوحة أو طاولات لم تُسوَّ بعد. "
-                "أكمل الدفع أو علّق الطلبات من خريطة الطاولات."
+                "أكمل الدفع أو ألغِ الطلب من ملخص نهاية اليوم أو من الكاشير."
             )
             return redirect("pos:main")
         if TableSession.objects.filter(work_session=ws, status=TableSession.Status.OPEN).exists():
             request.session["flash_error"] = (
-                "لا يمكن إغلاق الوردية: جلسات طاولات مفتوحة. راجع خريطة الطاولات."
+                "لا يمكن إغلاق الوردية: جلسات طاولات مفتوحة. راجع الطاولات من الكاشير."
             )
             return redirect("pos:main")
     try:
@@ -232,14 +256,17 @@ def session_summary(request):
             except (InvalidOperation, ValueError):
                 closing = None
         prepare_work_session_for_shift_close(ws)
-        if Order.objects.filter(work_session=ws, status=Order.Status.OPEN).exists():
+        if open_orders_with_lines_queryset(ws).exists():
             messages.error(
                 request,
-                "لا يمكن إغلاق الوردية: يوجد طلبات مفتوحة. أكمل الدفع أو علّق الطلبات.",
+                "لا يمكن إغلاق الوردية: يوجد طلبات مفتوحة. أكمل الدفع أو ألغِ الطلب من الجدول أعلاه.",
             )
             return redirect("core:session_summary")
         if TableSession.objects.filter(work_session=ws, status=TableSession.Status.OPEN).exists():
-            messages.error(request, "لا يمكن إغلاق الوردية: جلسات طاولات مفتوحة.")
+            messages.error(
+                request,
+                "لا يمكن إغلاق الوردية: جلسات طاولات مفتوحة. راجع الطاولات من الكاشير.",
+            )
             return redirect("core:session_summary")
         try:
             SessionService.close_session(request.user, closing, request.POST.get("notes", ""))
@@ -286,9 +313,7 @@ def session_summary(request):
     opening_cash = ws.opening_cash or Decimal("0")
     expected_cash = opening_cash + pay_map["cash"] - cash_expenses
 
-    open_orders = Order.objects.filter(
-        work_session=ws, status=Order.Status.OPEN
-    ).select_related("table")
+    open_orders = open_orders_with_lines_queryset(ws).select_related("table", "customer")
 
     net_profit = profit - total_expenses
 

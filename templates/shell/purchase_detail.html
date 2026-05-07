@@ -5,8 +5,10 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">فاتورة شراء {{ invoice.invoice_number }}</span><span class="flex-1"></span>
-    <a href="{% url 'shell:supplier_detail' invoice.supplier.pk %}" class="shell-toolbar-link">← المورد</a>
-    <a href="{% url 'shell:purchase_list' %}" class="shell-toolbar-link">← كل فواتير الشراء</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:supplier_detail' invoice.supplier.pk %}" class="shell-toolbar-link">← المورد</a>
+      <a href="{% url 'shell:purchase_list' %}" class="shell-toolbar-link">← كل فواتير الشراء</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="flex justify-between items-center mb-6 flex-wrap gap-4">

@@ -9,33 +9,10 @@
   <title>{% block title %}لوحة التشغيل — {{ CAFE_NAME_AR }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'app.css' %}">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-  tailwind.config = {
-    darkMode: 'class',
-    safelist: [
-      'bg-success', 'bg-danger', 'bg-info', 'bg-warning',
-      'text-white', 'text-gray-800', 'text-gray-900',
-      'dark:bg-sky-700', 'dark:text-white',
-    ],
-    theme: {
-      extend: {
-        fontFamily: { sans: ['Cairo', 'sans-serif'] },
-        colors: {
-          primary:    { DEFAULT: '#1e3a5f', dk: '#163051', soft: '#e2e8f0', light: '#3d5a80' },
-          success:    { DEFAULT: '#00b894', light: '#e8f8f5' },
-          danger:     { DEFAULT: '#d63031', light: '#ffe5e5' },
-          warning:    { DEFAULT: '#fdcb6e', light: '#fff8e1' },
-          info:       { DEFAULT: '#74b9ff', light: '#eef6ff' },
-          surface:    { DEFAULT: '#ffffff', dark: '#1e293b' },
-          muted:      '#64748b',
-        }
-      }
-    }
-  }
-  </script>
+  {% include '_tailwind_config.html' %}
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="font-sans bg-[#e8eaed] dark:bg-gray-950 text-gray-800 dark:text-gray-100 overflow-hidden antialiased"
+<body class="font-sans ds-bg-page text-gray-800 dark:text-gray-100 overflow-hidden antialiased"
       x-data="toastManager()" @toast.window="addToast($event.detail)">
 
   <script>
@@ -74,28 +51,28 @@
   {% endif %}
 
   <div id="app-shell" class="grid grid-cols-[52px_1fr] h-screen pos-practical-shell">
-    <nav class="pos-side-nav bg-[#f0f1f5] dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 flex flex-col items-center py-1.5 gap-0.5 no-print">
-      <div class="w-9 h-9 rounded-sm bg-[#1e3a5f] flex items-center justify-center text-white font-extrabold text-xs mb-1 border border-[#163051]">
+    <nav class="pos-side-nav ds-bg-side-nav flex flex-col items-center py-1.5 gap-0.5 no-print">
+      <div class="w-9 h-9 rounded-sm ds-brand-mark flex items-center justify-center font-extrabold text-xs mb-1">
         {{ CAFE_NAME_AR.0 }}
       </div>
 
       <a href="{% url 'pos:main' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center {% block nav_on_orders %}text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800{% endblock %}" title="الطلبات">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        {% include "includes/icons/nav_orders.html" %}
       </a>
-      <a href="{% url 'pos:tables_floor' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center {% block nav_on_tables %}text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800{% endblock %}" title="الطاولات">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      <a href="{% url 'pos:main' %}#pos-tables-strip" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center {% block nav_on_tables %}text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800{% endblock %}" title="الطاولات">
+        {% include "includes/icons/nav_tables.html" %}
       </a>
       <a href="{% url 'shell:inventory_home' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800" title="المخزون">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        {% include "includes/icons/nav_inventory.html" %}
       </a>
       <a href="{% url 'shell:customers' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center {% block nav_on_customers %}text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800{% endblock %}" title="العملاء">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        {% include "includes/icons/nav_customers.html" %}
       </a>
       <a href="{% url 'shell:reports' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800" title="التقارير">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        {% include "includes/icons/nav_reports.html" %}
       </a>
       <a href="{% url 'shell:settings' %}" class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center {% block nav_on_settings %}text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800{% endblock %}" title="الإعدادات">
-        <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        {% include "includes/icons/nav_settings.html" %}
       </a>
       <div class="flex-1"></div>
       {% if user.is_authenticated %}
@@ -105,11 +82,7 @@
           <button type="submit"
                   class="pos-side-link w-10 h-10 rounded-sm flex items-center justify-center text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800 hover:text-red-700 dark:hover:text-red-400 border-0 bg-transparent cursor-pointer"
                   title="{{ LBL.nav_logout }}">
-            <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
+            {% include "includes/icons/nav_logout.html" %}
             <span class="sr-only">{{ LBL.nav_logout }}</span>
           </button>
         </form>
@@ -117,8 +90,8 @@
       {% endif %}
     </nav>
 
-    <div class="overflow-hidden flex flex-col min-h-0 bg-[#e8eaed] dark:bg-gray-950">
-      <header class="pos-topbar no-print shrink-0 flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-h-9 px-3 py-1 bg-[#1e3a5f] dark:bg-[#0c1929] border-b border-black/20" aria-label="الشريط العلوي">
+    <div class="min-w-0 overflow-hidden flex flex-col min-h-0 ds-bg-shell-column">
+      <header class="pos-topbar ds-topbar-header ds-bg-topbar no-print shrink-0 flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-h-10 px-2 sm:px-3 py-1.5" aria-label="الشريط العلوي">
         {% if user.is_authenticated %}
           {% if open_work_session and request.resolver_match and request.resolver_match.url_name == 'session_summary' %}
           {% elif open_work_session or not request.resolver_match or request.resolver_match.namespace != 'pos' %}
@@ -131,22 +104,11 @@
         </div>
           {% endif %}
         {% endif %}
-        <nav class="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 min-w-0 flex-1" aria-label="اختصارات الوحدات">
-        <a href="{% url 'shell:product_list' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="المنتجات">المنتجات</a>
-        <a href="{% url 'shell:inventory_home' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="المخزون">المخزون</a>
-        <a href="{% url 'shell:customers' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="العملاء">العملاء</a>
-        <a href="{% url 'shell:suppliers' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="الموردون">الموردون</a>
-        <a href="{% url 'shell:expenses' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="المصروفات">المصروفات</a>
-        <a href="{% url 'shell:reports' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="التقارير">التقارير</a>
-        <a href="{% url 'shell:invoice_list' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="الفواتير">الفواتير</a>
-        <a href="{% url 'shell:accounting_chart' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="المحاسبة">المحاسبة</a>
-        <a href="{% url 'shell:employees' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="الموظفون">الموظفون</a>
-        <a href="{% url 'shell:settings' %}" class="text-[11px] font-bold text-white/95 hover:text-white no-underline tracking-wide" title="إعدادات المشروع">إعدادات</a>
-        </nav>
+        {% include "shell/_topbar_nav.html" %}
       </header>
-      <div class="flex-1 min-h-0 overflow-hidden flex flex-col p-2 lg:p-3">
-        <main class="flex-1 flex flex-col min-h-0 overflow-hidden" role="main">
-          <div id="app-viewport" class="ds-viewport ds-shell-viewport flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600 bg-[#e8eaed] dark:bg-gray-950">
+      <div class="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col p-2 lg:p-3">
+        <main class="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden" role="main">
+          <div id="app-viewport" class="ds-viewport ds-shell-viewport ds-bg-viewport flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden rounded-lg border border-gray-300 dark:border-gray-600">
             {% block cashier_body %}
             <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
               <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">

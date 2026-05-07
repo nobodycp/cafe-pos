@@ -4,10 +4,20 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 
 from apps.billing.models import InvoicePayment, SaleInvoice
+from apps.core.pagination import paginate_queryset
+from apps.core.payment_methods import get_payment_method_codes
 from apps.core.models import WorkSession
+from apps.reports.payment_channel_ledger import (
+    apply_search,
+    attach_running_balance,
+    collect_ledger_rows,
+    payment_method_label_map,
+    summarize,
+)
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.inventory.models import StockBalance
@@ -558,3 +568,45 @@ def payment_channels_report(request):
             "cash_net_approx": cash_in - expense_cash_out,
         },
     )
+
+
+@login_required
+def payment_channel_ledger(request):
+    """كشف حركة طريقة دفع واحدة: مبيعات، مصروفات، سدادات موردين، سند قبض عميل."""
+    method = (request.GET.get("method") or "").strip()
+    codes = get_payment_method_codes()
+    if method not in codes:
+        return redirect(reverse("shell:payment_channels"))
+
+    today = date.today()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        d_to = today
+
+    q = (request.GET.get("q") or "").strip()
+    raw_rows = collect_ledger_rows(method=method, date_from=d_from, date_to=d_to)
+    filtered = apply_search(raw_rows, q)
+    row_dicts = attach_running_balance(filtered)
+    summary = summarize(row_dicts)
+    labels = payment_method_label_map()
+    method_label = labels.get(method, method)
+
+    ctx = {
+        "method": method,
+        "method_label": method_label,
+        "date_from": d_from.isoformat(),
+        "date_to": d_to.isoformat(),
+        "q": q,
+        "summary": summary,
+        "row_count": len(row_dicts),
+        "ledger_note": "الرصيد التراكمي يُحسب على السطور المعروضة بعد تطبيق الفترة والبحث.",
+    }
+    ctx.update(paginate_queryset(request, row_dicts))
+    return render(request, "reports/payment_channel_ledger.html", ctx)

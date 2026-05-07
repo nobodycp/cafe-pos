@@ -3,12 +3,7 @@
 {% block nav_on_customers %}bg-white dark:bg-gray-800 text-primary shadow-sm{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
-    <span class="pos-shell-toolbar-title">العملاء</span>
-    <span class="pos-shell-toolbar-hint hidden lg:inline">قائمة العملاء والحسابات بنفس شكل لوحة الطلبات</span>
-    <span class="flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link" title="لوحة الطلبات والبيع">← لوحة الطلبات</a>
-  </div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title="العملاء" toolbar_hint="قائمة العملاء والحسابات بنفس شكل لوحة الطلبات" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "contacts/_customers_list_body.html" %}
   </div>

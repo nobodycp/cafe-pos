@@ -9,14 +9,16 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">دليل الحسابات — أرصدة مجمّعة</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="chart" %}
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead><tr><th>الرمز</th><th>الحساب</th><th>النوع</th><th>مدين</th><th>دائن</th><th>الرصيد</th><th>إجراءات</th></tr></thead>
+          <thead><tr><th>الرمز</th><th>الحساب</th><th>النوع</th><th>مدين</th><th>دائن</th><th>الرصيد</th><th class="text-center whitespace-nowrap min-w-[8rem] w-[8rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for r in rows %}
             <tr>
@@ -26,7 +28,11 @@
               <td>{{ r.total_debit|floatformat:2|intcomma }}</td>
               <td>{{ r.total_credit|floatformat:2|intcomma }}</td>
               <td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td>
-              <td><a href="{% url 'shell:account_ledger' r.account.pk %}" class="text-primary font-semibold hover:underline">كشف حساب</a></td>
+              <td class="text-end align-middle">
+                <div class="ds-table-actions">
+                  <a href="{% url 'shell:account_ledger' r.account.pk %}" class="ds-btn">كشف حساب</a>
+                </div>
+              </td>
             </tr>
             {% empty %}
             <tr><td colspan="7" class="p-8 text-center text-muted">لا توجد حسابات</td></tr>

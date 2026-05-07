@@ -1,11 +1,12 @@
 from django import forms
 
 from apps.contacts.models import Customer
+from apps.core.forms import FlexibleDecimalField
 from apps.core.payment_methods import get_payment_method_choices
 
 
 class CustomerForm(forms.ModelForm):
-    opening_balance = forms.DecimalField(
+    opening_balance = FlexibleDecimalField(
         min_value=0,
         required=False,
         initial=0,

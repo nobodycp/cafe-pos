@@ -12,6 +12,7 @@ from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
 from apps.billing.purge_service import purge_sale_invoice
 from apps.billing.sale_invoice_edit import apply_sale_invoice_line_edits, can_edit_sale_invoice
 from apps.core.models import get_pos_settings
+from apps.core.pagination import paginate_queryset
 
 
 def _sale_invoice_edit_error_message(code: str) -> str:
@@ -56,12 +57,12 @@ def sale_invoice_list(request):
     if status in ("active", "cancelled"):
         qs = qs.filter(is_cancelled=(status == "cancelled"))
 
-    invoices = qs[:200]
-    return render(request, "shell/invoice_list.html", {
-        "invoices": invoices,
+    ctx = {
         "q": q,
         "status": status or "",
-    })
+    }
+    ctx.update(paginate_queryset(request, qs))
+    return render(request, "shell/invoice_list.html", ctx)
 
 
 @login_required
@@ -213,15 +214,14 @@ def sale_invoice_edit(request, pk):
 def customer_invoices(request, customer_id):
     from apps.contacts.models import Customer
     customer = get_object_or_404(Customer, pk=customer_id)
-    invoices = SaleInvoice.objects.filter(
+    inv_qs = SaleInvoice.objects.filter(
         customer=customer,
     ).select_related(
         "order__table_session__dining_table", "work_session",
-    ).order_by("-created_at")[:200]
-    return render(request, "shell/customer_invoices.html", {
-        "customer": customer,
-        "invoices": invoices,
-    })
+    ).order_by("-created_at")
+    ctx = {"customer": customer}
+    ctx.update(paginate_queryset(request, inv_qs))
+    return render(request, "shell/customer_invoices.html", ctx)
 
 
 @login_required

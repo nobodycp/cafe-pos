@@ -1,0 +1,42 @@
+{% load core_extras %}
+{% comment %}
+جدول طلبات مفتوحة (شكل Excel مثل المنتجات) — open_orders مع line_count و calc_* من العرض
+{% endcomment %}
+<table class="pos-product-xl pos-open-orders-xl w-full text-[11px] tabular-nums" dir="rtl">
+  <thead>
+    <tr>
+      <th class="pos-oo-num">#</th>
+      <th class="pos-oo-id">الطلب</th>
+      <th class="pos-oo-type">النوع</th>
+      <th class="pos-oo-table">طاولة</th>
+      <th class="pos-oo-cust text-start">عميل</th>
+      <th class="pos-oo-lines">أصناف</th>
+      <th class="pos-oo-time">وقت</th>
+      <th class="pos-oo-amt text-end">الإجمالي</th>
+      <th class="pos-oo-bal text-end">متبقي</th>
+      <th class="pos-oo-act text-center">إجراء</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in open_orders %}
+    <tr>
+      <td class="pos-oo-num text-muted font-mono">{{ forloop.counter }}</td>
+      <td class="pos-oo-id font-bold text-gray-900 dark:text-gray-100">#{{ o.pk }}</td>
+      <td class="pos-oo-type text-[10px] whitespace-nowrap">{{ o.get_order_type_display }}{% if o.is_held %} · معلّق{% endif %}</td>
+      <td class="pos-oo-table truncate" title="{% if o.table %}{{ o.table.name_ar|escape }}{% endif %}">{% if o.table %}{{ o.table.name_ar }}{% else %}—{% endif %}</td>
+      <td class="pos-oo-cust text-muted truncate" title="{% if o.customer %}{{ o.customer.name_ar|escape }}{% endif %}">{% if o.customer %}{{ o.customer.name_ar }}{% else %}—{% endif %}</td>
+      <td class="pos-oo-lines text-center font-mono">{{ o.line_count }}</td>
+      <td class="pos-oo-time whitespace-nowrap">{{ o.created_at|time:"H:i" }}</td>
+      <td class="pos-oo-amt font-bold text-end">{{ o.calc_grand|dec_plain }} {{ POS_SETTINGS.currency_symbol }}</td>
+      <td class="pos-oo-bal font-bold text-end {% if o.calc_balance > 0 %}text-red-600{% else %}text-emerald-600{% endif %}">{{ o.calc_balance|dec_plain }}</td>
+      <td class="pos-oo-act px-1 py-1 align-middle text-center">
+        <form method="post" action="{% url 'pos:order_resume' o.pk %}" class="pos-pxl-addform m-0 inline-flex justify-center w-full max-w-full">{% csrf_token %}
+          <button type="submit" class="pos-pxl-plus min-w-[3.1rem]" title="استئناف الطلب">فتح</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="10" class="pos-pxl-empty">لا توجد طلبات مفتوحة بأصناف</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

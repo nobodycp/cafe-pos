@@ -1,0 +1,52 @@
+{# روابط الوحدات في الشريط العلوي — shell_topbar_links + shell_topbar_active من context_processors #}
+<nav class="ds-topbar-nav no-print min-w-0 flex-1" aria-label="اختصارات الوحدات">
+  <div class="ds-topbar-nav__row flex flex-wrap items-center justify-end gap-x-0.5 gap-y-1 min-w-0">
+    {% for item in shell_topbar_links %}
+      {% if forloop.counter <= 6 %}
+        <a href="{{ item.href }}"
+           class="ds-topbar-nav__link {% if shell_topbar_active == item.id %}is-active{% endif %}"
+           title="{{ item.title }}">
+          <span class="ds-topbar-nav__ic" aria-hidden="true">{% include item.icon_tpl %}</span>
+          <span>{{ item.label }}</span>
+        </a>
+      {% endif %}
+    {% endfor %}
+    {% for item in shell_topbar_links %}
+      {% if forloop.counter > 6 %}
+        <a href="{{ item.href }}"
+           class="ds-topbar-nav__link ds-topbar-nav__link--wide-only hidden xl:inline-flex {% if shell_topbar_active == item.id %}is-active{% endif %}"
+           title="{{ item.title }}">
+          <span class="ds-topbar-nav__ic" aria-hidden="true">{% include item.icon_tpl %}</span>
+          <span>{{ item.label }}</span>
+        </a>
+      {% endif %}
+    {% endfor %}
+    <div class="relative shrink-0 xl:hidden" x-data="{ moreOpen: false }" @keydown.escape.window="moreOpen=false">
+      <button type="button"
+              class="ds-topbar-nav__more-btn"
+              @click="moreOpen=!moreOpen"
+              :aria-expanded="moreOpen ? 'true' : 'false'"
+              aria-haspopup="true"
+              aria-controls="ds-topbar-more-panel">
+        المزيد
+      </button>
+      <div id="ds-topbar-more-panel"
+           x-show="moreOpen"
+           x-cloak
+           x-transition.opacity.duration.150ms
+           @click.outside="moreOpen=false"
+           class="ds-topbar-nav__dropdown absolute end-0 top-full z-[80] mt-1 min-w-[10.5rem] rounded-md border border-white/15 bg-[#0c1929] py-1 shadow-lg dark:bg-gray-950 dark:border-gray-600 flex flex-col gap-0">
+        {% for item in shell_topbar_links %}
+          {% if forloop.counter > 6 %}
+            <a href="{{ item.href }}"
+               class="ds-topbar-nav__dropdown-link {% if shell_topbar_active == item.id %}is-active{% endif %}"
+               @click="moreOpen=false">
+              <span class="ds-topbar-nav__ic" aria-hidden="true">{% include item.icon_tpl %}</span>
+              <span>{{ item.label }}</span>
+            </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1,51 +1,56 @@
 {# نموذج سند موحّد — wide: كاشير | shell: محاسبة shell (عرض كامل داخل اللوحة) | افتراضي: بطاقة مستقلة #}
 {% url 'shell:treasury_party_search' as treasury_party_search_url %}
+{% url 'shell:treasury_customer_quick_create' as treasury_customer_quick_create_url %}
+{% url 'shell:purchase_supplier_quick_create' as treasury_supplier_quick_create_url %}
 {% if voucher_layout == 'shell' %}
 <div class="w-full max-w-full">
 {% elif voucher_layout == 'wide' %}
-<div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-2 max-w-none mx-0 h-full min-h-0 flex flex-col">
+<div class="bg-white dark:bg-gray-800 {% if treasury_form_compact %}rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm{% else %}rounded-sm border border-gray-300 dark:border-gray-600 p-2{% endif %} max-w-none mx-0 h-full min-h-0 flex flex-col">
 {% else %}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl mx-auto">
 {% endif %}
   <form method="post" action="{% url 'shell:accounting_treasury' %}" id="treasury-voucher-form"
-        class="{% if voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}"
+        class="{% if treasury_form_compact and voucher_layout == 'wide' %}treasury-form--compact treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 gap-2 content-start{% elif voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %} tv-voucher-broad{% endif %}"
+        data-payer-hints-url="{% url 'pos:payer_hints' %}"
         data-party-search-url="{{ treasury_party_search_url }}"
         data-vt-receipt="{{ voucher_form.VT_RECEIPT }}"
         data-vt-disbursement="{{ voucher_form.VT_DISBURSEMENT }}"
         data-party-customer="{{ voucher_form.PARTY_CUSTOMER }}"
         data-party-supplier="{{ voucher_form.PARTY_SUPPLIER }}"
         data-party-employee="{{ voucher_form.PARTY_EMPLOYEE }}"
-        data-party-expense="{{ voucher_form.PARTY_EXPENSE }}">
+        data-party-expense="{{ voucher_form.PARTY_EXPENSE }}"
+        data-customer-create-url="{{ treasury_customer_quick_create_url }}"
+        data-supplier-create-url="{{ treasury_supplier_quick_create_url }}">
     {% csrf_token %}
     {% if treasury_next %}
     <input type="hidden" name="next" value="{{ treasury_next }}">
     {% endif %}
     {{ voucher_form.voucher_type }}
-    {% for e in voucher_form.voucher_type.errors %}<p class="text-danger text-xs lg:col-span-2">{{ e }}</p>{% endfor %}
+    {% for e in voucher_form.voucher_type.errors %}<p class="text-danger text-xs {% if not treasury_form_compact %}lg:col-span-2{% endif %}">{{ e }}</p>{% endfor %}
     {{ voucher_form.party_type }}
-    {% for e in voucher_form.party_type.errors %}<p class="text-danger text-xs lg:col-span-2">{{ e }}</p>{% endfor %}
+    {% for e in voucher_form.party_type.errors %}<p class="text-danger text-xs {% if not treasury_form_compact %}lg:col-span-2{% endif %}">{{ e }}</p>{% endfor %}
 
     {# صف 1: نوع السند (قبض/صرف) | الحساب/الجهة #}
-    <div class="tv-type-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
-      <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">نوع السند</span>
-      <div class="tv-type-btns flex flex-row flex-nowrap gap-0.5 min-w-0 w-full" role="group" aria-label="نوع السند" dir="rtl">
-        <button type="button" class="tv-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-vt="{{ voucher_form.VT_RECEIPT }}">سند قبض</button>
-        <button type="button" class="tv-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-vt="{{ voucher_form.VT_DISBURSEMENT }}">سند صرف</button>
+    <div class="tv-type-col {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}">
+      <span class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">نوع السند</span>
+      <div class="tv-type-btns flex flex-row flex-nowrap {% if treasury_form_compact %}gap-1{% else %}gap-0.5{% endif %} min-w-0 w-full" role="group" aria-label="نوع السند" dir="rtl">
+        <button type="button" class="tv-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-vt="{{ voucher_form.VT_RECEIPT }}">سند قبض</button>
+        <button type="button" class="tv-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-vt="{{ voucher_form.VT_DISBURSEMENT }}">سند صرف</button>
       </div>
     </div>
 
-    <div class="tv-party-type-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
-      <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">الحساب / الجهة</span>
-      <div class="tv-party-type-btns flex flex-row flex-nowrap gap-0.5 min-w-0 w-full" role="group" aria-label="الحساب أو الجهة" dir="rtl">
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_CUSTOMER }}">عميل</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_SUPPLIER }}">مورد</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EMPLOYEE }}">موظف</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EXPENSE }}">مصاريف</button>
+    <div class="tv-party-type-col {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}">
+      <span class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">الحساب / الجهة</span>
+      <div class="tv-party-type-btns flex flex-row flex-nowrap {% if treasury_form_compact %}gap-1{% else %}gap-0.5{% endif %} min-w-0 w-full" role="group" aria-label="الحساب أو الجهة" dir="rtl">
+        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_CUSTOMER }}">عميل</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_SUPPLIER }}">مورد</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EMPLOYEE }}">موظف</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EXPENSE }}">مصاريف</button>
       </div>
     </div>
 
-    <div class="tv-party-col {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %} relative">
-      <label class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="tv-party-search">اسم الحساب / الجهة</label>
+    <div class="tv-party-col {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %} relative">
+      <label class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="tv-party-search">اسم الحساب / الجهة</label>
       <input type="text" id="tv-party-search" autocomplete="off" placeholder=""
            class="{% if voucher_layout == 'wide' %}w-full{% else %}form-input w-full{% endif %}">
       <div id="tv-party-hits" class="tv-party-hits absolute z-20 left-0 right-0 top-full mt-px max-h-40 overflow-y-auto rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow hidden"></div>
@@ -56,29 +61,67 @@
         {% for e in voucher_form.employee.errors %}<p class="text-danger text-xs">{{ e }}</p>{% endfor %}
       </div>
       <p id="tv-employee-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">يُسجَّل كمصروف «رواتب».</p>
-      <p id="tv-expense-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">سيُسجَّل كمصروف عام. استخدم الملاحظة لتحديد السبب.</p>
+      <p id="tv-expense-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">سيُستنتج <strong>تصنيف المصروف</strong> من الملاحظة: أوّل سطر أو النص قبل «—» أو «:» يُطابق اسم التصنيف (وقود، تنظيف، مستلزمات، إنترنت واتصالات، نقل، صيانة، أخرى…) أو الرمز (مثل fuel). إن لم يُطابق شيء يُستخدم «أخرى». باقي النص يبقى في ملاحظات المصروف.</p>
     </div>
 
-    <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}">
-      <label class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="{{ voucher_form.amount.id_for_label }}">المبلغ</label>
+    <div class="{% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}">
+      <label class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="{{ voucher_form.amount.id_for_label }}">المبلغ</label>
       {{ voucher_form.amount }}
       {% for e in voucher_form.amount.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
     </div>
-    <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %} tv-method-cell">
-      <span class="block {% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">طريقة الدفع / التحصيل</span>
+    <div class="{% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}">
+      <label class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}" for="{{ voucher_form.voucher_date.id_for_label }}">{{ voucher_form.voucher_date.label }}</label>
+      {{ voucher_form.voucher_date }}
+      {% for e in voucher_form.voucher_date.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      <p class="text-[10px] text-muted mt-0.5 leading-snug">يُستخدم في القيد المحاسبي وتاريخ المصروف.</p>
+    </div>
+    <div class="tv-method-cell {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}" id="tv-method-cell">
+      <span class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">طريقة الدفع / التحصيل</span>
       {{ voucher_form.method }}
-      <div class="flex flex-row flex-nowrap gap-0.5 {% if voucher_layout == 'wide' %}mt-0.5{% else %}mt-1{% endif %} min-w-0 tv-pay-strip" id="tv-pay-methods" dir="rtl">
+      <div class="{% if treasury_form_compact %}flex flex-wrap gap-1 mt-1{% else %}flex flex-row flex-nowrap gap-0.5{% if voucher_layout == 'wide' %} mt-0.5{% else %} mt-1{% endif %}{% endif %} min-w-0 tv-pay-strip" id="tv-pay-methods" dir="rtl">
         {% for row in POS_SETTINGS.payment_method_rows %}
-        <button type="button" class="tv-pm-btn flex-1 min-w-0 basis-0 {% if voucher_layout == 'wide' %}h-7 text-[10px]{% else %}h-9 text-[9px]{% endif %} rounded-md border border-gray-200 dark:border-gray-600 font-semibold transition hover:border-[#1e3a5f] dark:hover:border-sky-500 flex items-center justify-center text-center leading-tight px-0.5 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100" data-code="{{ row.code }}">{{ row.label_ar }}</button>
+        <button type="button" class="tv-pm-btn {% if treasury_form_compact %}inline-flex shrink-0 min-w-0 h-7 px-2 text-[10px] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 leading-tight transition hover:border-[#1e3a5f] dark:hover:border-sky-500 items-center justify-center text-center{% else %}flex-1 min-w-0 basis-0 {% if voucher_layout == 'wide' %}h-7 text-[10px]{% else %}h-9 text-[9px]{% endif %} rounded-md border border-gray-200 dark:border-gray-600 font-semibold transition hover:border-[#1e3a5f] dark:hover:border-sky-500 flex items-center justify-center text-center leading-tight px-0.5 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100{% endif %}" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
         {% endfor %}
+      </div>
+      <div id="tv-pay-splits-wrap" class="hidden mt-1.5 min-w-0 w-full">
+        {{ voucher_form.payment_splits_json }}
+        <p class="{% if treasury_form_compact %}text-[10px]{% else %}text-xs{% endif %} text-muted mb-1">تقسيم المبلغ (مجموع الأسطر = المبلغ الإجمالي)</p>
+        <div class="overflow-x-auto rounded-sm border border-gray-200 dark:border-gray-600">
+          <table class="w-full {% if treasury_form_compact %}text-[10px]{% else %}text-xs{% endif %} border-collapse" id="tv-pay-splits-table">
+            <thead>
+              <tr class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-600">
+                <th class="p-1 text-right font-bold">طريقة</th>
+                <th class="p-1 text-right font-bold w-24">مبلغ</th>
+                <th class="p-1 w-8"></th>
+              </tr>
+            </thead>
+            <tbody id="tv-pay-splits-tbody"></tbody>
+          </table>
+        </div>
+        <button type="button" id="tv-pay-split-add" class="mt-1 {% if treasury_form_compact %}text-[10px] h-6 px-2{% else %}text-xs{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold">+ بند</button>
+        <p id="tv-pay-split-sum" class="{% if treasury_form_compact %}text-[10px]{% else %}text-xs{% endif %} mt-1 tabular-nums text-muted"></p>
+        {% for e in voucher_form.payment_splits_json.errors %}<p class="text-danger text-[11px] mt-0.5">{{ e }}</p>{% endfor %}
       </div>
       {% for e in voucher_form.method.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
     </div>
 
-    <details class="tv-note-details {% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %} group">
-      <summary class="{% if voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 cursor-pointer list-none py-0.5 hover:text-[#1e3a5f] dark:hover:text-sky-400 marker:content-none flex items-center gap-1">
+    <div id="tv-payer-panel" class="hidden {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %}{% endif %} min-w-0 w-full grid grid-cols-1 gap-1.5 sm:grid-cols-2 mt-2" dir="rtl">
+      <span class="sm:col-span-2 block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400">بيانات المحوّل <span class="text-muted font-normal">(بنك فلسطين / بال باي / جوال باي …)</span></span>
+      <div class="relative min-w-0 sm:col-span-1">
+        {{ voucher_form.payer_name }}
+        <div id="tv-payer-hits" class="tv-payer-hits absolute start-0 end-0 top-full z-30 mt-px max-h-[min(140px,28vh)] overflow-y-auto rounded-sm border border-gray-300 bg-white shadow dark:border-gray-600 dark:bg-gray-800 hidden"></div>
+        {% for e in voucher_form.payer_name.errors %}<p class="text-danger text-[11px] mt-0.5">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        {{ voucher_form.payer_phone }}
+        {% for e in voucher_form.payer_phone.errors %}<p class="text-danger text-[11px] mt-0.5">{{ e }}</p>{% endfor %}
+      </div>
+    </div>
+
+    <details class="tv-note-details {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %}{% endif %} group">
+      <summary class="{% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 cursor-pointer list-none py-0.5 hover:text-[#1e3a5f] dark:hover:text-sky-400 marker:content-none flex items-center gap-1">
         <span class="inline-block transition-transform group-open:rotate-90 text-muted text-[10px] rtl:rotate-180">›</span>
-        ملاحظة <span class="text-muted font-normal">(اختياري)</span>
+        ملاحظة <span id="tv-note-summary-hint" class="text-muted font-normal">(اختياري)</span>
       </summary>
       <div class="mt-1">
         {{ voucher_form.note }}
@@ -86,14 +129,14 @@
     </details>
 
     {% if voucher_form.non_field_errors %}
-      <div class="{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %} p-2 rounded-sm bg-danger/10 border border-danger/30 text-danger text-xs font-semibold">
+      <div class="{% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-2{% endif %}{% endif %} {% if treasury_form_compact %}p-2 rounded-md{% else %}p-2 rounded-sm{% endif %} bg-danger/10 border border-danger/30 text-danger {% if treasury_form_compact %}text-[11px]{% else %}text-xs{% endif %} font-semibold">
         {% for e in voucher_form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
       </div>
     {% endif %}
 
-    <div class="{% if voucher_layout == 'wide' %}lg:col-span-2 mt-auto pt-1{% elif voucher_layout == 'shell' %}lg:col-span-2 pt-2{% endif %}">
+    <div class="{% if treasury_form_compact and voucher_layout == 'wide' %}mt-2 pt-0{% elif voucher_layout == 'wide' %}lg:col-span-2 mt-auto pt-1{% elif voucher_layout == 'shell' %}lg:col-span-2 pt-2{% endif %}">
       {% if voucher_layout == "wide" %}
-      <button type="submit" class="w-full h-7 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-[11px] border border-[#163051] leading-none">تسجيل السند</button>
+      <button type="submit" class="w-full {% if treasury_form_compact %}h-9 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm border-0 leading-none transition-colors{% else %}h-7 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-[11px] border border-[#163051] leading-none{% endif %}">تسجيل السند</button>
       {% else %}
       <button type="submit" class="w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">تسجيل السند</button>
       {% endif %}
@@ -144,6 +187,53 @@
 .dark .tv-party-hits button:hover {
   background: rgba(51, 65, 85, 0.5);
 }
+/* كاشير: نفس مقاسات حقول فاتورة الشراء المضغوطة */
+.treasury-form--compact #treasury-voucher-form #tv-party-search {
+  min-height: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.8125rem;
+  padding: 0.15rem 0.35rem;
+  box-sizing: border-box;
+}
+.treasury-form--compact #treasury-voucher-form input[type="number"] {
+  min-height: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.8125rem;
+  padding: 0.15rem 0.35rem;
+  box-sizing: border-box;
+}
+.treasury-form--compact #treasury-voucher-form input[type="date"] {
+  min-height: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.8125rem;
+  padding: 0.15rem 0.35rem;
+  box-sizing: border-box;
+}
+.treasury-form--compact #treasury-voucher-form textarea {
+  font-size: 0.8125rem;
+  min-height: 4rem;
+  padding: 0.35rem 0.45rem;
+}
+.tv-payer-hits button {
+  display: block;
+  width: 100%;
+  text-align: right;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.6875rem;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tv-payer-hits button:hover {
+  background: #eef0f4;
+}
+.dark .tv-payer-hits button:hover {
+  background: rgba(51, 65, 85, 0.5);
+}
+#treasury-voucher-form.tv-voucher-broad.tv-treasury-split-mode .tv-method-cell {
+  grid-column: 1 / -1;
+}
 </style>
 <script>
 (function() {
@@ -166,9 +256,234 @@
   var hits = document.getElementById("tv-party-hits");
   var empHint = document.getElementById("tv-employee-hint");
   var expenseHint = document.getElementById("tv-expense-hint");
+  var noteTa = document.getElementById("tv-voucher-note");
+  var noteSummHint = document.getElementById("tv-note-summary-hint");
   var typeBtns = form.querySelectorAll(".tv-type-btn");
   var partyBtns = form.querySelectorAll(".tv-party-type-btn");
+  var methodHidden = document.getElementById("{{ voucher_form.method.id_for_label }}");
+  var tvPmBtns = form.querySelectorAll(".tv-pm-btn");
+  var payerPanel = document.getElementById("tv-payer-panel");
+  var payerHits = document.getElementById("tv-payer-hits");
+  var payerHintsUrl = form.dataset.payerHintsUrl || "";
   var tmo;
+  var tmoPayer;
+  var splitsJson = document.getElementById("tv-payment-splits-json");
+  var splitsWrap = document.getElementById("tv-pay-splits-wrap");
+  var splitsTbody = document.getElementById("tv-pay-splits-tbody");
+  var splitSumEl = document.getElementById("tv-pay-split-sum");
+  var splitAddBtn = document.getElementById("tv-pay-split-add");
+  var payStrip = document.getElementById("tv-pay-methods");
+  var amountInput = document.getElementById("{{ voucher_form.amount.id_for_label }}");
+  var customerCreateUrl = form.dataset.customerCreateUrl || "";
+  var supplierCreateUrl = form.dataset.supplierCreateUrl || "";
+  var PM_ROWS = [
+    {% for row in POS_SETTINGS.payment_method_rows %}
+    { code: "{{ row.code|escapejs }}", label_ar: "{{ row.label_ar|escapejs }}", ledger: "{{ row.ledger|escapejs }}", needsPayer: {% if row.ledger == 'bank' %}true{% else %}false{% endif %} }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function splitPaymentMode() {
+    if (!partyHidden) return false;
+    return (receiptMode() && partyHidden.value === P_C) || (!receiptMode() && partyHidden.value === P_S);
+  }
+
+  function methodCodeNeedsPayer(code) {
+    var np = false;
+    PM_ROWS.forEach(function(r) {
+      if (r.code === code && r.needsPayer) np = true;
+    });
+    return np;
+  }
+
+  function syncSplitPaymentMode() {
+    var on = splitPaymentMode();
+    form.classList.toggle("tv-treasury-split-mode", on);
+    if (payStrip) payStrip.classList.toggle("hidden", on);
+    if (splitsWrap) splitsWrap.classList.toggle("hidden", !on);
+    if (on) {
+      if (splitsTbody && !splitsTbody.children.length) initSplitRowsFromState();
+      serializeSplitsToHidden();
+    } else if (splitsJson) {
+      splitsJson.value = "";
+    }
+    syncTvMethodUi();
+  }
+
+  function initSplitRowsFromState() {
+    if (!splitsTbody) return;
+    splitsTbody.innerHTML = "";
+    var raw = splitsJson && splitsJson.value.trim();
+    var pairs = [];
+    if (raw) {
+      try {
+        var data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(function(item) {
+            var c, a;
+            if (Array.isArray(item) && item.length >= 2) {
+              c = String(item[0] || "");
+              a = item[1];
+            } else if (item && typeof item === "object") {
+              c = String(item.method || "");
+              a = item.amount;
+            }
+            if (c) pairs.push({ code: c, amount: a });
+          });
+        }
+      } catch (e) {}
+    }
+    if (!pairs.length) {
+      var mv = methodHidden ? methodHidden.value : "cash";
+      var tot = amountInput && amountInput.value ? String(amountInput.value).replace(",", ".") : "";
+      pairs.push({ code: mv || "cash", amount: tot });
+    }
+    pairs.forEach(function(p) {
+      addSplitRow(p.code, p.amount != null && p.amount !== "" ? String(p.amount) : "");
+    });
+    if (!splitsTbody.children.length) addSplitRow("cash", "");
+    updateSplitSumHint();
+  }
+
+  function addSplitRow(methodCode, amountStr) {
+    if (!splitsTbody) return;
+    var tr = document.createElement("tr");
+    tr.className = "border-b border-gray-100 dark:border-gray-700";
+    var td1 = document.createElement("td");
+    td1.className = "p-1 align-middle";
+    var sel = document.createElement("select");
+    sel.className = "tv-split-m w-full min-w-0 rounded-sm border border-gray-300 bg-white px-1 py-0.5 text-[10px] dark:border-gray-600 dark:bg-gray-900";
+    PM_ROWS.forEach(function(r) {
+      var o = document.createElement("option");
+      o.value = r.code;
+      o.textContent = r.label_ar;
+      if (r.code === methodCode) o.selected = true;
+      sel.appendChild(o);
+    });
+    td1.appendChild(sel);
+    var td2 = document.createElement("td");
+    td2.className = "p-1 align-middle";
+    var inp = document.createElement("input");
+    inp.type = "number";
+    inp.step = "0.01";
+    inp.min = "0";
+    inp.className = "tv-split-a w-full rounded-sm border border-gray-300 bg-white px-1 py-0.5 text-[10px] tabular-nums dark:border-gray-600 dark:bg-gray-900";
+    inp.value = amountStr != null ? amountStr : "";
+    td2.appendChild(inp);
+    var td3 = document.createElement("td");
+    td3.className = "p-1 align-middle text-center";
+    var rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "text-danger text-[10px] font-bold px-1";
+    rm.textContent = "×";
+    rm.addEventListener("click", function() {
+      if (splitsTbody.rows.length <= 1) return;
+      tr.remove();
+      serializeSplitsToHidden();
+      updateSplitSumHint();
+      syncTvPayerPanel();
+    });
+    td3.appendChild(rm);
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tr.appendChild(td3);
+    splitsTbody.appendChild(tr);
+    sel.addEventListener("change", function() {
+      serializeSplitsToHidden();
+      syncTvMethodUi();
+      syncTvPayerPanel();
+    });
+    inp.addEventListener("input", function() {
+      serializeSplitsToHidden();
+      updateSplitSumHint();
+      syncTvPayerPanel();
+    });
+  }
+
+  function readSplitPairsFromDom() {
+    var out = [];
+    if (!splitsTbody) return out;
+    var rows = splitsTbody.querySelectorAll("tr");
+    rows.forEach(function(tr) {
+      var sel = tr.querySelector("select.tv-split-m");
+      var am = tr.querySelector("input.tv-split-a");
+      if (!sel || !am) return;
+      var code = sel.value;
+      var raw = String(am.value || "").replace(",", ".").trim();
+      if (!raw) return;
+      var v = parseFloat(raw);
+      if (!(v > 0)) return;
+      out.push([code, v]);
+    });
+    return out;
+  }
+
+  function serializeSplitsToHidden() {
+    if (!splitPaymentMode() || !splitsJson) return;
+    var pairs = readSplitPairsFromDom();
+    splitsJson.value = pairs.length ? JSON.stringify(pairs) : "";
+    if (pairs.length && methodHidden) methodHidden.value = pairs[0][0];
+  }
+
+  function updateSplitSumHint() {
+    if (!splitSumEl) return;
+    var pairs = readSplitPairsFromDom();
+    var sum = 0;
+    pairs.forEach(function(p) { sum += p[1]; });
+    var target = 0;
+    if (amountInput && amountInput.value) {
+      var t = parseFloat(String(amountInput.value).replace(",", "."));
+      if (!isNaN(t)) target = t;
+    }
+    splitSumEl.textContent = "المجموع: " + sum.toFixed(2) + " — المبلغ: " + target.toFixed(2);
+    splitSumEl.classList.toggle("text-danger", Math.abs(sum - target) > 0.009 && target > 0);
+    splitSumEl.classList.toggle("text-muted", Math.abs(sum - target) <= 0.009 || !target);
+  }
+
+  function receiptMode() {
+    return typeHidden && typeHidden.value === VT_R;
+  }
+  function tvPayerNameInput() {
+    return form.querySelector('input[name$="payer_name"]');
+  }
+  function tvPayerPhoneInput() {
+    return form.querySelector('input[name$="payer_phone"]');
+  }
+  function syncTvPayerPanel() {
+    if (!payerPanel) return;
+    var need = false;
+    if (receiptMode()) {
+      if (splitPaymentMode() && splitsTbody) {
+        var rows = splitsTbody.querySelectorAll("tr");
+        rows.forEach(function(tr) {
+          var sel = tr.querySelector("select.tv-split-m");
+          var am = tr.querySelector("input.tv-split-a");
+          if (!sel || !am) return;
+          var v = parseFloat(String(am.value || "").replace(",", "."));
+          if (v > 0 && methodCodeNeedsPayer(sel.value)) need = true;
+        });
+      } else {
+        var onBtn = null;
+        var mv = methodHidden ? methodHidden.value : "";
+        if (mv) {
+          tvPmBtns.forEach(function(b) {
+            if (b.getAttribute("data-code") === mv) onBtn = b;
+          });
+        }
+        need = !!(onBtn && onBtn.getAttribute("data-needs-payer") === "1");
+      }
+    }
+    payerPanel.classList.toggle("hidden", !need);
+    if (!receiptMode()) {
+      var pn = tvPayerNameInput();
+      var ph = tvPayerPhoneInput();
+      if (pn) pn.value = "";
+      if (ph) ph.value = "";
+      if (payerHits) {
+        payerHits.innerHTML = "";
+        payerHits.classList.add("hidden");
+      }
+    }
+  }
 
   function setPartyPlaceholders() {
     var p = partyHidden ? partyHidden.value : "";
@@ -184,6 +499,53 @@
     if (empl) empl.value = "";
     if (searchIn) searchIn.value = "";
     if (hits) { hits.innerHTML = ""; hits.classList.add("hidden"); }
+    if (splitsTbody) splitsTbody.innerHTML = "";
+    if (splitsJson) splitsJson.value = "";
+  }
+
+  function csrfToken() {
+    var el = form.querySelector('input[name="csrfmiddlewaretoken"]');
+    return el ? el.value : "";
+  }
+
+  function quickCreateCustomer(nameAr) {
+    if (!customerCreateUrl) return;
+    fetch(customerCreateUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRFToken": csrfToken(),
+      },
+      body: JSON.stringify({ name_ar: nameAr, phone: "" }),
+    })
+      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+      .then(function(x) {
+        if (!x.ok) throw new Error(x.j.error || "err");
+        pickParty(x.j.id, x.j.name_ar);
+      })
+      .catch(function() { alert("تعذّر إنشاء العميل."); });
+  }
+
+  function quickCreateSupplier(nameAr) {
+    if (!supplierCreateUrl) return;
+    fetch(supplierCreateUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRFToken": csrfToken(),
+      },
+      body: JSON.stringify({ name_ar: nameAr }),
+    })
+      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+      .then(function(x) {
+        if (!x.ok) throw new Error(x.j.error || "err");
+        pickParty(x.j.id, x.j.name_ar);
+      })
+      .catch(function() { alert("تعذّر إنشاء المورد."); });
   }
 
   function syncTypeUi() {
@@ -227,6 +589,18 @@
     if (empHint) empHint.classList.toggle("hidden", p !== P_E);
     if (expenseHint) expenseHint.classList.toggle("hidden", p !== P_X);
     setPartyPlaceholders();
+    if (noteTa && noteSummHint && typeHidden) {
+      var expNote = p === P_X && typeHidden.value === VT_D;
+      if (expNote) {
+        noteSummHint.textContent = "(تصنيف المصروف + تفاصيل)";
+        noteTa.setAttribute("placeholder", "مثال: وقود — تعبئة سيارة التوصيل");
+      } else {
+        noteSummHint.textContent = "(اختياري)";
+        noteTa.removeAttribute("placeholder");
+      }
+    }
+    syncSplitPaymentMode();
+    syncTvPayerPanel();
   }
 
   typeBtns.forEach(function(btn) {
@@ -250,23 +624,118 @@
   });
   syncTypeUi();
 
-  var methodHidden = document.getElementById("{{ voucher_form.method.id_for_label }}");
-  var tvPmBtns = form.querySelectorAll(".tv-pm-btn");
   function syncTvMethodUi() {
-    var v = methodHidden ? methodHidden.value : "";
+    if (splitPaymentMode()) {
+      var pairs = readSplitPairsFromDom();
+      var v = pairs.length ? pairs[0][0] : (methodHidden ? methodHidden.value : "");
+      if (methodHidden && v) methodHidden.value = v;
+    }
+    var v2 = methodHidden ? methodHidden.value : "";
     tvPmBtns.forEach(function(b) {
-      b.classList.toggle("tv-pm-on", b.getAttribute("data-code") === v);
+      b.classList.toggle("tv-pm-on", b.getAttribute("data-code") === v2);
     });
+    syncTvPayerPanel();
   }
   if (methodHidden && tvPmBtns.length) {
     tvPmBtns.forEach(function(b) {
       b.addEventListener("click", function() {
-        methodHidden.value = b.getAttribute("data-code") || "";
+        if (splitPaymentMode()) {
+          if (splitsTbody && splitsTbody.rows.length === 1) {
+            var sel = splitsTbody.querySelector("select.tv-split-m");
+            if (sel) sel.value = b.getAttribute("data-code") || "";
+            serializeSplitsToHidden();
+            updateSplitSumHint();
+          }
+        } else {
+          methodHidden.value = b.getAttribute("data-code") || "";
+        }
         syncTvMethodUi();
       });
     });
     syncTvMethodUi();
   }
+  if (splitAddBtn) {
+    splitAddBtn.addEventListener("click", function() {
+      addSplitRow("cash", "");
+      serializeSplitsToHidden();
+      updateSplitSumHint();
+      syncTvPayerPanel();
+    });
+  }
+  if (amountInput) {
+    amountInput.addEventListener("input", function() {
+      if (splitPaymentMode() && splitsTbody && splitsTbody.rows.length === 1) {
+        var inp = splitsTbody.querySelector("input.tv-split-a");
+        if (inp) inp.value = amountInput.value || "";
+      }
+      updateSplitSumHint();
+      serializeSplitsToHidden();
+    });
+  }
+  form.addEventListener("submit", function() {
+    if (splitPaymentMode()) serializeSplitsToHidden();
+    else if (splitsJson) splitsJson.value = "";
+  });
+
+  function setupTvPayerHints() {
+    var inp = tvPayerNameInput();
+    if (!inp || !payerHits || !payerHintsUrl) return;
+    inp.addEventListener("input", function() {
+      clearTimeout(tmoPayer);
+      var q = inp.value.trim();
+      if (q.length < 1) {
+        payerHits.innerHTML = "";
+        payerHits.classList.add("hidden");
+        return;
+      }
+      tmoPayer = setTimeout(function() {
+        fetch(payerHintsUrl + "?q=" + encodeURIComponent(q), { credentials: "same-origin", headers: { Accept: "application/json" } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            payerHits.innerHTML = "";
+            var rows = data.results || [];
+            if (!rows.length) {
+              var d = document.createElement("div");
+              d.className = "text-muted px-2 py-1 text-[10px]";
+              d.textContent = "لا نتائج";
+              payerHits.appendChild(d);
+              payerHits.classList.remove("hidden");
+              return;
+            }
+            rows.forEach(function(row) {
+              var btn = document.createElement("button");
+              btn.type = "button";
+              btn.textContent = (row.name_ar || "") + (row.phone ? " — " + row.phone : "");
+              btn.addEventListener("click", function() {
+                inp.value = row.name_ar || "";
+                var ph = tvPayerPhoneInput();
+                if (ph) ph.value = row.phone || "";
+                payerHits.innerHTML = "";
+                payerHits.classList.add("hidden");
+              });
+              payerHits.appendChild(btn);
+            });
+            payerHits.classList.remove("hidden");
+          })
+          .catch(function() { payerHits.classList.add("hidden"); });
+      }, 200);
+    });
+    inp.addEventListener("keydown", function(ev) {
+      if (ev.key === "Tab" && payerHits && !payerHits.classList.contains("hidden")) {
+        var first = payerHits.querySelector("button");
+        if (first) {
+          ev.preventDefault();
+          first.click();
+        }
+      }
+    });
+    document.addEventListener("click", function(ev) {
+      if (!payerHits || !inp) return;
+      if (payerHits.contains(ev.target) || ev.target === inp) return;
+      payerHits.classList.add("hidden");
+    });
+  }
+  setupTvPayerHints();
 
   function pickParty(id, label) {
     if (cust) cust.value = "";
@@ -291,7 +760,44 @@
   function renderHits(rows) {
     if (!hits) return;
     hits.innerHTML = "";
-    if (!rows.length) { hits.classList.add("hidden"); return; }
+    var q = searchIn ? searchIn.value.trim() : "";
+    var pt = partyHidden ? partyHidden.value : "";
+    if (!rows.length) {
+      if (q.length >= 2 && (pt === P_C || pt === P_S)) {
+        var wrap = document.createElement("div");
+        wrap.className = "px-2 py-1.5 text-[10px] leading-snug";
+        wrap.appendChild(document.createTextNode("لا يوجد تطابق — "));
+        if (pt === P_C && customerCreateUrl) {
+          var bc = document.createElement("button");
+          bc.type = "button";
+          bc.className = "font-bold text-[#1e3a5f] dark:text-sky-400 hover:underline";
+          bc.textContent = "+ عميل";
+          bc.addEventListener("click", function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            quickCreateCustomer(q);
+          });
+          wrap.appendChild(bc);
+        }
+        if (pt === P_S && supplierCreateUrl) {
+          var bs = document.createElement("button");
+          bs.type = "button";
+          bs.className = "font-bold text-[#1e3a5f] dark:text-sky-400 hover:underline";
+          bs.textContent = "+ مورد";
+          bs.addEventListener("click", function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            quickCreateSupplier(q);
+          });
+          wrap.appendChild(bs);
+        }
+        hits.appendChild(wrap);
+        hits.classList.remove("hidden");
+        return;
+      }
+      hits.classList.add("hidden");
+      return;
+    }
     rows.forEach(function(r) {
       var b = document.createElement("button");
       b.type = "button";

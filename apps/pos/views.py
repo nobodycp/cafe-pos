@@ -8,6 +8,7 @@ from django.db import models, transaction
 from django.db.models import Count, Prefetch, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone as django_tz
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.receipt_escpos import build_invoice_receipt
@@ -21,15 +22,19 @@ from apps.billing.tab_service import (
 )
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
+from apps.contacts.services import resolve_or_create_active_customer_by_name
 from apps.contacts.models import Customer
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
+from apps.core.treasury_services import recent_treasury_voucher_logs
 from apps.core.payment_methods import (
     credit_method_codes,
     get_payment_method_codes,
     method_codes_requiring_payer_details,
 )
 from apps.core.services import SessionService
+from apps.purchasing.models import Supplier
+from apps.purchasing.views import _payment_rows, _purchase_form_state
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
 from apps.pos.services import (
     add_or_update_line,
@@ -37,6 +42,7 @@ from apps.pos.services import (
     create_order,
     delete_order_line,
     hold_order,
+    open_orders_with_lines_queryset,
     set_line_note,
     set_line_quantity,
     set_line_unit_price,
@@ -53,6 +59,13 @@ def _get_order_for_session(order_id, **extra_filters):
         from django.http import Http404
         raise Http404
     return get_object_or_404(Order, pk=order_id, work_session=session, **extra_filters)
+
+
+def _post_redirect_after_cancel(request):
+    """مسموح فقط لقيم محدّدة بعد إلغاء الطلب (نماذج POST من الواجهة)."""
+    if (request.POST.get("next") or "").strip() == "session_summary":
+        return redirect("core:session_summary")
+    return redirect("pos:main")
 
 
 def _money(s: str) -> Decimal:
@@ -211,17 +224,9 @@ def pos_main(request):
     open_orders = []
     if session:
         open_orders = list(
-            Order.objects.filter(
-                work_session=session,
-                status=Order.Status.OPEN,
-                order_type__in=[Order.OrderType.DELIVERY, Order.OrderType.TAKEAWAY],
-            )
-            .select_related("customer")
+            open_orders_with_lines_queryset(session)
+            .select_related("customer", "table")
             .prefetch_related("lines", "tab_payments")
-            .annotate(
-                line_count=Count("lines"),
-                total_qty=Sum("lines__quantity"),
-            )
             .order_by("-created_at")
         )
         for o in open_orders:
@@ -236,9 +241,22 @@ def pos_main(request):
 
     treasury_voucher_form = None
     treasury_next = ""
-    if session and order:
+    recent_treasury_rows: list = []
+    pi_errors: list = []
+    pi_suppliers: list = []
+    pi_payment_rows: list = []
+    pi_form_state: dict = {}
+    pi_next = ""
+    pi_form_action = ""
+    if session:
         treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
         treasury_next = reverse("pos:main")
+        recent_treasury_rows = list(recent_treasury_voucher_logs(limit=8))
+        pi_suppliers = list(Supplier.objects.filter(is_active=True).order_by("name_ar"))
+        pi_payment_rows = _payment_rows()
+        pi_form_state = _purchase_form_state(request)
+        pi_next = reverse("pos:main")
+        pi_form_action = reverse("shell:purchase_new")
 
     return render(
         request,
@@ -261,6 +279,15 @@ def pos_main(request):
             "cafe_name": settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR),
             "treasury_voucher_form": treasury_voucher_form,
             "treasury_next": treasury_next,
+            "recent_treasury_rows": recent_treasury_rows,
+            "pi_errors": pi_errors,
+            "pi_suppliers": pi_suppliers,
+            "pi_payment_rows": pi_payment_rows,
+            "pi_form_state": pi_form_state,
+            "pi_next": pi_next,
+            "pi_form_action": pi_form_action,
+            "range10": range(10),
+            "range20": range(20),
         },
     )
 
@@ -389,23 +416,6 @@ def last_invoice_resume_into_cart(request):
 
 
 @login_required
-def tables_floor(request):
-    session = SessionService.get_open_session()
-    if not session:
-        messages.error(request, "افتح وردية عمل لعرض الطاولات.")
-        return redirect("pos:main")
-    rows = floor_rows_for_session(session)
-    return render(
-        request,
-        "pos/tables_floor.html",
-        {
-            "work_session": session,
-            "floor_rows": rows,
-        },
-    )
-
-
-@login_required
 @require_POST
 def table_open(request):
     SessionService.require_open_session()
@@ -425,7 +435,7 @@ def table_open(request):
         )
     except ValueError as e:
         messages.error(request, str(e))
-        return redirect("pos:tables_floor")
+        return redirect("pos:main")
     if guest_label and order.table_session_id:
         ts = order.table_session
         if not ts.customer_id:
@@ -476,14 +486,18 @@ def products_search(request):
 @login_required
 @require_POST
 def customer_quick_create(request):
-    SessionService.require_open_session()
+    """إنشاء عميل سريع من الكاشير — لا يشترط وردية مفتوحة (كان يمنع الإنشاء عند غيابها)."""
     name = (request.POST.get("name_ar") or "").strip()[:200]
-    if not name:
-        return JsonResponse({"ok": False, "error": "name_required"}, status=400)
     phone = (request.POST.get("phone") or "").strip()[:32]
-    c = Customer.objects.create(name_ar=name, phone=phone)
-    log_audit(request.user, "contacts.customer.quick_create", "contacts.Customer", c.pk, {})
-    return JsonResponse({"ok": True, "id": c.pk, "name_ar": c.name_ar})
+    c, reused = resolve_or_create_active_customer_by_name(name)
+    if not c:
+        return JsonResponse({"ok": False, "error": "name_required"}, status=400)
+    if phone and not (c.phone or "").strip():
+        c.phone = phone[:32]
+        c.save(update_fields=["phone", "updated_at"])
+    if not reused:
+        log_audit(request.user, "contacts.customer.quick_create", "contacts.Customer", c.pk, {})
+    return JsonResponse({"ok": True, "id": c.pk, "name_ar": c.name_ar, "reused": reused})
 
 
 @login_required
@@ -578,7 +592,7 @@ def order_new(request):
     tid = request.POST.get("table_id")
     if otype == Order.OrderType.DINE_IN:
         if not tid:
-            messages.error(request, "اختر طاولة لطلب الصالة أو استخدم خريطة الطاولات.")
+            messages.error(request, "اختر طاولة لطلب الصالة من شبكة الطاولات في الكاشير.")
             return redirect("pos:main")
         table = get_object_or_404(DiningTable, pk=tid, is_active=True)
         _ts, order = open_or_resume_table_session(user=request.user, dining_table=table)
@@ -751,14 +765,14 @@ def order_cancel(request, order_id):
             if is_xhr:
                 return JsonResponse({"ok": False, "error": str(e)}, status=400)
             messages.error(request, str(e))
-            return redirect("pos:main")
+            return _post_redirect_after_cancel(request)
         request.session.pop("active_pos_order_id", None)
         if is_xhr:
             return JsonResponse(
                 {"ok": True, "message": "تم إلغاء تعديل الفاتورة وإعادة حالتها السابقة."}
             )
         messages.success(request, "تم إلغاء تعديل الفاتورة وإعادة حالتها السابقة.")
-        return redirect("pos:main")
+        return _post_redirect_after_cancel(request)
     order.status = Order.Status.CANCELLED
     order.save(update_fields=["status", "updated_at"])
     if order.table_session_id:
@@ -777,7 +791,7 @@ def order_cancel(request, order_id):
     if is_xhr:
         return JsonResponse({"ok": True, "message": ok_msg})
     messages.success(request, ok_msg)
-    return redirect("pos:main")
+    return _post_redirect_after_cancel(request)
 
 
 @login_required
@@ -803,7 +817,7 @@ def order_hold(request, order_id):
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"ok": True})
     messages.success(request, "تم تعليق الطلب — يمكن استئنافه من الطاولة.")
-    return redirect("pos:tables_floor")
+    return redirect("pos:main")
 
 
 
@@ -837,13 +851,13 @@ def order_checkout(request, order_id):
             return redirect("pos:receipt", invoice_id=inv_pk)
         return redirect("pos:main")
 
-    def _ok_tables_floor(flash_msg: str):
+    def _ok_pos_main(flash_msg: str):
         if is_xhr:
             return JsonResponse(
-                {"ok": True, "redirect": reverse("pos:tables_floor"), "message": flash_msg}
+                {"ok": True, "redirect": reverse("pos:main"), "message": flash_msg}
             )
         messages.success(request, flash_msg)
-        return redirect("pos:tables_floor")
+        return redirect("pos:main")
 
     def _ok_partial_pay(flash_msg: str):
         if is_xhr:
@@ -878,10 +892,28 @@ def order_checkout(request, order_id):
             flash_msg = f"تم إتمام البيع. رقم الفاتورة: {inv.invoice_number}"
             return _ok_receipt(inv.pk, flash_msg)
         flash_msg = "تم إغلاق الطاولة (طلب فارغ — دون فاتورة)."
-        return _ok_tables_floor(flash_msg)
+        return _ok_pos_main(flash_msg)
 
     payments = _payments_from_checkout_form(request, remaining)
     new_sum = sum((p[1] for p in payments), Decimal("0")).quantize(Decimal("0.01"))  # type: ignore[index]
+
+    draft_name = (request.POST.get("customer_name_draft") or "").strip()[:200]
+    ar_codes = credit_method_codes()
+    needs_credit_customer = any(
+        str(p[0] or "").strip().lower() in ar_codes and p[1] > Decimal("0") for p in payments
+    )
+    if needs_credit_customer and customer is None and len(draft_name) >= 2:
+        cust_draft, draft_reused = resolve_or_create_active_customer_by_name(draft_name)
+        if cust_draft:
+            customer = cust_draft
+            if not draft_reused:
+                log_audit(
+                    request.user,
+                    "contacts.customer.checkout_name_draft",
+                    "contacts.Customer",
+                    cust_draft.pk,
+                    {"name_ar": draft_name[:120]},
+                )
 
     if remaining > 0 and new_sum <= 0:
         raw_mode = (request.POST.get("payment_mode") or "").strip()
@@ -894,7 +926,6 @@ def order_checkout(request, order_id):
     if new_sum > remaining + Decimal("0.02"):
         return _err("مجموع الدفعات يتجاوز المتبقي على الطلب.")
 
-    ar_codes = credit_method_codes()
     for item in payments:
         _m = item[0]
         amt = item[1]
@@ -934,7 +965,7 @@ def order_checkout(request, order_id):
     if order.status == Order.Status.CHECKED_OUT:
         request.session.pop("active_pos_order_id", None)
         flash_msg = "تم إغلاق الطاولة (طلب فارغ — دون فاتورة)."
-        return _ok_tables_floor(flash_msg)
+        return _ok_pos_main(flash_msg)
     flash_msg = (
         f"تم تسجيل دفعة. المتبقي: {(remaining - new_sum).quantize(Decimal('0.01'))} ر.س"
     )
@@ -1027,18 +1058,125 @@ def _ajax_or_redirect_error(request, msg, redirect_url="pos:main"):
     return redirect(redirect_url)
 
 
+def _receipt_payer_display_name(invoice: SaleInvoice) -> str:
+    if invoice.customer_id:
+        return invoice.customer.name_ar
+    for pay in invoice.payments.order_by("pk"):
+        if pay.method in ("bank_ps", "palpay", "jawwalpay") and (pay.payer_name or "").strip():
+            return (pay.payer_name or "").strip()
+    return ""
+
+
+def _receipt_cashier_display(invoice: SaleInvoice) -> str:
+    try:
+        u = invoice.work_session.opened_by
+        return (u.get_full_name() or getattr(u, "username", "") or "").strip() or "—"
+    except Exception:
+        return "—"
+
+
+def _receipt_order_source_label(invoice: SaleInvoice) -> str:
+    o = invoice.order
+    bits = [o.get_order_type_display()]
+    if o.table_id:
+        bits.append(o.table.name_ar)
+    return " - ".join(bits)
+
+
+def _receipt_sale_terminal_display(invoice: SaleInvoice) -> str:
+    """عمود «بيع» مثل مرجع باندا (PC - 03) عند ضبط اسم طابعة الإيصال، وإلا نص الطلب."""
+    ps = get_pos_settings()
+    label = (ps.printer_receipt_label or "").strip()
+    return label if label else _receipt_order_source_label(invoice)
+
+
+def _receipt_stamp_lines() -> list[str]:
+    raw = (get_pos_settings().receipt_stamp_text or "").strip()
+    if not raw:
+        return []
+    return [p.strip() for p in raw.split(";") if p.strip()]
+
+
+def _receipt_time_ar_ampm(dt) -> str:
+    if django_tz.is_aware(dt):
+        dt = django_tz.localtime(dt)
+    h, m, s = dt.hour, dt.minute, dt.second
+    ap = "م" if h >= 12 else "ص"
+    h12 = h % 12
+    if h12 == 0:
+        h12 = 12
+    return f"{h12:02d}:{m:02d}:{s:02d} {ap}"
+
+
+def _receipt_payment_breakdown(invoice: SaleInvoice) -> dict[str, Decimal]:
+    b = {
+        "cash": Decimal("0"),
+        "bank_ps": Decimal("0"),
+        "palpay": Decimal("0"),
+        "jawwalpay": Decimal("0"),
+        "credit": Decimal("0"),
+    }
+    for pay in invoice.payments.order_by("pk"):
+        m = (pay.method or "").strip()
+        a = pay.amount or Decimal("0")
+        if m == "cash":
+            b["cash"] += a
+        elif m in ("bank_ps", "bank"):
+            b["bank_ps"] += a
+        elif m == "palpay":
+            b["palpay"] += a
+        elif m == "jawwalpay":
+            b["jawwalpay"] += a
+        elif m == "credit":
+            b["credit"] += a
+        else:
+            b["bank_ps"] += a
+    for k in list(b.keys()):
+        b[k] = b[k].quantize(Decimal("0.01"))
+    return b
+
+
 @login_required
 @require_GET
 def receipt_print(request, invoice_id):
     from apps.billing.models import SaleInvoice
 
-    from apps.core.payment_methods import load_payment_method_rows
-
-    inv = get_object_or_404(SaleInvoice, pk=invoice_id)
+    inv = get_object_or_404(
+        SaleInvoice.objects.select_related(
+            "customer",
+            "order",
+            "order__table",
+            "work_session",
+            "work_session__opened_by",
+        ).prefetch_related("lines__product", "payments"),
+        pk=invoice_id,
+    )
     lang = request.LANGUAGE_CODE or "ar"
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
-    pm_label_map = {r["code"]: r["label_ar"] for r in load_payment_method_rows()}
-    ctx = {"invoice": inv, "cafe_name": cafe, "pm_label_map": pm_label_map}
+    line_count = inv.lines.count()
+    pay = _receipt_payment_breakdown(inv)
+    electronic = (pay["bank_ps"] + pay["palpay"] + pay["jawwalpay"]).quantize(Decimal("0.01"))
+    paid_all = sum(pay.values(), Decimal("0")).quantize(Decimal("0.01"))
+    ps = get_pos_settings()
+    slogan = (ps.receipt_slogan_ar or "").strip()
+    if not slogan and (ps.cafe_name_ar or cafe):
+        slogan = f"{ps.cafe_name_ar or cafe} جودة وعروض على طول"
+    ctx = {
+        "invoice": inv,
+        "cafe_name": cafe,
+        "receipt_payer_name": _receipt_payer_display_name(inv),
+        "receipt_pay": pay,
+        "receipt_pay_electronic": electronic,
+        "receipt_paid_total": paid_all,
+        "receipt_line_count": line_count,
+        "receipt_cashier": _receipt_cashier_display(inv),
+        "receipt_order_source": _receipt_order_source_label(inv),
+        "receipt_sale_terminal": _receipt_sale_terminal_display(inv),
+        "receipt_time_ar": _receipt_time_ar_ampm(inv.created_at),
+        "receipt_slogan_line": slogan,
+        "receipt_number_short": str(inv.pk),
+        "receipt_stamp_lines": _receipt_stamp_lines(),
+    }
     if request.GET.get("embed") == "1":
         return render(request, "pos/receipt_embed.html", ctx)
     return render(request, "pos/receipt_preview.html", ctx)
@@ -1046,10 +1184,26 @@ def receipt_print(request, invoice_id):
 
 @login_required
 @require_GET
+def receipt_live_preview(request):
+    """صفحة معاينة الإيصال (آخر فاتورة) لمراجعة التعديلات بعد حفظ الإعدادات."""
+    from apps.billing.models import SaleInvoice
+
+    inv = SaleInvoice.objects.order_by("-pk").first()
+    ctx = {"iframe_src": None}
+    if inv:
+        ctx["iframe_src"] = reverse("pos:receipt", kwargs={"invoice_id": inv.pk}) + "?embed=1"
+    return render(request, "pos/receipt_live_preview.html", ctx)
+
+
+@login_required
+@require_GET
 def receipt_raw(request, invoice_id):
     from apps.billing.models import SaleInvoice
 
-    inv = get_object_or_404(SaleInvoice, pk=invoice_id)
+    inv = get_object_or_404(
+        SaleInvoice.objects.select_related("customer", "order", "order__table", "work_session__opened_by"),
+        pk=invoice_id,
+    )
     cafe = settings.CAFE_NAME_AR
     data = build_invoice_receipt(inv, cafe)
     return HttpResponse(data, content_type="application/octet-stream")

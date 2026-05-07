@@ -7,8 +7,10 @@
     <span class="pos-shell-toolbar-title">مورد: {{ supplier.name_ar }}</span>
     <span class="pos-shell-toolbar-hint hidden lg:inline">الرصيد والفواتير والقيود</span>
     <span class="flex-1"></span>
-    <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← قائمة الموردين</a>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← قائمة الموردين</a>
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-3">

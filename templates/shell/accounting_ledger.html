@@ -9,9 +9,10 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">كشف حساب</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <a href="{% url 'shell:accounting_chart' %}" class="shell-toolbar-link whitespace-nowrap">← دليل الحسابات</a>
-    <span class="select-none text-muted/70 dark:text-gray-500" aria-hidden="true">·</span>
-    <a href="{% url 'pos:main' %}" class="shell-toolbar-link whitespace-nowrap">← لوحة الطلبات</a>
+    <div class="shell-toolbar-actions">
+      <a href="{% url 'shell:accounting_chart' %}" class="shell-toolbar-link">← دليل الحسابات</a>
+      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="ledger" %}
