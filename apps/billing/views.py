@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
-from apps.billing.purge_service import purge_sale_invoice
+from apps.billing.purge_service import purge_sale_invoice, purge_sale_return
 from apps.billing.sale_invoice_edit import apply_sale_invoice_line_edits, can_edit_sale_invoice
 from apps.core.models import get_pos_settings
 from apps.core.pagination import paginate_queryset
@@ -114,6 +114,7 @@ def sale_invoice_detail(request, pk):
         "lines": lines,
         "payments": payments,
         "has_sale_returns": invoice.returns.exists(),
+        "sale_returns": list(invoice.returns.order_by("-created_at")),
     })
 
 
@@ -327,3 +328,36 @@ def sale_return_create(request, invoice_pk):
         "inv_lines": inv_lines,
         "errors": errors,
     })
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_POST
+def sale_return_delete(request, invoice_pk, return_pk):
+    invoice = get_object_or_404(SaleInvoice, pk=invoice_pk)
+    ret = get_object_or_404(SaleReturn, pk=return_pk, invoice=invoice)
+    reason = (request.POST.get("reason") or "").strip()
+    fallback = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse(
+        "shell:invoice_detail", kwargs={"pk": invoice.pk}
+    )
+    if len(reason) < 3:
+        messages.error(request, "اكتب سبب حذف المرتجع (3 أحرف على الأقل).")
+        return redirect(fallback)
+    ret_label = ret.return_number
+    try:
+        purge_sale_return(sale_return=ret, reason=reason, user=request.user)
+    except ValueError as e:
+        code = str(e)
+        if code == "PRODUCT_NOT_STOCK_TRACKED" or code.startswith("INSUFFICIENT_STOCK"):
+            messages.error(
+                request,
+                "تعذر عكس المخزون أثناء حذف المرتجع. راجع الكميات أو فعّل السماح بالمخزون السالب مؤقتاً من الإعدادات.",
+            )
+        else:
+            messages.error(request, code.replace("_", " "))
+        return redirect(fallback)
+    messages.success(
+        request,
+        f"تم حذف المرتجع {ret_label} وعكس أثره (مخزون / رصيد عميل إن وُجد). يمكنك الآن حذف الفاتورة إن رغبت.",
+    )
+    return redirect(reverse("shell:invoice_detail", kwargs={"pk": invoice.pk}))

@@ -139,6 +139,11 @@ urlpatterns = [
     path("billing/invoices/<int:pk>/delete/", billing_views.sale_invoice_delete, name="sale_invoice_delete"),
     path("billing/invoices/customer/<int:customer_id>/", billing_views.customer_invoices, name="customer_invoices"),
     path("billing/invoices/<int:invoice_pk>/return/", billing_views.sale_return_create, name="sale_return"),
+    path(
+        "billing/invoices/<int:invoice_pk>/returns/<int:return_pk>/delete/",
+        billing_views.sale_return_delete,
+        name="sale_return_delete",
+    ),
     *urlpatterns_accounting,
     path("payroll/", payroll_views.employee_list, name="employees"),
     path("payroll/create/", payroll_views.employee_create, name="employee_create"),

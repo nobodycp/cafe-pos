@@ -330,6 +330,7 @@ def last_sale_invoice_panel(request):
             "payments": payments,
             "invoice_embedded": True,
             "has_sale_returns": invoice.returns.exists(),
+            "sale_returns": list(invoice.returns.order_by("-created_at")),
         },
     )
 

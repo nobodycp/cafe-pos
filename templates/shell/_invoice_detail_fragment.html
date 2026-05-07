@@ -142,6 +142,34 @@
         {% endfor %}
       </div>
 
+      {% if sale_returns %}
+      <div class="mt-4 border-t border-amber-200 dark:border-amber-900/50 pt-3 no-print">
+        <h3 class="text-sm font-bold mb-2 text-amber-900 dark:text-amber-200">مرتجعات البيع المسجّلة</h3>
+        <p class="text-xs text-muted mb-2">وجود مرتجع يمنع حذف الفاتورة أو تعديلها حتى يُحذف المرتجع أو يُعالَج محاسبياً.</p>
+        <ul class="space-y-2 text-sm">
+          {% for ret in sale_returns %}
+          <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 bg-gray-50/80 dark:bg-gray-900/40">
+            <span>
+              <strong>{{ ret.return_number }}</strong>
+              <span class="text-muted ms-1">{{ ret.total_refund|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+              {% if ret.refund_method == "credit" %}<span class="text-xs text-danger ms-1">(رصيد عميل)</span>{% else %}<span class="text-xs text-muted ms-1">(نقدي)</span>{% endif %}
+            </span>
+            {% if user.is_staff %}
+            <form method="post" action="{% url 'shell:sale_return_delete' invoice.pk ret.pk %}" class="m-0 flex flex-wrap items-center gap-2" onsubmit="return confirm('حذف هذا المرتجع نهائياً؟ سيتم عكس المخزون ورصيد العميل إن وُجد.');">
+              {% csrf_token %}
+              <input type="text" name="reason" required minlength="3" maxlength="500" placeholder="سبب الحذف" class="h-8 min-w-[10rem] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 px-2 text-xs" dir="rtl">
+              <button type="submit" class="h-8 px-2 rounded border border-danger text-danger text-xs font-bold hover:bg-danger/10">حذف المرتجع</button>
+            </form>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if not user.is_staff and sale_returns %}
+        <p class="text-xs text-muted mt-2">لحذف سجل مرتجع قديم أو خاطئ، يحتاج المستخدم صلاحية <strong>staff</strong> في لوحة المشرف أو يتصل بالدعم.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
       <p class="text-center text-muted text-xs mt-4">شكراً لزيارتكم</p>
     </div>
   </div>
