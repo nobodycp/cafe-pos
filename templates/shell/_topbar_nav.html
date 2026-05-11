@@ -3,12 +3,25 @@
   <div class="ds-topbar-nav__row flex flex-wrap items-center justify-end gap-x-0.5 gap-y-1 min-w-0">
     {% for item in shell_topbar_links %}
       {% if forloop.counter <= 6 %}
+        {% if item.id == "products" %}
+        <div class="ds-topbar-nav__product-cluster flex items-center shrink-0 gap-0.5">
+          {# RTL: أول عنصر = أقصى اليمين. نريد ترتيب من الداخل للحافة: منتجات ثم جرس، فيأتي الجرس أولاً في DOM ليظهر يمين الرابط. #}
+          {% include "shell/_topbar_inventory_bell.html" %}
+          <a href="{{ item.href }}"
+             class="ds-topbar-nav__link {% if shell_topbar_active == item.id %}is-active{% endif %}"
+             title="{{ item.title }}">
+            <span class="ds-topbar-nav__ic" aria-hidden="true">{% include item.icon_tpl %}</span>
+            <span>{{ item.label }}</span>
+          </a>
+        </div>
+        {% else %}
         <a href="{{ item.href }}"
            class="ds-topbar-nav__link {% if shell_topbar_active == item.id %}is-active{% endif %}"
            title="{{ item.title }}">
           <span class="ds-topbar-nav__ic" aria-hidden="true">{% include item.icon_tpl %}</span>
           <span>{{ item.label }}</span>
         </a>
+        {% endif %}
       {% endif %}
     {% endfor %}
     {% for item in shell_topbar_links %}
