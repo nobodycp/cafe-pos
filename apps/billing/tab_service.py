@@ -356,6 +356,9 @@ def _close_table_session_if_no_open_orders(*, table_session_id: Optional[int]) -
     ts.status = TableSession.Status.CLOSED
     ts.closed_at = timezone.now()
     ts.save(update_fields=["status", "closed_at", "updated_at"])
+    from apps.pos.table_service import retire_ephemeral_dining_table_if_safe
+
+    retire_ephemeral_dining_table_if_safe(dining_table_id=ts.dining_table_id)
 
 
 @transaction.atomic

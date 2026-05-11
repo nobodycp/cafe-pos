@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Union
 
+from django.conf import settings as django_settings
 from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect
@@ -54,6 +55,9 @@ def resolve_settings_request(
 
     ctx = {k: cls(instance=obj) for k, cls in form_map.items()}
     ctx["active_tab"] = section or "cafe"
+    ctx["allow_test_database_wipe"] = getattr(
+        django_settings, "ALLOW_TEST_DATABASE_WIPE", django_settings.DEBUG
+    )
     ctx["payment_method_url_namespace"] = payment_method_url_namespace
     ctx.update(build_payment_methods_list_context(request))
     try:

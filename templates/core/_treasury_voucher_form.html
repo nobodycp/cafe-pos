@@ -1,6 +1,7 @@
 {# نموذج سند موحّد — wide: كاشير | shell: محاسبة shell (عرض كامل داخل اللوحة) | افتراضي: بطاقة مستقلة #}
 {% url 'shell:treasury_party_search' as treasury_party_search_url %}
 {% url 'shell:treasury_customer_quick_create' as treasury_customer_quick_create_url %}
+{% url 'shell:treasury_employee_quick_create' as treasury_employee_quick_create_url %}
 {% url 'shell:purchase_supplier_quick_create' as treasury_supplier_quick_create_url %}
 {% if voucher_layout == 'shell' %}
 <div class="w-full max-w-full">
@@ -11,6 +12,7 @@
 {% endif %}
   <form method="post" action="{% url 'shell:accounting_treasury' %}" id="treasury-voucher-form"
         class="{% if treasury_form_compact and voucher_layout == 'wide' %}treasury-form--compact treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 gap-2 content-start{% elif voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %} tv-voucher-broad{% endif %}"
+        data-currency-symbol="{{ POS_SETTINGS.currency_symbol }}"
         data-payer-hints-url="{% url 'pos:payer_hints' %}"
         data-party-search-url="{{ treasury_party_search_url }}"
         data-vt-receipt="{{ voucher_form.VT_RECEIPT }}"
@@ -20,8 +22,13 @@
         data-party-employee="{{ voucher_form.PARTY_EMPLOYEE }}"
         data-party-expense="{{ voucher_form.PARTY_EXPENSE }}"
         data-customer-create-url="{{ treasury_customer_quick_create_url }}"
-        data-supplier-create-url="{{ treasury_supplier_quick_create_url }}">
+        data-employee-create-url="{{ treasury_employee_quick_create_url }}"
+        data-supplier-create-url="{{ treasury_supplier_quick_create_url }}"
+        {% if treasury_edit_party_label %}data-initial-party-label="{{ treasury_edit_party_label }}"{% endif %}>
     {% csrf_token %}
+    {% if treasury_replace_audit_pk %}
+    <input type="hidden" name="replace_audit_pk" value="{{ treasury_replace_audit_pk }}">
+    {% endif %}
     {% if treasury_next %}
     <input type="hidden" name="next" value="{{ treasury_next }}">
     {% endif %}
@@ -41,11 +48,11 @@
 
     <div class="tv-party-type-col {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}">
       <span class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">الحساب / الجهة</span>
-      <div class="tv-party-type-btns flex flex-row flex-nowrap {% if treasury_form_compact %}gap-1{% else %}gap-0.5{% endif %} min-w-0 w-full" role="group" aria-label="الحساب أو الجهة" dir="rtl">
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_CUSTOMER }}">عميل</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_SUPPLIER }}">مورد</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EMPLOYEE }}">موظف</button>
-        <button type="button" class="tv-party-type-btn flex-1 min-w-0 basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EXPENSE }}">مصاريف</button>
+      <div class="tv-party-type-btns flex flex-row flex-wrap {% if treasury_form_compact %}gap-1{% else %}gap-0.5{% endif %} min-w-0 w-full" role="group" aria-label="الحساب أو الجهة" dir="rtl">
+        <button type="button" class="tv-party-type-btn flex-1 min-w-[4.5rem] basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_CUSTOMER }}">عميل</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-[4.5rem] basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_SUPPLIER }}">مورد</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-[4.5rem] basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EMPLOYEE }}">موظف</button>
+        <button type="button" class="tv-party-type-btn flex-1 min-w-[4.5rem] basis-0 flex items-center justify-center text-center leading-tight {% if treasury_form_compact %}text-[10px] px-2 py-1 h-7{% elif voucher_layout == 'wide' %}text-[10px] px-1 py-1 h-7{% else %}text-[11px] sm:text-xs px-1.5 py-1.5 min-h-[2.25rem]{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 hover:border-[#1e3a5f]" data-party="{{ voucher_form.PARTY_EXPENSE }}">مصاريف</button>
       </div>
     </div>
 
@@ -54,13 +61,17 @@
       <input type="text" id="tv-party-search" autocomplete="off" placeholder=""
            class="{% if voucher_layout == 'wide' %}w-full{% else %}form-input w-full{% endif %}">
       <div id="tv-party-hits" class="tv-party-hits absolute z-20 left-0 right-0 top-full mt-px max-h-40 overflow-y-auto rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow hidden"></div>
+      <div id="tv-party-new" class="hidden mt-1.5">
+        <button type="button" id="tv-party-create-btn" class="h-8 px-3 rounded-sm bg-success text-white text-xs font-bold">+ إضافة جديد</button>
+      </div>
       {{ voucher_form.customer }}{{ voucher_form.supplier }}{{ voucher_form.employee }}
       <div class="tv-party-errors mt-1 space-y-0.5">
         {% for e in voucher_form.customer.errors %}<p class="text-danger text-xs">{{ e }}</p>{% endfor %}
         {% for e in voucher_form.supplier.errors %}<p class="text-danger text-xs">{{ e }}</p>{% endfor %}
         {% for e in voucher_form.employee.errors %}<p class="text-danger text-xs">{{ e }}</p>{% endfor %}
       </div>
-      <p id="tv-employee-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">يُسجَّل كمصروف «رواتب».</p>
+      <p id="tv-party-balance" class="mt-1 text-xs font-extrabold tabular-nums text-primary hidden" aria-live="polite"></p>
+      <p id="tv-employee-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden"></p>
       <p id="tv-expense-hint" class="text-[10px] text-muted mt-0.5 leading-snug hidden">سيُستنتج <strong>تصنيف المصروف</strong> من الملاحظة: أوّل سطر أو النص قبل «—» أو «:» يُطابق اسم التصنيف (وقود، تنظيف، مستلزمات، إنترنت واتصالات، نقل، صيانة، أخرى…) أو الرمز (مثل fuel). إن لم يُطابق شيء يُستخدم «أخرى». باقي النص يبقى في ملاحظات المصروف.</p>
     </div>
 
@@ -276,6 +287,11 @@
   var amountInput = document.getElementById("{{ voucher_form.amount.id_for_label }}");
   var customerCreateUrl = form.dataset.customerCreateUrl || "";
   var supplierCreateUrl = form.dataset.supplierCreateUrl || "";
+  var employeeCreateUrl = form.dataset.employeeCreateUrl || "";
+  var partyNewWrap = document.getElementById("tv-party-new");
+  var partyCreateBtn = document.getElementById("tv-party-create-btn");
+  var partyBalEl = document.getElementById("tv-party-balance");
+  var curSym = (form.dataset.currencySymbol || "").trim();
   var PM_ROWS = [
     {% for row in POS_SETTINGS.payment_method_rows %}
     { code: "{{ row.code|escapejs }}", label_ar: "{{ row.label_ar|escapejs }}", ledger: "{{ row.ledger|escapejs }}", needsPayer: {% if row.ledger == 'bank' %}true{% else %}false{% endif %} }{% if not forloop.last %},{% endif %}
@@ -284,7 +300,7 @@
 
   function splitPaymentMode() {
     if (!partyHidden) return false;
-    return (receiptMode() && partyHidden.value === P_C) || (!receiptMode() && partyHidden.value === P_S);
+    return (receiptMode() && (partyHidden.value === P_C || partyHidden.value === P_E)) || (!receiptMode() && partyHidden.value === P_S);
   }
 
   function methodCodeNeedsPayer(code) {
@@ -493,59 +509,40 @@
     else searchIn.placeholder = "لا يحتاج اختيار اسم";
   }
 
+  function updatePartyBalanceLine(balance) {
+    if (!partyBalEl) return;
+    if (balance == null || balance === "") {
+      partyBalEl.classList.add("hidden");
+      partyBalEl.textContent = "";
+      return;
+    }
+    var n = parseFloat(String(balance).replace(",", "."));
+    if (isNaN(n)) {
+      partyBalEl.classList.add("hidden");
+      partyBalEl.textContent = "";
+      return;
+    }
+    var p = partyHidden ? partyHidden.value : "";
+    var kind = p === P_C ? "رصيد العميل (عليه)" : p === P_S ? "رصيد المورد" : p === P_E ? "صافي رصيد الموظف" : "الرصيد النهائي";
+    partyBalEl.textContent = kind + ": " + n.toFixed(2) + (curSym ? " " + curSym : "");
+    partyBalEl.classList.remove("hidden");
+  }
+
   function clearParty() {
     if (cust) cust.value = "";
     if (supp) supp.value = "";
     if (empl) empl.value = "";
     if (searchIn) searchIn.value = "";
     if (hits) { hits.innerHTML = ""; hits.classList.add("hidden"); }
+    if (partyNewWrap) partyNewWrap.classList.add("hidden");
     if (splitsTbody) splitsTbody.innerHTML = "";
     if (splitsJson) splitsJson.value = "";
+    updatePartyBalanceLine(null);
   }
 
   function csrfToken() {
     var el = form.querySelector('input[name="csrfmiddlewaretoken"]');
     return el ? el.value : "";
-  }
-
-  function quickCreateCustomer(nameAr) {
-    if (!customerCreateUrl) return;
-    fetch(customerCreateUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-CSRFToken": csrfToken(),
-      },
-      body: JSON.stringify({ name_ar: nameAr, phone: "" }),
-    })
-      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
-      .then(function(x) {
-        if (!x.ok) throw new Error(x.j.error || "err");
-        pickParty(x.j.id, x.j.name_ar);
-      })
-      .catch(function() { alert("تعذّر إنشاء العميل."); });
-  }
-
-  function quickCreateSupplier(nameAr) {
-    if (!supplierCreateUrl) return;
-    fetch(supplierCreateUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-CSRFToken": csrfToken(),
-      },
-      body: JSON.stringify({ name_ar: nameAr }),
-    })
-      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
-      .then(function(x) {
-        if (!x.ok) throw new Error(x.j.error || "err");
-        pickParty(x.j.id, x.j.name_ar);
-      })
-      .catch(function() { alert("تعذّر إنشاء المورد."); });
   }
 
   function syncTypeUi() {
@@ -557,7 +554,7 @@
   }
 
   function validPartyForVoucher(p, v) {
-    if (v === VT_R) return p === P_C;
+    if (v === VT_R) return p === P_C || p === P_E;
     return p === P_S || p === P_E || p === P_X;
   }
 
@@ -586,7 +583,15 @@
       if (!needsSearch) searchIn.value = "";
     }
     if (hits && !needsSearch) { hits.innerHTML = ""; hits.classList.add("hidden"); }
-    if (empHint) empHint.classList.toggle("hidden", p !== P_E);
+    if (partyNewWrap && !needsSearch) partyNewWrap.classList.add("hidden");
+    if (empHint) {
+      empHint.classList.toggle("hidden", p !== P_E);
+      if (p === P_E) {
+        empHint.textContent = receiptMode()
+          ? "سند قبض: يُخصم أولاً من «مشتريات المقهى» ثم السلف الموجبة؛ أي زيادة تُسجَّل كرصيد لصالح الموظف (صافي الرصيد يزيد) حتى بلا ذمة مسجّلة."
+          : "سند صرف: يُسجَّل كمصروف «رواتب» ويُضاف للسلف المعلّقة على الموظف.";
+      }
+    }
     if (expenseHint) expenseHint.classList.toggle("hidden", p !== P_X);
     setPartyPlaceholders();
     if (noteTa && noteSummHint && typeHidden) {
@@ -612,6 +617,7 @@
       syncTypeUi();
     });
   });
+
   partyBtns.forEach(function(btn) {
     btn.addEventListener("click", function() {
       if (btn.disabled || !partyHidden) return;
@@ -619,10 +625,14 @@
       if (nv === partyHidden.value) return;
       partyHidden.value = nv;
       clearParty();
-      syncPartyUi();
+      syncTypeUi();
     });
   });
   syncTypeUi();
+  var initPartyLbl = form.getAttribute("data-initial-party-label");
+  if (initPartyLbl && searchIn) {
+    searchIn.value = initPartyLbl;
+  }
 
   function syncTvMethodUi() {
     if (splitPaymentMode()) {
@@ -737,7 +747,7 @@
   }
   setupTvPayerHints();
 
-  function pickParty(id, label) {
+  function pickParty(id, label, balance) {
     if (cust) cust.value = "";
     if (supp) supp.value = "";
     if (empl) empl.value = "";
@@ -747,6 +757,9 @@
     else if (p === P_E && empl) empl.value = String(id);
     if (searchIn) searchIn.value = label || "";
     if (hits) { hits.innerHTML = ""; hits.classList.add("hidden"); }
+    if (partyNewWrap) partyNewWrap.classList.add("hidden");
+    if (arguments.length >= 3) updatePartyBalanceLine(balance);
+    else updatePartyBalanceLine(null);
   }
 
   function pickFirstVisibleParty() {
@@ -763,46 +776,38 @@
     var q = searchIn ? searchIn.value.trim() : "";
     var pt = partyHidden ? partyHidden.value : "";
     if (!rows.length) {
-      if (q.length >= 2 && (pt === P_C || pt === P_S)) {
-        var wrap = document.createElement("div");
-        wrap.className = "px-2 py-1.5 text-[10px] leading-snug";
-        wrap.appendChild(document.createTextNode("لا يوجد تطابق — "));
-        if (pt === P_C && customerCreateUrl) {
-          var bc = document.createElement("button");
-          bc.type = "button";
-          bc.className = "font-bold text-[#1e3a5f] dark:text-sky-400 hover:underline";
-          bc.textContent = "+ عميل";
-          bc.addEventListener("click", function(ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            quickCreateCustomer(q);
-          });
-          wrap.appendChild(bc);
-        }
-        if (pt === P_S && supplierCreateUrl) {
-          var bs = document.createElement("button");
-          bs.type = "button";
-          bs.className = "font-bold text-[#1e3a5f] dark:text-sky-400 hover:underline";
-          bs.textContent = "+ مورد";
-          bs.addEventListener("click", function(ev) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            quickCreateSupplier(q);
-          });
-          wrap.appendChild(bs);
-        }
-        hits.appendChild(wrap);
-        hits.classList.remove("hidden");
-        return;
-      }
       hits.classList.add("hidden");
+      var canCreate =
+        q.length >= 2 &&
+        ((pt === P_C && customerCreateUrl) || (pt === P_S && supplierCreateUrl) || (pt === P_E && employeeCreateUrl));
+      if (canCreate && partyNewWrap && partyCreateBtn) {
+        partyCreateBtn.textContent =
+          pt === P_C ? "+ إضافة عميل جديد" : pt === P_S ? "+ إضافة مورد جديد" : "+ إضافة موظف جديد";
+        partyNewWrap.classList.remove("hidden");
+      } else if (partyNewWrap) {
+        partyNewWrap.classList.add("hidden");
+      }
       return;
     }
+    if (partyNewWrap) partyNewWrap.classList.add("hidden");
     rows.forEach(function(r) {
       var b = document.createElement("button");
       b.type = "button";
-      b.textContent = r.label;
-      b.addEventListener("click", function() { pickParty(r.id, r.label); });
+      var wrap = document.createElement("div");
+      wrap.className = "text-start leading-snug py-0.5";
+      var t1 = document.createElement("div");
+      t1.className = "font-semibold";
+      t1.textContent = r.label || "";
+      var t2 = document.createElement("div");
+      t2.className = "text-[10px] font-bold tabular-nums text-muted";
+      if (r.balance != null && r.balance !== "") {
+        var nb = parseFloat(String(r.balance).replace(",", "."));
+        t2.textContent = isNaN(nb) ? "" : ("الرصيد: " + nb.toFixed(2) + (curSym ? " " + curSym : ""));
+      }
+      wrap.appendChild(t1);
+      if (t2.textContent) wrap.appendChild(t2);
+      b.appendChild(wrap);
+      b.addEventListener("click", function() { pickParty(r.id, r.label, r.balance); });
       hits.appendChild(b);
     });
     hits.classList.remove("hidden");
@@ -812,12 +817,56 @@
     if (!searchIn || !searchUrl) return;
     if (partyHidden && partyHidden.value === P_X) return;
     var q = searchIn.value.trim();
-    if (q.length < 1) { if (hits) { hits.innerHTML = ""; hits.classList.add("hidden"); } return; }
+    if (q.length < 1) {
+      updatePartyBalanceLine(null);
+      if (hits) { hits.innerHTML = ""; hits.classList.add("hidden"); }
+      if (partyNewWrap) partyNewWrap.classList.add("hidden");
+      return;
+    }
     var url = searchUrl + "?q=" + encodeURIComponent(q) + "&party_type=" + encodeURIComponent(partyHidden ? partyHidden.value : "");
     fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } })
       .then(function(r) { return r.json(); })
       .then(function(data) { renderHits(data.results || []); })
-      .catch(function() { if (hits) hits.classList.add("hidden"); });
+      .catch(function() {
+        if (hits) hits.classList.add("hidden");
+        if (partyNewWrap) partyNewWrap.classList.add("hidden");
+      });
+  }
+
+  if (partyCreateBtn) {
+    partyCreateBtn.addEventListener("click", function() {
+      var q = searchIn ? searchIn.value.trim() : "";
+      if (q.length < 2) return;
+      var pt = partyHidden ? partyHidden.value : "";
+      var url = pt === P_C ? customerCreateUrl : pt === P_S ? supplierCreateUrl : pt === P_E ? employeeCreateUrl : "";
+      if (!url) return;
+      var body = pt === P_C ? JSON.stringify({ name_ar: q, phone: "" }) : JSON.stringify({ name_ar: q });
+      var toast = window.shellToast || function(m) { alert(m); };
+      partyCreateBtn.disabled = true;
+      fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-CSRFToken": csrfToken(),
+        },
+        body: body,
+      })
+        .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+        .then(function(res) {
+          partyCreateBtn.disabled = false;
+          if (!res.ok) {
+            toast(res.j.error || "تعذّر الإنشاء", "error");
+            return;
+          }
+          pickParty(res.j.id, res.j.name_ar, res.j.balance != null ? res.j.balance : "0.00");
+        })
+        .catch(function() {
+          partyCreateBtn.disabled = false;
+          toast("خطأ شبكة", "error");
+        });
+    });
   }
 
   if (searchIn) {
@@ -829,6 +878,7 @@
       }
     });
     searchIn.addEventListener("input", function() {
+      updatePartyBalanceLine(null);
       clearTimeout(tmo);
       tmo = setTimeout(runSearch, 220);
     });

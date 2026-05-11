@@ -14,7 +14,7 @@
     <div class="bg-warning/10 border border-warning rounded-xl p-4 mb-5 text-sm">
       <strong class="text-yellow-700 dark:text-warning">تنبيه:</strong>
       هذا المورد عميل مرتبط ({{ supplier.linked_customer.name_ar }}) — رصيده كعميل <strong>{{ supplier.linked_customer.balance|floatformat:2 }}</strong>.
-      رصيد المورد: <strong>{{ supplier.balance|floatformat:2 }}</strong> — الصافي: <strong>{{ net_balance|floatformat:2 }}</strong>
+      رصيد المورد: <strong>{{ supplier.balance|floatformat:2 }}</strong> — رصيد بعد المسحوبات: <strong>{{ net_balance|floatformat:2 }}</strong>
     </div>
     {% endif %}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">

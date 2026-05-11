@@ -17,5 +17,7 @@
      class="ds-shell-subtab{% if u == 'payroll_report' %} is-active{% endif %}">موظفون</a>
   <a href="{% url 'shell:payment_channels' %}"
      class="ds-shell-subtab{% if u == 'payment_channels' or u == 'payment_channel_ledger' %} is-active{% endif %}">دفع وتتبع</a>
+  <a href="{% url 'shell:treasury_vouchers_report' %}"
+     class="ds-shell-subtab{% if u == 'treasury_vouchers_report' %} is-active{% endif %}">سندات</a>
 </nav>
 {% endwith %}

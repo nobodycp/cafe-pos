@@ -31,6 +31,7 @@ class FlexibleDecimalField(forms.DecimalField):
         return super().to_python(value)
 
 from apps.contacts.models import Customer
+from apps.core.decimalutil import as_decimal
 from apps.core.models import PaymentMethod, PosSettings
 from apps.core.payment_methods import (
     get_payment_method_codes,
@@ -346,8 +347,8 @@ class TreasuryVoucherForm(forms.Form):
             if not cd.get("supplier"):
                 raise ValidationError({"supplier": "اختر المورد من الاقتراحات بعد البحث."})
         elif party_type == self.PARTY_EMPLOYEE:
-            if t != self.VT_DISBURSEMENT:
-                raise ValidationError({"party_type": "الموظف مرتبط بسند صرف."})
+            if t not in (self.VT_RECEIPT, self.VT_DISBURSEMENT):
+                raise ValidationError({"party_type": "نوع السند غير صالح للموظف."})
             if not cd.get("employee"):
                 raise ValidationError({"employee": "اختر الموظف من الاقتراحات بعد البحث."})
         elif party_type == self.PARTY_EXPENSE:
@@ -372,6 +373,14 @@ class TreasuryVoucherForm(forms.Form):
                 )
             else:
                 need_payer = method in method_codes_requiring_payer_details()
+        elif t == self.VT_RECEIPT and party_type == self.PARTY_EMPLOYEE:
+            pls = cd.get("payment_lines")
+            if pls:
+                need_payer = any(
+                    m in method_codes_requiring_payer_details() and a > 0 for m, a in pls
+                )
+            else:
+                need_payer = method in method_codes_requiring_payer_details()
         if need_payer:
             pn = (cd.get("payer_name") or "").strip()
             ph_raw = (cd.get("payer_phone") or "").strip()
@@ -388,15 +397,17 @@ class TreasuryVoucherForm(forms.Form):
         vd = cd.get("voucher_date")
         if vd and vd > django_timezone.localdate():
             raise ValidationError({"voucher_date": "تاريخ السند لا يمكن أن يكون بعد اليوم."})
+
         return cd
 
     def _parse_payment_lines_for_clean(self, cd: dict):
-        """للعميل (قبض) والمورد (صرف): أسطر دفع متعددة من JSON؛ وإلا None لاستخدام طريقة واحدة."""
+        """قبض (عميل أو موظف) وصرف مورد: أسطر دفع متعددة من JSON؛ وإلا None لاستخدام طريقة واحدة."""
         t = cd.get("voucher_type")
         party_type = cd.get("party_type")
-        use_splits = (t == self.VT_RECEIPT and party_type == self.PARTY_CUSTOMER) or (
-            t == self.VT_DISBURSEMENT and party_type == self.PARTY_SUPPLIER
-        )
+        use_splits = (
+            t == self.VT_RECEIPT
+            and party_type in (self.PARTY_CUSTOMER, self.PARTY_EMPLOYEE)
+        ) or (t == self.VT_DISBURSEMENT and party_type == self.PARTY_SUPPLIER)
         if not use_splits:
             return None
 

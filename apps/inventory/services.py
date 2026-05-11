@@ -4,6 +4,8 @@ from decimal import Decimal
 from typing import Optional
 
 from django.db import transaction
+from django.db.models import DecimalField, F, Value
+from django.db.models.functions import Coalesce
 from apps.catalog.models import Product, RecipeLine
 from apps.core.models import WorkSession, get_pos_settings
 from apps.core.decimalutil import as_decimal
@@ -233,3 +235,28 @@ def check_stock_available(product: Product, quantity: Decimal) -> None:
         on_hand = as_decimal(sb.quantity_on_hand) if sb else Decimal("0")
         if on_hand < qty:
             raise ValueError(f"INSUFFICIENT_STOCK:{product.pk}")
+
+
+def stock_home_base_queryset(*, active_products_only: bool = False):
+    """أرصدة كما في صفحة المخزون الرئيسية (بدون ترتيب أو select_related إضافي)."""
+    qs = (
+        StockBalance.objects.filter(product__is_stock_tracked=True)
+        .exclude(product__product_type=Product.ProductType.MANUFACTURED)
+        .exclude(product__product_type=Product.ProductType.SERVICE)
+        .exclude(product__product_type=Product.ProductType.COMMISSION)
+    )
+    if active_products_only:
+        qs = qs.filter(product__is_active=True)
+    return qs
+
+
+def low_stock_alert_queryset():
+    """أصناف عند أو تحت الحد الأدنى (نفس منطق فلتر المخزون «منخفض») — منتجات نشطة فقط."""
+    zero_min = Value(Decimal("0"), output_field=DecimalField(max_digits=20, decimal_places=6))
+    return (
+        stock_home_base_queryset(active_products_only=True)
+        .select_related("product", "product__unit")
+        .annotate(_min_lvl=Coalesce(F("product__min_stock_level"), zero_min))
+        .filter(quantity_on_hand__lte=F("_min_lvl"))
+        .order_by("quantity_on_hand")
+    )

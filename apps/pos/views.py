@@ -20,10 +20,12 @@ from apps.billing.tab_service import (
     finalize_order_invoice,
     sum_tab_payments,
 )
+from apps.catalog.forms import ProductForm
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
+from apps.contacts.forms import CustomerForm
 from apps.contacts.services import resolve_or_create_active_customer_by_name
-from apps.contacts.models import Customer
+from apps.contacts.models import Customer, CustomerLedgerEntry
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.treasury_services import recent_treasury_voucher_logs
@@ -50,7 +52,12 @@ from apps.pos.services import (
 from apps.pos.table_service import (
     floor_rows_for_session,
     open_or_resume_table_session,
+    retire_ephemeral_dining_table_if_safe,
 )
+
+PRODUCT_QUICK_FORM_PREFIX = "pq"
+POS_CUSTOMER_FORM_PREFIX = "poscc"
+
 
 def _get_order_for_session(order_id, **extra_filters):
     """Get an open order that belongs to the current work session."""
@@ -193,7 +200,6 @@ def pos_main(request):
             .order_by("name_ar")[:12]
         )
 
-    tables = DiningTable.objects.filter(is_active=True, is_cancelled=False).order_by("sort_order", "name_ar")
     order = None
     order_totals = None
     tab_paid = Decimal("0")
@@ -248,6 +254,12 @@ def pos_main(request):
     pi_form_state: dict = {}
     pi_next = ""
     pi_form_action = ""
+    pos_product_quick_form = None
+    pos_product_overlay_open = False
+    pos_product_name_input_id = ""
+    pos_customer_create_form = None
+    pos_customer_overlay_open = False
+    pos_customer_first_field_id = ""
     if session:
         treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
         treasury_next = reverse("pos:main")
@@ -257,6 +269,24 @@ def pos_main(request):
         pi_form_state = _purchase_form_state(request)
         pi_next = reverse("pos:main")
         pi_form_action = reverse("shell:purchase_new")
+        if request.user.has_perm("catalog.add_product"):
+            retry = request.session.pop("pos_product_quick_retry", None)
+            if retry:
+                pos_product_quick_form = ProductForm(retry["data"], prefix=PRODUCT_QUICK_FORM_PREFIX)
+                pos_product_overlay_open = True
+            else:
+                pos_product_quick_form = ProductForm(prefix=PRODUCT_QUICK_FORM_PREFIX)
+            if pos_product_quick_form:
+                pos_product_name_input_id = pos_product_quick_form["name_ar"].id_for_label
+
+        if request.user.has_perm("contacts.add_customer"):
+            retry_cust = request.session.pop("pos_customer_create_retry", None)
+            if retry_cust:
+                pos_customer_create_form = CustomerForm(retry_cust["data"], prefix=POS_CUSTOMER_FORM_PREFIX)
+                pos_customer_overlay_open = True
+            else:
+                pos_customer_create_form = CustomerForm(prefix=POS_CUSTOMER_FORM_PREFIX)
+            pos_customer_first_field_id = pos_customer_create_form["name_ar"].id_for_label
 
     return render(
         request,
@@ -265,7 +295,6 @@ def pos_main(request):
             "work_session": session,
             "product_sections": sections,
             "featured_rows": featured_rows,
-            "tables": tables,
             "floor_rows": floor_rows,
             "current_order": order,
             "lines": lines,
@@ -286,10 +315,71 @@ def pos_main(request):
             "pi_form_state": pi_form_state,
             "pi_next": pi_next,
             "pi_form_action": pi_form_action,
+            "pos_product_quick_form": pos_product_quick_form,
+            "pos_product_overlay_open": pos_product_overlay_open,
+            "pos_product_name_input_id": pos_product_name_input_id,
+            "pos_customer_create_form": pos_customer_create_form,
+            "pos_customer_overlay_open": pos_customer_overlay_open,
+            "pos_customer_first_field_id": pos_customer_first_field_id,
             "range10": range(10),
             "range20": range(20),
         },
     )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def pos_customer_create_save(request):
+    if not request.user.has_perm("contacts.add_customer"):
+        messages.error(request, "ليست لديك صلاحية إضافة عميل.")
+        return redirect("pos:main")
+    if not SessionService.get_open_session():
+        messages.error(request, "لا توجد وردية مفتوحة.")
+        return redirect("pos:main")
+    form = CustomerForm(request.POST, prefix=POS_CUSTOMER_FORM_PREFIX)
+    if form.is_valid():
+        customer = form.save()
+        opening = form.cleaned_data.get("opening_balance") or Decimal("0")
+        if opening > 0:
+            opening = opening.quantize(Decimal("0.01"))
+        if opening > 0:
+            customer.balance = opening
+            customer.save(update_fields=["balance", "updated_at"])
+            CustomerLedgerEntry.objects.create(
+                customer=customer,
+                entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
+                amount=opening,
+                note="رصيد افتتاحي",
+                reference_model="contacts.Customer",
+                reference_pk=str(customer.pk),
+            )
+        messages.success(request, f"تم إضافة العميل «{customer.name_ar}» بنجاح.")
+        log_audit(request.user, "contacts.customer.create_from_pos", "contacts.Customer", customer.pk, {})
+        return redirect("pos:main")
+    request.session["pos_customer_create_retry"] = {"data": request.POST.dict()}
+    messages.error(request, "تعذّر حفظ العميل — راجع الحقول في النموذج.")
+    return redirect("pos:main")
+
+
+@login_required
+@require_POST
+def pos_product_quick_save(request):
+    if not request.user.has_perm("catalog.add_product"):
+        messages.error(request, "ليست لديك صلاحية إضافة منتج.")
+        return redirect("pos:main")
+    if not SessionService.get_open_session():
+        messages.error(request, "لا توجد وردية مفتوحة.")
+        return redirect("pos:main")
+    form = ProductForm(request.POST, prefix=PRODUCT_QUICK_FORM_PREFIX)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f"تم إضافة المنتج «{form.instance.name_ar}».")
+        return redirect("pos:main")
+    retry_data = {k: request.POST.get(k) for k in request.POST if k.startswith(f"{PRODUCT_QUICK_FORM_PREFIX}-")}
+    request.session["pos_product_quick_retry"] = {"data": retry_data}
+    messages.error(request, "تعذّر حفظ المنتج — راجع الحقول في النافذة.")
+    return redirect("pos:main")
 
 
 @login_required
@@ -421,7 +511,7 @@ def last_invoice_resume_into_cart(request):
 def table_open(request):
     SessionService.require_open_session()
     tid = request.POST.get("table_id")
-    table = get_object_or_404(DiningTable, pk=tid, is_active=True)
+    table = get_object_or_404(DiningTable, pk=tid, is_active=True, is_cancelled=False)
     guest_label = (request.POST.get("guest_label") or "").strip()[:160]
     customer = None
     cid = request.POST.get("customer_id")
@@ -509,7 +599,7 @@ def table_quick_create(request):
     if not name:
         return JsonResponse({"ok": False, "error": "name_required"}, status=400)
     max_order = DiningTable.objects.aggregate(m=models.Max("sort_order"))["m"] or 0
-    t = DiningTable.objects.create(name_ar=name, sort_order=max_order + 1)
+    t = DiningTable.objects.create(name_ar=name, sort_order=max_order + 1, ephemeral=True)
     log_audit(request.user, "pos.table.quick_create", "pos.DiningTable", t.pk, {"name": name})
     return JsonResponse({"ok": True, "id": t.pk, "name_ar": t.name_ar})
 
@@ -595,7 +685,7 @@ def order_new(request):
         if not tid:
             messages.error(request, "اختر طاولة لطلب الصالة من شبكة الطاولات في الكاشير.")
             return redirect("pos:main")
-        table = get_object_or_404(DiningTable, pk=tid, is_active=True)
+        table = get_object_or_404(DiningTable, pk=tid, is_active=True, is_cancelled=False)
         _ts, order = open_or_resume_table_session(user=request.user, dining_table=table)
         request.session["active_pos_order_id"] = order.id
         return redirect("pos:main")
@@ -786,6 +876,7 @@ def order_cancel(request, order_id):
             ts.status = TableSession.Status.CLOSED
             ts.closed_at = tz.now()
             ts.save(update_fields=["status", "closed_at", "updated_at"])
+            retire_ephemeral_dining_table_if_safe(dining_table_id=ts.dining_table_id)
     log_audit(request.user, "pos.order.cancel", "pos.Order", order.pk, {})
     request.session.pop("active_pos_order_id", None)
     ok_msg = f"تم إلغاء الطلب #{order.pk}"

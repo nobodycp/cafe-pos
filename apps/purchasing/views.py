@@ -6,7 +6,8 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import Case, DecimalField, ExpressionWrapper, F, IntegerField, Max, Sum, Value, When
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
@@ -87,10 +88,60 @@ def _safe_purchase_redirect_next(request) -> Optional[str]:
 
 
 def _purchase_payments_from_request(request, total: Decimal, errors: list) -> list[tuple[str, Decimal]]:
-    pay_method = (request.POST.get("pay_method") or "").strip()
-    pay_amount_str = request.POST.get("pay_amount", "0")
     codes = {row["code"] for row in _payment_rows()}
     credit_codes = credit_method_codes()
+    raw_splits = (request.POST.get("payment_splits_json") or "").strip()
+
+    if raw_splits:
+        try:
+            data = json.loads(raw_splits)
+        except json.JSONDecodeError:
+            errors.append("بيانات تقسيم الدفع غير صالحة.")
+            return []
+        if not isinstance(data, list) or len(data) > 24:
+            errors.append("عدد أسطر الدفع غير صالح.")
+            return []
+        lines: list[tuple[str, Decimal]] = []
+        for item in data:
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                code = str(item[0] or "").strip().lower()
+                amt_raw = item[1]
+            elif isinstance(item, dict):
+                code = str(item.get("method") or "").strip().lower()
+                amt_raw = item.get("amount")
+            else:
+                continue
+            if not code or code not in codes:
+                errors.append("طريقة دفع غير صالحة في التقسيم.")
+                return []
+            try:
+                a = Decimal(str(amt_raw).replace(",", ".")).quantize(Decimal("0.01"))
+            except (InvalidOperation, ValueError):
+                errors.append("مبلغ غير صالح في تقسيم الدفع.")
+                return []
+            if a <= 0:
+                continue
+            lines.append((code, a))
+        if not lines:
+            errors.append("أضف سطر دفع واحداً على الأقل في وضع التقسيم.")
+            return []
+        paid_sum = sum((a for _, a in lines), Decimal("0")).quantize(Decimal("0.01"))
+        remainder = (total - paid_sum).quantize(Decimal("0.01"))
+        if remainder > 0:
+            ccode = next(iter(credit_codes), None) if credit_codes else None
+            if not ccode:
+                errors.append(
+                    "مجموع أسطر الدفع أقل من صافي الفاتورة، وليست هناك طريقة «ذمّة/آجل» لتسجيل المتبقي."
+                )
+                return []
+            lines.append((ccode, remainder))
+        elif remainder < 0:
+            errors.append("مجموع أسطر الدفع أكبر من صافي الفاتورة.")
+            return []
+        return lines
+
+    pay_method = (request.POST.get("pay_method") or "").strip()
+    pay_amount_str = request.POST.get("pay_amount", "0")
 
     if pay_method not in codes:
         errors.append("اختر طريقة دفع صالحة.")
@@ -238,6 +289,8 @@ def _purchase_form_state(request):
         "general_discount": request.POST.get("general_discount") or "0.00",
         "pay_method": request.POST.get("pay_method") or "",
         "pay_amount": request.POST.get("pay_amount") or "",
+        "payment_splits_json": (request.POST.get("payment_splits_json") or "").strip(),
+        "use_payment_splits": (request.POST.get("use_payment_splits") or "").strip(),
     }
 
 
@@ -259,17 +312,74 @@ def _purchasing_tpl(request, shell_tpl, classic_tpl):
     return shell_tpl
 
 
+def _supplier_list_hide_zero_net(request) -> bool:
+    """
+    إخفاء الموردين ذوي رصيدهم بعد المسحوبات = 0.
+    عند غياب المعامل في الطلب: مفعّل افتراضياً. نموذج الفلتر يرسل hidden=0 ثم checkbox=1 إن وُجد.
+    """
+    parts = request.GET.getlist("hide_zero_net")
+    if not parts:
+        return True
+    last = (parts[-1] or "").strip().lower()
+    return last not in ("0", "false", "off")
+
+
 @login_required
 def supplier_list(request):
-    qs = Supplier.objects.filter(is_active=True).select_related("linked_customer").order_by("name_ar")
+    dec0 = Value(Decimal("0"), output_field=DecimalField(max_digits=14, decimal_places=2))
+    money = DecimalField(max_digits=14, decimal_places=2)
+    qs = (
+        Supplier.objects.filter(is_active=True)
+        .select_related("linked_customer")
+        .annotate(
+            cust_balance_ann=Coalesce(F("linked_customer__balance"), dec0, output_field=money),
+            net_balance_ann=ExpressionWrapper(
+                F("balance") - Coalesce(F("linked_customer__balance"), dec0),
+                output_field=money,
+            ),
+            # Arabic-first: DB binary sort puts ASCII before Arabic; group Latin/digit-leading names last.
+            _supplier_name_script_group=Case(
+                When(name_ar__regex=r"^\s*[A-Za-z0-9]", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("_supplier_name_script_group", "name_ar", "pk")
+    )
+
+    hide_zero_net = _supplier_list_hide_zero_net(request)
+    if hide_zero_net:
+        qs = qs.exclude(net_balance_ann=Decimal("0"))
+
+    totals_agg = qs.aggregate(
+        sum_balance=Sum("balance"),
+        sum_customer=Sum("cust_balance_ann"),
+        sum_net=Sum("net_balance_ann"),
+    )
+    totals = {
+        "sum_balance": (totals_agg["sum_balance"] or Decimal("0")).quantize(Decimal("0.01")),
+        "sum_customer": (totals_agg["sum_customer"] or Decimal("0")).quantize(Decimal("0.01")),
+        "sum_net": (totals_agg["sum_net"] or Decimal("0")).quantize(Decimal("0.01")),
+    }
+
     pag = paginate_queryset(request, qs)
     enriched = []
     for s in pag["page_obj"]:
-        cust_bal = s.linked_customer.balance if s.linked_customer else Decimal("0")
-        net = (s.balance - cust_bal).quantize(Decimal("0.01"))
-        enriched.append({"supplier": s, "customer_balance": cust_bal, "net_balance": net})
+        cust_bal = (getattr(s, "cust_balance_ann", None) or Decimal("0")).quantize(Decimal("0.01"))
+        net = (getattr(s, "net_balance_ann", None) or (s.balance - cust_bal)).quantize(Decimal("0.01"))
+        enriched.append({
+            "supplier": s,
+            "customer_balance": cust_bal,
+            "net_balance": net,
+            "is_commission_vendor": bool(getattr(s, "is_commission_vendor", False)),
+        })
     tpl = _purchasing_tpl(request, "shell/suppliers_list.html", "purchasing/suppliers.html")
-    ctx = _purchasing_ctx(request, rows=enriched)
+    ctx = _purchasing_ctx(
+        request,
+        rows=enriched,
+        supplier_filter_hide_zero_net=hide_zero_net,
+        supplier_totals=totals,
+    )
     ctx.update(pag)
     return render(request, tpl, ctx)
 
@@ -283,11 +393,20 @@ def supplier_detail(request, pk):
     net_balance = supplier.balance
     if supplier.linked_customer:
         net_balance = (supplier.balance - supplier.linked_customer.balance).quantize(Decimal("0.01"))
+    is_commission_vendor = bool(supplier.is_commission_vendor)
     tpl = _purchasing_tpl(request, "shell/suppliers_detail.html", "purchasing/supplier_detail.html")
     return render(
         request,
         tpl,
-        _purchasing_ctx(request, supplier=supplier, invoices=inv, payments=pay, ledger=led, net_balance=net_balance),
+        _purchasing_ctx(
+            request,
+            supplier=supplier,
+            invoices=inv,
+            payments=pay,
+            ledger=led,
+            net_balance=net_balance,
+            is_commission_vendor=is_commission_vendor,
+        ),
     )
 
 
@@ -598,6 +717,8 @@ def purchase_suppliers_search(request):
 @login_required
 @require_POST
 def purchase_supplier_quick_create(request):
+    from apps.core.views import _supplier_net_balance_for_party
+
     try:
         body = json.loads(request.body.decode() or "{}")
     except json.JSONDecodeError:
@@ -607,10 +728,26 @@ def purchase_supplier_quick_create(request):
         return JsonResponse({"error": "أدخل اسم مورد بحرفين على الأقل"}, status=400)
     existing = Supplier.objects.filter(name_ar__iexact=name_ar, is_active=True).first()
     if existing:
-        return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "reused": True})
+        ex = Supplier.objects.select_related("linked_customer").get(pk=existing.pk)
+        return JsonResponse(
+            {
+                "id": ex.pk,
+                "name_ar": ex.name_ar,
+                "balance": str(_supplier_net_balance_for_party(ex)),
+                "reused": True,
+            }
+        )
     supplier = Supplier.objects.create(name_ar=name_ar, name_en="", phone="", email="")
     log_audit(request.user, "purchasing.supplier.quick_create", "purchasing.Supplier", supplier.pk, {})
-    return JsonResponse({"id": supplier.pk, "name_ar": supplier.name_ar, "reused": False})
+    sup = Supplier.objects.select_related("linked_customer").get(pk=supplier.pk)
+    return JsonResponse(
+        {
+            "id": sup.pk,
+            "name_ar": sup.name_ar,
+            "balance": str(_supplier_net_balance_for_party(sup)),
+            "reused": False,
+        }
+    )
 
 
 @login_required
@@ -846,9 +983,15 @@ def purchase_invoice_delete(request, pk):
             user=request.user,
         )
         messages.success(request, f"تم حذف فاتورة الشراء {inv_number} نهائياً مع كل آثارها.")
+        success_next = (request.POST.get("next_success") or "").strip()
+        if success_next.startswith("/") and not success_next.startswith("//") and "\n" not in success_next and "\r" not in success_next:
+            return redirect(success_next)
         return _purchasing_redirect(request, "supplier_detail", pk=supplier_pk)
     except Exception as e:
         messages.error(request, f"تعذر حذف فاتورة الشراء: {e}")
+        fallback = (request.POST.get("next") or "").strip()
+        if fallback.startswith("/") and not fallback.startswith("//") and "\n" not in fallback and "\r" not in fallback:
+            return redirect(fallback)
         return _purchasing_redirect(request, "purchase_detail", pk=pk)
 
 

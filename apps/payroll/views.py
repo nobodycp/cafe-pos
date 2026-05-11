@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Case, IntegerField, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -23,6 +24,7 @@ from apps.payroll.forms import (
     EmployeeWorkHoursForm,
 )
 from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase, EmployeeSalaryPayout
+from apps.payroll.services import recalc_employee_net_balance
 
 
 def _payroll_ns(request):
@@ -37,21 +39,41 @@ def _salaries_category():
     return ExpenseCategory.objects.get(code=ExpenseCategory.Code.SALARIES)
 
 
-def _recalc_balance(emp):
-    if emp.pay_type == Employee.PayType.MONTHLY:
-        earned = as_decimal(emp.monthly_salary)
-    elif emp.pay_type == Employee.PayType.HOURLY:
-        earned = emp.work_hours_balance * as_decimal(emp.hourly_wage)
-    else:
-        earned = emp.work_days_balance * as_decimal(emp.daily_wage)
-    emp.net_balance = (earned - as_decimal(emp.advance_balance) - as_decimal(emp.store_purchases_balance)).quantize(Decimal("0.01"))
-    emp.save(update_fields=["net_balance", "updated_at"])
+def _employee_list_hide_zero_net(request) -> bool:
+    """إخفاء الموظفين ذوي صافي الرصيد = 0 (افتراضي: مفعّل)."""
+    parts = request.GET.getlist("hide_zero_net")
+    if not parts:
+        return True
+    last = (parts[-1] or "").strip().lower()
+    return last not in ("0", "false", "off")
 
 
 @login_required
 def employee_list(request):
-    qs = Employee.objects.filter(is_active=True).order_by("name_ar")
-    ctx = {}
+    qs = (
+        Employee.objects.filter(is_active=True)
+        .annotate(
+            _employee_name_script_group=Case(
+                When(name_ar__regex=r"^\s*[A-Za-z0-9]", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("_employee_name_script_group", "name_ar", "pk")
+    )
+    hide_zero_net = _employee_list_hide_zero_net(request)
+    if hide_zero_net:
+        qs = qs.exclude(net_balance=Decimal("0"))
+
+    totals_agg = qs.aggregate(sum_net_balance=Sum("net_balance"))
+    totals = {
+        "sum_net_balance": (totals_agg["sum_net_balance"] or Decimal("0")).quantize(Decimal("0.01")),
+    }
+
+    ctx = {
+        "employee_filter_hide_zero_net": hide_zero_net,
+        "employee_totals": totals,
+    }
     ctx.update(paginate_queryset(request, qs))
     return render(request, "payroll/employees.html", ctx)
 
@@ -67,6 +89,7 @@ def employee_detail(request, pk):
             "advances": emp.advances.select_related("linked_expense").order_by("-created_at")[:50],
             "payouts": emp.salary_payouts.select_related("linked_expense").order_by("-created_at")[:50],
             "purchases": emp.cafe_purchases.order_by("-created_at")[:50],
+            "debt_repayments": emp.debt_repayments.order_by("-created_at")[:50],
         },
     )
 
@@ -127,7 +150,7 @@ def employee_advance_create(request, pk):
             )
             emp.advance_balance = (as_decimal(emp.advance_balance) + amount).quantize(Decimal("0.01"))
             emp.save(update_fields=["advance_balance", "updated_at"])
-            _recalc_balance(emp)
+            recalc_employee_net_balance(emp)
             messages.success(request, "تم تسجيل السلفة وإدراجها ضمن مصروفات «رواتب».")
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
@@ -149,7 +172,7 @@ def employee_advance_delete(request, pk, advance_id):
         emp.advance_balance = Decimal("0")
     emp.save(update_fields=["advance_balance", "updated_at"])
     adv.delete()
-    _recalc_balance(emp)
+    recalc_employee_net_balance(emp)
     messages.success(request, "تم حذف السلفة والمصروف المرتبط.")
     return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 
@@ -187,7 +210,7 @@ def employee_payout_create(request, pk):
                 elif emp.pay_type == Employee.PayType.HOURLY:
                     emp.work_hours_balance = (as_decimal(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
                 emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
-                _recalc_balance(emp)
+                recalc_employee_net_balance(emp)
                 net_cash = (amount - advance_deduction).quantize(Decimal("0.01"))
                 linked = None
                 ws = SessionService.get_open_session()
@@ -248,7 +271,7 @@ def employee_payout_delete(request, pk, payout_id):
     emp.advance_balance = (as_decimal(emp.advance_balance) + as_decimal(po.advance_applied)).quantize(Decimal("0.01"))
     emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
     po.delete()
-    _recalc_balance(emp)
+    recalc_employee_net_balance(emp)
     messages.success(request, "تم حذف صرف الراتب واسترجاع الأرصدة والمصروف.")
     return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 
@@ -266,7 +289,7 @@ def employee_add_days(request, pk):
             days = form.cleaned_data["days_count"]
             emp.work_days_balance = (as_decimal(emp.work_days_balance) + as_decimal(days)).quantize(Decimal("0.01"))
             emp.save(update_fields=["work_days_balance", "updated_at"])
-            _recalc_balance(emp)
+            recalc_employee_net_balance(emp)
             messages.success(request, f"تم إضافة {days} يوم عمل بنجاح")
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
@@ -287,7 +310,7 @@ def employee_add_hours(request, pk):
             hrs = form.cleaned_data["hours_count"]
             emp.work_hours_balance = (as_decimal(emp.work_hours_balance) + as_decimal(hrs)).quantize(Decimal("0.01"))
             emp.save(update_fields=["work_hours_balance", "updated_at"])
-            _recalc_balance(emp)
+            recalc_employee_net_balance(emp)
             messages.success(request, f"تم إضافة {hrs} ساعة عمل بنجاح")
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
@@ -310,7 +333,7 @@ def employee_cafe_purchase(request, pk):
             )
             emp.store_purchases_balance = (as_decimal(emp.store_purchases_balance) + as_decimal(amount)).quantize(Decimal("0.01"))
             emp.save(update_fields=["store_purchases_balance", "updated_at"])
-            _recalc_balance(emp)
+            recalc_employee_net_balance(emp)
             messages.success(request, "تم تسجيل الشراء بنجاح")
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
@@ -329,7 +352,7 @@ def employee_cafe_purchase_delete(request, pk, purchase_id):
         emp.store_purchases_balance = Decimal("0")
     emp.save(update_fields=["store_purchases_balance", "updated_at"])
     cp.delete()
-    _recalc_balance(emp)
+    recalc_employee_net_balance(emp)
     messages.success(request, "تم حذف سجل الشراء.")
     return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 

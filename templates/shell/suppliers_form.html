@@ -32,6 +32,16 @@
           <div class="flex items-center gap-2.5 pt-6">{{ form.also_customer }}<label for="{{ form.also_customer.id_for_label }}" class="cursor-pointer select-none">إنشاء حساب عميل مرتبط</label></div>
           {% endif %}
         </div>
+        <div class="mt-5 flex flex-wrap items-start gap-2.5">
+          {{ form.is_commission_vendor }}
+          <div class="min-w-0 flex-1">
+            <label for="{{ form.is_commission_vendor.id_for_label }}" class="cursor-pointer select-none font-medium">{{ form.is_commission_vendor.label }}</label>
+            {% if form.is_commission_vendor.help_text %}
+            <p class="text-muted text-xs mt-1 mb-0">{{ form.is_commission_vendor.help_text }}</p>
+            {% endif %}
+            {% if form.is_commission_vendor.errors %}<p class="text-danger text-xs mt-1 font-semibold">{{ form.is_commission_vendor.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
         <button type="submit" class="w-full h-11 mt-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200 cursor-pointer">حفظ</button>
       </form>
     </div>

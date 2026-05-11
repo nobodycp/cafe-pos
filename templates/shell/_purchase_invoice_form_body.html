@@ -108,21 +108,49 @@
     </div>
 
     <h2 class="{% if purchase_form_compact %}text-sm mt-3 mb-1{% else %}text-lg mt-5 mb-2{% endif %} font-bold text-gray-800 dark:text-white">طريقة الدفع</h2>
-    <input type="hidden" name="pay_method" id="purchase-pay-method" value="">
-    <div class="flex flex-wrap {% if purchase_form_compact %}gap-1{% else %}gap-1.5{% endif %}" id="purchase-pay-methods">
-      {% for row in payment_method_rows %}
-      <button type="button" class="purchase-pay-btn {% if purchase_form_compact %}h-7 px-2 text-[10px]{% else %}h-8 px-3 text-xs{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
-      {% endfor %}
+    <input type="hidden" name="payment_splits_json" id="purchase-payment-splits-json" value="" autocomplete="off">
+    <label class="flex cursor-pointer items-center gap-2 {% if purchase_form_compact %}text-[10px] mb-2{% else %}text-xs mb-2{% endif %} text-gray-700 dark:text-gray-300">
+      <input type="checkbox" name="use_payment_splits" id="purchase-split-pay-toggle" value="1" class="rounded border-gray-400">
+      <span class="font-bold">تقسيم الدفع على أكثر من طريقة (مثال: جزء كاش وجزء بنك)</span>
+    </label>
+
+    <div id="purchase-pay-single">
+      <input type="hidden" name="pay_method" id="purchase-pay-method" value="">
+      <div class="flex flex-wrap {% if purchase_form_compact %}gap-1{% else %}gap-1.5{% endif %}" id="purchase-pay-methods">
+        {% for row in payment_method_rows %}
+        <button type="button" class="purchase-pay-btn {% if purchase_form_compact %}h-7 px-2 text-[10px]{% else %}h-8 px-3 text-xs{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
+        {% endfor %}
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 {% if purchase_form_compact %}gap-2 mt-3 max-w-none{% else %}gap-3 mt-4 max-w-xl{% endif %}">
+        <div>
+          <label>المبلغ المدفوع</label>
+          <input type="number" name="pay_amount" id="purchase-paid-amount" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
+          <span class="block text-xs text-muted font-bold mb-1">المبلغ المتبقي</span>
+          <span id="purchase-remaining" class="font-extrabold text-danger">0.00</span>
+        </div>
+      </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 {% if purchase_form_compact %}gap-2 mt-3 max-w-none{% else %}gap-3 mt-4 max-w-xl{% endif %}">
-      <div>
-        <label>المبلغ المدفوع</label>
-        <input type="number" name="pay_amount" id="purchase-paid-amount" step="0.01" min="0" placeholder="0.00">
+    <div id="purchase-pay-splits-wrap" class="hidden {% if purchase_form_compact %}mt-2{% else %}mt-3{% endif %} max-w-2xl">
+      <p class="{% if purchase_form_compact %}text-[10px]{% else %}text-xs{% endif %} text-muted mb-1.5 leading-snug">مجموع المبالغ في الجدول يجب ألا يتجاوز <strong>صافي الفاتورة</strong>. إن كان المجموع أقل من الصافي، يُسجَّل الفرق تلقائياً كذمّة (آجل) إن وُجدت طريقة آجل في الإعدادات.</p>
+      <div class="overflow-x-auto rounded-sm border border-gray-200 dark:border-gray-600">
+        <table class="w-full {% if purchase_form_compact %}text-[10px]{% else %}text-xs{% endif %} border-collapse purchase-pay-splits-table">
+          <thead>
+            <tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/80">
+              <th class="p-1.5 text-start font-bold">طريقة الدفع</th>
+              <th class="p-1.5 text-end font-bold w-28">المبلغ</th>
+              <th class="p-1.5 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="purchase-pay-splits-tbody"></tbody>
+        </table>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
-        <span class="block text-xs text-muted font-bold mb-1">المبلغ المتبقي</span>
-        <span id="purchase-remaining" class="font-extrabold text-danger">0.00</span>
+      <div class="mt-1.5 flex flex-wrap items-center gap-2">
+        <button type="button" id="purchase-pay-split-add" class="{% if purchase_form_compact %}h-7 px-2 text-[10px]{% else %}h-8 px-2 text-xs{% endif %} rounded-sm border border-dashed border-gray-400 font-bold text-gray-700 hover:border-[#1e3a5f] dark:border-gray-500 dark:text-gray-200">+ سطر دفع</button>
+        <span id="purchase-pay-split-sum-hint" class="{% if purchase_form_compact %}text-[10px]{% else %}text-xs{% endif %} text-muted tabular-nums"></span>
       </div>
     </div>
 

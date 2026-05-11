@@ -6,6 +6,7 @@ from django.http import JsonResponse
 import json
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from apps.catalog.forms import (
@@ -17,6 +18,7 @@ from apps.catalog.forms import (
     UnitForm,
 )
 from apps.catalog.models import Category, Product, RecipeLine, Unit
+from apps.core.models import log_audit
 from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
 from apps.inventory.services import get_unit_cost
 from apps.billing.models import SaleInvoiceLine
@@ -83,6 +85,37 @@ def category_quick_create(request):
         return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "reused": True})
     obj = Category.objects.create(name_ar=name_ar, name_en="", is_active=True, sort_order=0)
     return JsonResponse({"id": obj.pk, "name_ar": obj.name_ar, "reused": False})
+
+
+@login_required
+@require_POST
+def unit_quick_create(request):
+    try:
+        body = json.loads(request.body.decode() or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON غير صالح"}, status=400)
+    name_ar = (body.get("name_ar") or "").strip()[:128]
+    name_en = (body.get("name_en") or "").strip()[:128]
+    code_raw = (body.get("code") or "").strip()[:32]
+    if len(name_ar) < 2:
+        return JsonResponse({"error": "أدخل اسم الوحدة بحرفين على الأقل"}, status=400)
+    code = slugify(code_raw) if code_raw else ""
+    if not code:
+        n = Unit.objects.count() + 1
+        code = f"u{n}"
+        while Unit.objects.filter(code=code).exists():
+            n += 1
+            code = f"u{n}"
+    if len(code) > 32:
+        code = code[:32]
+    existing = Unit.objects.filter(code__iexact=code).first()
+    if existing:
+        return JsonResponse(
+            {"id": existing.pk, "code": existing.code, "name_ar": existing.name_ar, "reused": True},
+        )
+    unit = Unit.objects.create(code=code, name_ar=name_ar, name_en=name_en)
+    log_audit(request.user, "catalog.unit.quick_create", "catalog.Unit", str(unit.pk), {"code": unit.code})
+    return JsonResponse({"id": unit.pk, "code": unit.code, "name_ar": unit.name_ar, "reused": False})
 
 
 @login_required

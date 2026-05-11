@@ -7,6 +7,9 @@
   <a href="#printer" data-tab="printer" class="ds-shell-subtab{% if active_tab == 'printer' %} is-active{% endif %}">الطابعات</a>
   <a href="#receipt" data-tab="receipt" class="ds-shell-subtab{% if active_tab == 'receipt' %} is-active{% endif %}">الإيصال</a>
   <a href="#payment" data-tab="payment" class="ds-shell-subtab{% if active_tab == 'payment' %} is-active{% endif %}">طرق الدفع</a>
+  {% if allow_test_database_wipe %}
+  <a href="#test-data" data-tab="test-data" class="ds-shell-subtab{% if active_tab == 'test-data' %} is-active{% endif %} text-amber-200">اختبار — تفريغ البيانات</a>
+  {% endif %}
 </nav>
 
 {# ── معلومات المقهى ── #}
@@ -234,6 +237,48 @@
 <div class="settings-section {% if active_tab == 'payment' %}active{% endif %}" id="tab-payment">
   {% include "core/_settings_payment_methods_embed.html" %}
 </div>
+
+{% if allow_test_database_wipe %}
+{# ── تفريغ قاعدة البيانات (اختبار فقط) ── #}
+<div class="settings-section {% if active_tab == 'test-data' %}active{% endif %}" id="tab-test-data">
+  <div class="rounded-xl border-2 border-red-700/60 bg-red-950/20 dark:bg-red-950/30 p-5 shadow-sm">
+    <h2 class="text-lg font-extrabold text-red-100 mb-2">تفريغ بيانات التشغيل (للاختبار)</h2>
+    <p class="text-sm text-red-50/90 leading-relaxed mb-4">
+      يحذف <strong>كل السجلات التشغيلية</strong> من الجداول (فواتير، عملاء، موردين، مخزون، محاسبة، سندات، ورديات، …)
+      مع الإبقاء على: <strong>حسابات المستخدمين</strong>، و<strong>إعدادات المقهى/النظام</strong> من التبويبات أعلاه،
+      و<strong>هيكل Django</strong> (الهجرات، أنواع المحتوى، جدول الصلاحيات المرجعي).
+      لا يُستخدم على بيانات إنتاج حقيقية.
+    </p>
+    <ul class="text-xs text-red-100/85 list-disc list-inside mb-4 space-y-1">
+      <li>يتطلب حساب <strong>سوبر يوزر</strong>.</li>
+      <li>يُفعّل عند <code class="bg-black/25 px-1 rounded">DEBUG=True</code> أو عند وضع <code class="bg-black/25 px-1 rounded">ALLOW_TEST_DATABASE_WIPE=1</code> في البيئة.</li>
+      <li>يدعم حالياً SQLite و PostgreSQL فقط.</li>
+      <li>بعد المسح قد تحتاج إعادة تعبئة تجربة: <code class="bg-black/25 px-1 rounded">python manage.py seed_demo</code></li>
+    </ul>
+    {% if user.is_superuser %}
+    <form method="post" action="{% url 'shell:settings_database_wipe' %}" class="max-w-xl" onsubmit="return confirm('تأكيد نهائي: سيتم حذف كل بيانات التشغيل من قاعدة البيانات. هل أنت متأكد؟');">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="block text-xs font-bold text-red-100 mb-1">انسخ عبارة التأكيد في المربع</label>
+        <p class="text-[11px] font-mono bg-black/30 text-amber-200 px-2 py-1 rounded mb-1 select-all" dir="rtl">تفريغ قاعدة البيانات</p>
+        <input type="text" name="confirm_phrase" autocomplete="off" required
+               class="w-full h-9 rounded-sm border border-red-400/50 bg-white dark:bg-gray-900 px-2 text-sm text-gray-900 dark:text-gray-100"
+               placeholder="اكتب العبارة أعلاه حرفياً">
+      </div>
+      <label class="flex items-start gap-2 cursor-pointer text-xs text-red-50 mb-4">
+        <input type="checkbox" name="accept_risk" value="1" required class="mt-0.5">
+        <span>أفهم أن هذا الإجراء لا يُلغى وأنني في بيئة اختبار.</span>
+      </label>
+      <button type="submit" class="ds-btn bg-red-700 hover:bg-red-800 text-white border border-red-900 font-extrabold text-sm px-4 py-2">
+        تنفيذ التفريغ الآن
+      </button>
+    </form>
+    {% else %}
+    <p class="text-sm font-bold text-amber-200 m-0">سجّل دخولك بحساب <strong>سوبر يوزر</strong> ليظهر زر التنفيذ.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 <style>
   .settings-section { display: none; }

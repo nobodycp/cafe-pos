@@ -3,7 +3,7 @@
 {% block title %}المخزون{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  {% include "shell/_shell_toolbar.html" with toolbar_title="المخزون" toolbar_hint="أرصدة الأصناف والتنبيهات" %}
+  {% include "shell/_shell_toolbar.html" with toolbar_title="المخزون" toolbar_hint="أرصدة الأصناف" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       <span class="ds-section-title m-0">عمليات المخزون</span>
@@ -15,21 +15,56 @@
         <a href="{% url 'shell:stocktake_list' %}" class="ds-btn shrink-0">الجرد</a>
       </div>
     </div>
-    {% if low_stock %}
-    <div class="mb-3 overflow-hidden rounded-sm border border-amber-200/90 dark:border-amber-800/50 bg-white dark:bg-gray-800 shadow-sm">
-      <div class="px-3 py-2 border-b border-amber-200/80 dark:border-amber-800/40 bg-amber-50/90 dark:bg-amber-950/35 font-extrabold text-sm text-amber-950 dark:text-amber-100">تنبيهات الحد الأدنى</div>
-      <div class="ds-panel-body space-y-1.5 text-sm">
-        {% for b in low_stock %}
-        <div>
-          <span class="font-semibold text-gray-900 dark:text-gray-100">{{ b.product.name_ar }}</span>
-          <span class="text-muted">({{ b.product.get_product_type_display }})</span>:
-          <span class="text-danger font-bold">{{ b.quantity_on_hand|floatformat:2 }}</span>
-          <span class="text-muted">/ الحد {{ b.product.min_stock_level|default:"—" }}</span>
+    <form method="get" action="{% url 'shell:inventory_home' %}" class="mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <div class="flex flex-wrap items-end gap-2">
+        <label class="flex flex-col gap-0.5 min-w-[10rem] flex-1">
+          <span class="text-[10px] font-extrabold text-muted">بحث</span>
+          <input type="search" name="q" value="{{ filter_q }}" placeholder="اسم عربي / إنجليزي أو باركود" autocomplete="off" class="ds-input w-full text-sm">
+        </label>
+        <label class="flex flex-col gap-0.5 min-w-[8rem]">
+          <span class="text-[10px] font-extrabold text-muted">التصنيف</span>
+          <select name="category" class="ds-input text-sm min-w-[8rem]">
+            <option value="">الكل</option>
+            {% for c in categories %}
+            <option value="{{ c.pk }}"{% if filter_category == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name_ar }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="flex flex-col gap-0.5 min-w-[7rem]">
+          <span class="text-[10px] font-extrabold text-muted">نوع المنتج</span>
+          <select name="product_type" class="ds-input text-sm min-w-[7rem]">
+            {% for val, lbl in product_type_choices %}
+            <option value="{{ val }}"{% if filter_product_type == val %} selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="flex flex-col gap-0.5 min-w-[9rem]">
+          <span class="text-[10px] font-extrabold text-muted">حالة الرصيد</span>
+          <select name="stock" class="ds-input text-sm min-w-[9rem]">
+            <option value=""{% if not filter_stock %} selected{% endif %}>الكل</option>
+            <option value="low"{% if filter_stock == "low" %} selected{% endif %}>عند أو تحت الحد الأدنى</option>
+            <option value="positive"{% if filter_stock == "positive" %} selected{% endif %}>رصيد &gt; 0</option>
+            <option value="zero"{% if filter_stock == "zero" %} selected{% endif %}>رصيد = 0</option>
+          </select>
+        </label>
+        <div class="flex flex-wrap gap-1.5 items-center shrink-0 pb-0.5">
+          <button type="submit" class="ds-btn ds-btn-primary shrink-0">تطبيق</button>
+          <a href="{% url 'shell:inventory_home' %}" class="ds-btn shrink-0">مسح</a>
         </div>
-        {% endfor %}
+      </div>
+    </form>
+    <div class="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-primary/25 dark:border-primary/40 bg-primary/5 dark:bg-primary/15 px-3 py-2 text-sm">
+      <div>
+        <span class="text-muted text-xs font-bold">أصناف ضمن الفلتر</span>
+        <span class="font-extrabold text-gray-900 dark:text-gray-100 tabular-nums mr-1">{{ page_obj.paginator.count }}</span>
+      </div>
+      <div class="text-left">
+        <span class="text-muted text-xs font-bold">إجمالي قيمة المخزون</span>
+        <span class="text-[10px] text-muted mr-1">(الكمية × متوسط التكلفة)</span>
+        <span class="font-extrabold text-primary tabular-nums">{{ inventory_total_value|floatformat:2|intcomma }}</span>
       </div>
     </div>
-    {% endif %}
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
         <table class="w-full text-sm ds-table">
@@ -52,7 +87,7 @@
               <td class="font-semibold">{{ b.value|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="p-8 text-center text-muted">لا يوجد مخزون</td></tr>
+            <tr><td colspan="5" class="p-8 text-center text-muted">لا يوجد مخزون مطابق للفلتر</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -36,8 +36,15 @@
           </div>
           {% endif %}
           <div>
-            <span class="block text-[11px] text-muted font-bold">سلف معلّقة</span>
-            <span class="font-extrabold text-warning">{{ employee.advance_balance|floatformat:2|intcomma }}</span>
+            <span class="block text-[11px] text-muted font-bold">مشتريات من المقهى (ذمة)</span>
+            <span class="font-extrabold text-warning">{{ employee.store_purchases_balance|floatformat:2|intcomma }}</span>
+          </div>
+          <div>
+            <span class="block text-[11px] text-muted font-bold">سلف / تسبّق للمحل</span>
+            <span class="font-extrabold {% if employee.advance_balance < 0 %}text-success{% else %}text-warning{% endif %}">{{ employee.advance_balance|floatformat:2|intcomma }}</span>
+            {% if employee.advance_balance < 0 %}
+            <span class="block text-[9px] text-muted">قيمة سالبة = رصيد لصالح الموظف</span>
+            {% endif %}
           </div>
           <div class="px-3 py-1.5 rounded-sm bg-primary-soft dark:bg-gray-700/80 border border-gray-200 dark:border-gray-600">
             <span class="block text-[11px] text-muted font-bold">صافي الرصيد</span>
@@ -81,6 +88,35 @@
                   <button type="submit">حذف</button>
                 </form>
               </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="p-6 text-center text-muted">لا يوجد</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+      <h2 class="text-lg font-extrabold text-gray-800 dark:text-white mb-4">سداد ذمّة (قبض من الصندوق)</h2>
+      <p class="text-xs text-muted mb-3">يُسجَّل من <strong>المحاسبة → سندات الصندوق</strong>: سند قبض + موظف. يُخصم أولاً من مشتريات المقهى ثم السلف المعلّقة.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">التاريخ</th>
+              <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">المبلغ</th>
+              <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">من مقهى / سلف</th>
+              <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in debt_repayments %}
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ r.created_at }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold text-success">{{ r.amount|floatformat:2|intcomma }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-xs text-muted">{{ r.store_portion|floatformat:2 }} / {{ r.advance_portion|floatformat:2 }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ r.note }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="4" class="p-6 text-center text-muted">لا يوجد</td></tr>

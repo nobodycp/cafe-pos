@@ -9,32 +9,20 @@
 .cat-panel.is-visible{display:block}
 .pos-cat-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
 .pm-btn.on{background-color:#1e3a5f;color:#fff;border-color:#163051}
-/* شريط الطاولات — شبكة مربعات مُحكَمة (تقريباً متلاصقة) */
-.pos-tables-strip .pos-tables-scroll.pos-tables-grid{
-  display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:2px;
-  padding:2px 1px;
-  align-content:start;
-}
-@media (min-width:1100px){
-  .pos-tables-strip .pos-tables-scroll.pos-tables-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
-}
-.pos-tables-strip .ts-tile-sq{display:block;width:100%;margin:0}
-.pos-tables-strip .ts-tile-sq-inner{
-  width:100%;aspect-ratio:1;max-width:none;margin:0;padding:0;border:1px solid rgba(15,23,42,.2);
-  border-radius:0.2rem;font-weight:800;font-size:0.6875rem;line-height:1;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
-  box-shadow:none;transition:transform .1s ease,filter .1s ease;
-}
-.pos-tables-strip .ts-tile-sq-inner:hover{transform:scale(1.03);filter:brightness(1.04)}
-.pos-tables-strip .ts-tile-sq-inner:active{transform:scale(0.97)}
-.pos-tables-strip .ts-tile--green .ts-tile-sq-inner{background:#00b894;color:#fff;border-color:#019875}
-.pos-tables-strip .ts-tile--yellow .ts-tile-sq-inner{background:#fdcb6e;color:#1e293b;border-color:#e17055}
-.pos-tables-strip .ts-tile--red .ts-tile-sq-inner{background:#d63031;color:#fff;border-color:#a71d1d}
-.pos-tables-strip .ts-tile--blue .ts-tile-sq-inner{background:#0984e3;color:#fff;border-color:#0652dd}
-.dark .pos-tables-strip .ts-tile-sq-inner{border-color:rgba(255,255,255,.2)}
-.dark .pos-tables-strip .ts-tile--yellow .ts-tile-sq-inner{color:#0f172a}
+/* شريط الطاولات — جدول بنفس أسلوب أصناف الكاشير */
+.pos-table-list-empty{line-height:1.45}
+.pos-floor-tr{cursor:pointer}
+.pos-floor-tr:focus-visible{outline:2px solid #1e3a5f;outline-offset:-2px}
+.dark .pos-floor-tr:focus-visible{outline-color:#60a5fa}
+.pos-floor-tr{border-inline-start:3px solid transparent}
+.pos-floor-tr--yellow{border-inline-start-color:#f59e0b;background-color:rgba(254,243,199,.4)!important}
+.pos-floor-tr--red{border-inline-start-color:#dc2626;background-color:rgba(254,226,226,.45)!important}
+.pos-floor-tr--blue{border-inline-start-color:#0284c7;background-color:rgba(224,242,254,.55)!important}
+.pos-floor-tr--green{border-inline-start-color:#16a34a;background-color:rgba(220,252,231,.4)!important}
+.dark .pos-floor-tr--green{background-color:rgba(20,83,45,.2)!important}
+.dark .pos-floor-tr--yellow{background-color:rgba(120,53,15,.22)!important}
+.dark .pos-floor-tr--red{background-color:rgba(127,29,29,.18)!important}
+.dark .pos-floor-tr--blue{background-color:rgba(12,74,110,.22)!important}
 .pos-tables-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:0.35rem 0.5rem;padding:0.15rem 0.2rem 0.35rem;font-size:8px;line-height:1.2;color:#64748b;border-bottom:1px solid #e2e8f0}
 .dark .pos-tables-legend{border-bottom-color:#334155;color:#94a3b8}
 .pos-tables-legend span{display:inline-flex;align-items:center;gap:0.2rem}
@@ -235,9 +223,27 @@
         <button type="button" id="pos-treasury-open-btn" class="h-9 min-w-[7.5rem] rounded-sm border border-[#163051] bg-[#1e3a5f] px-4 text-[11px] font-bold text-white shadow-sm hover:bg-[#163051] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900">سندات</button>
         <button type="button" id="pos-purchase-open-btn" class="h-9 min-w-[7.5rem] rounded-sm border border-[#163051] bg-[#1e3a5f] px-4 text-[11px] font-bold text-white shadow-sm hover:bg-[#163051] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900">فاتورة شراء</button>
         {% endif %}
+        {% if pos_customer_create_form %}
+        <button type="button" id="pos-customer-open-btn" class="h-9 min-w-[7.5rem] rounded-sm border border-[#163051] bg-[#1e3a5f] px-4 text-[11px] font-bold text-white shadow-sm hover:bg-[#163051] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900">عميل جديد</button>
+        {% endif %}
+        {% if pos_product_quick_form %}
+        <button type="button" id="pos-product-open-btn" class="h-9 min-w-[7.5rem] rounded-sm border border-[#163051] bg-[#1e3a5f] px-4 text-[11px] font-bold text-white shadow-sm hover:bg-[#163051] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-gray-900">منتج جديد</button>
+        {% endif %}
       </div>
-      {% if treasury_voucher_form %}
+      {% if treasury_voucher_form and pos_customer_create_form and pos_product_quick_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">سندات ومشتريات وعميل جديد ومنتج جديد دون مغادرة الكاشير</span>
+      {% elif treasury_voucher_form and pos_customer_create_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">سندات ومشتريات وعميل جديد داخل الشاشة</span>
+      {% elif treasury_voucher_form and pos_product_quick_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">سندات ومشتريات ومنتج جديد دون مغادرة الكاشير</span>
+      {% elif pos_customer_create_form and pos_product_quick_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">عميل جديد ومنتج جديد دون مغادرة الكاشير</span>
+      {% elif treasury_voucher_form %}
       <span class="text-[10px] text-muted px-1 text-center leading-tight">سندات قبض/صرف أو تسجيل مشتريات دون مغادرة الكاشير</span>
+      {% elif pos_customer_create_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">إضافة عميل كامل دون مغادرة الكاشير</span>
+      {% elif pos_product_quick_form %}
+      <span class="text-[10px] text-muted px-1 text-center leading-tight">منتج جديد أو تصنيف أو وحدة دون مغادرة الكاشير</span>
       {% endif %}
     </div>
     {% if open_orders %}
@@ -258,25 +264,18 @@
   <div class="pos-split-half min-h-0 gap-1">
     <div class="shrink-0 text-[10px] font-bold text-gray-500 px-0.5 py-1 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
     <div class="pos-tables-legend shrink-0" aria-hidden="true">
-      <span><i class="bg-emerald-500"></i>فارغة</span>
-      <span><i class="bg-amber-400"></i>مفتوحة بلا طلب</span>
+      <span><i class="bg-amber-400"></i>بدون بيع</span>
       <span><i class="bg-red-600"></i>بها طلب</span>
       <span><i class="bg-sky-600"></i>جزئي</span>
     </div>
-    <div class="pos-tables-scroll pos-tables-grid" role="region" aria-label="قائمة الطاولات">
-      {% for row in floor_rows %}
-      <form method="post" action="{% url 'pos:table_open' %}" class="ts-tile-sq ts-tile--{{ row.tile_color }}"
-            title="{% if row.customer_label %}{{ row.customer_label|escape }} — {% endif %}{{ row.table.name_ar }}">
-        {% csrf_token %}
-        <input type="hidden" name="table_id" value="{{ row.table.pk }}">
-        {% if row.session and row.session.customer_id %}
-        <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
-        {% endif %}
-        <button type="submit" class="ts-tile-sq-inner" aria-label="{{ row.table.name_ar }}">{{ row.tile_label }}</button>
-      </form>
-      {% endfor %}
+    <div class="pos-tables-scroll" role="region" aria-label="طاولات مفتوحة">
+      {% if floor_rows %}
+      {% include "pos/_floor_tables_table.html" %}
+      {% else %}
+      <div class="pos-table-list-empty text-[10px] text-muted text-center px-2 py-3 leading-snug">لا طاولات مفتوحة<br><span class="font-bold text-gray-600 dark:text-gray-300">+ طاولة</span> لتسمية طاولة وفتحها</div>
+      {% endif %}
     </div>
-    <button type="button" class="shrink-0 h-8 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
+    <button type="button" class="shrink-0 h-7 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
   </div>
   <div id="pos-tables-lower-slot" class="pos-split-half min-h-0 flex flex-col overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
     <div class="flex-1 min-h-0 rounded-md bg-gray-50/40 dark:bg-gray-900/30" aria-hidden="true"></div>
@@ -309,7 +308,7 @@
       </div>
       {% if recent_treasury_rows %}
       <div class="mt-2 max-h-[min(28vh,12rem)] overflow-y-auto overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
-        {% include "core/_recent_treasury_table.html" with recent_treasury_rows=recent_treasury_rows %}
+        {% include "core/_recent_treasury_table.html" with recent_treasury_rows=recent_treasury_rows treasury_void_next=treasury_next %}
       </div>
       {% endif %}
       <p class="mt-2 text-center text-[10px] text-muted"><a href="{% url 'shell:accounting_treasury' %}" class="font-bold text-[#1e3a5f] hover:underline dark:text-sky-400">صفحة السندات الكاملة</a></p>
@@ -335,6 +334,40 @@
 </div>
 {% endif %}
 
+{% url 'pos:customer_create_save' as pos_customer_create_save_url %}
+{% if pos_customer_create_form %}
+<div id="pos-customer-overlay" class="fixed inset-0 z-[308] flex items-center justify-center p-3" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pos-customer-overlay-title">
+  <button type="button" id="pos-customer-backdrop" class="absolute inset-0 cursor-default border-0 bg-black/45 p-0" aria-label="إغلاق"></button>
+  <div class="relative z-[1] flex w-full max-w-[min(40rem,96vw)] max-h-[min(78vh,40rem)] flex-col overflow-hidden rounded-lg border border-gray-300 bg-[#f4f5f7] shadow-2xl dark:border-gray-600 dark:bg-gray-900" dir="rtl">
+    <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+      <span id="pos-customer-overlay-title" class="text-sm font-bold text-gray-800 dark:text-gray-100">عميل جديد</span>
+      <button type="button" id="pos-customer-close" class="rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-bold text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600">إغلاق</button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 px-2 py-2">
+      <div class="rounded-md border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800">
+        {% include "contacts/_customer_form_body.html" with form=pos_customer_create_form title="" is_new=True customer_form_overlay=1 customer_form_action=pos_customer_create_save_url %}
+      </div>
+      <p class="mt-2 text-center text-[10px] text-muted"><a href="{% url 'shell:customer_create' %}" class="font-bold text-[#1e3a5f] hover:underline dark:text-sky-400">صفحة إضافة عميل كاملة</a></p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if pos_product_quick_form %}
+<div id="pos-product-overlay" class="fixed inset-0 z-[309] flex items-center justify-center p-2 sm:p-3" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pos-product-overlay-title">
+  <button type="button" id="pos-product-backdrop" class="absolute inset-0 cursor-default border-0 bg-black/45 p-0" aria-label="إغلاق"></button>
+  <div class="relative z-[1] flex w-full max-w-[min(52rem,98vw)] max-h-[min(88vh,44rem)] flex-col overflow-hidden rounded-lg border border-gray-300 bg-[#f4f5f7] shadow-2xl dark:border-gray-600 dark:bg-gray-900" dir="rtl">
+    <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+      <span id="pos-product-overlay-title" class="text-sm font-bold text-gray-800 dark:text-gray-100">منتج جديد</span>
+      <button type="button" id="pos-product-close" class="rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-bold text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600">إغلاق</button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 px-2 py-2">
+      {% include "pos/_product_quick_overlay.html" %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
 </div>
 {% endif %}
 {% endblock %}
@@ -354,11 +387,14 @@
   var CUSTOMIZE_BASE='{% url "pos:customize_product" current_order.pk 0 %}'.replace('/0/','/{pid}/');{% else %}var ORDER_ADD_URL='';var CUSTOMIZE_BASE='';{% endif %}
   var CUST_CREATE_URL='{% url "pos:customer_quick_create" %}';
   var TABLE_CREATE_URL='{% url "pos:table_quick_create" %}';
+  var TABLE_OPEN_URL='{% url "pos:table_open" %}';
   var CUR='{{ POS_SETTINGS.currency_symbol }}';
   var POS_MAIN_URL='{% url "pos:main" %}';
   {% if work_session and POS_SETTINGS.allow_sale_invoice_edit %}var RESUME_LAST_INVOICE_URL='{% url "pos:last_invoice_resume" %}';{% else %}var RESUME_LAST_INVOICE_URL='';{% endif %}
   {% if current_order %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
   var selectedLineId=null;
+  var POS_PRODUCT_NAME_ID='{{ pos_product_name_input_id|default:""|escapejs }}';
+  var POS_CUSTOMER_NAME_ID='{{ pos_customer_first_field_id|default:""|escapejs }}';
 
   /* ── AJAX cart refresh (يحافظ على السطر والتركيز بعد التحديث) ── */
   function refreshCart(opts){
@@ -553,6 +589,46 @@
     },true);
   })();
 
+  function closePosCustomerOverlay(){
+    var ov=document.getElementById('pos-customer-overlay');
+    if(!ov)return;
+    ov.style.display='none';
+    ov.setAttribute('aria-hidden','true');
+  }
+  function openPosCustomerOverlay(){
+    var ov=document.getElementById('pos-customer-overlay');
+    if(!ov)return;
+    closePosTreasuryOverlay();
+    closePosPurchaseOverlay();
+    closePosProductOverlay();
+    ov.style.display='flex';
+    ov.setAttribute('aria-hidden','false');
+    var nid=typeof POS_CUSTOMER_NAME_ID!=='undefined'?POS_CUSTOMER_NAME_ID:'';
+    var si=nid?document.getElementById(nid):null;
+    if(si){
+      try{si.focus({preventScroll:true});}catch(x){try{si.focus();}catch(y){}}
+    }
+  }
+  function closePosProductOverlay(){
+    var ov=document.getElementById('pos-product-overlay');
+    if(!ov)return;
+    ov.style.display='none';
+    ov.setAttribute('aria-hidden','true');
+  }
+  function openPosProductOverlay(){
+    var ov=document.getElementById('pos-product-overlay');
+    if(!ov)return;
+    closePosTreasuryOverlay();
+    closePosPurchaseOverlay();
+    closePosCustomerOverlay();
+    ov.style.display='flex';
+    ov.setAttribute('aria-hidden','false');
+    var nid=typeof POS_PRODUCT_NAME_ID!=='undefined'?POS_PRODUCT_NAME_ID:'';
+    var si=nid?document.getElementById(nid):null;
+    if(si){
+      try{si.focus({preventScroll:true});}catch(x){try{si.focus();}catch(y){}}
+    }
+  }
   function closePosPurchaseOverlay(){
     var ov=document.getElementById('pos-purchase-overlay');
     if(!ov)return;
@@ -563,6 +639,8 @@
     var ov=document.getElementById('pos-purchase-overlay');
     if(!ov)return;
     closePosTreasuryOverlay();
+    closePosProductOverlay();
+    closePosCustomerOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var si=document.getElementById('purchase-supplier-search');
@@ -580,6 +658,8 @@
     var ov=document.getElementById('pos-treasury-overlay');
     if(!ov)return;
     closePosPurchaseOverlay();
+    closePosProductOverlay();
+    closePosCustomerOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var si=document.getElementById('tv-party-search');
@@ -606,6 +686,32 @@
     if(bd)bd.addEventListener('click',closePosPurchaseOverlay);
     if(cl)cl.addEventListener('click',closePosPurchaseOverlay);
     if(ob)ob.addEventListener('click',openPosPurchaseOverlay);
+  })();
+  (function setupPosCustomerOverlay(){
+    var ov=document.getElementById('pos-customer-overlay');
+    if(!ov)return;
+    var bd=document.getElementById('pos-customer-backdrop');
+    var cl=document.getElementById('pos-customer-close');
+    var ob=document.getElementById('pos-customer-open-btn');
+    if(bd)bd.addEventListener('click',closePosCustomerOverlay);
+    if(cl)cl.addEventListener('click',closePosCustomerOverlay);
+    if(ob)ob.addEventListener('click',openPosCustomerOverlay);
+    {% if pos_customer_overlay_open %}
+    openPosCustomerOverlay();
+    {% endif %}
+  })();
+  (function setupPosProductOverlay(){
+    var ov=document.getElementById('pos-product-overlay');
+    if(!ov)return;
+    var bd=document.getElementById('pos-product-backdrop');
+    var cl=document.getElementById('pos-product-close');
+    var ob=document.getElementById('pos-product-open-btn');
+    if(bd)bd.addEventListener('click',closePosProductOverlay);
+    if(cl)cl.addEventListener('click',closePosProductOverlay);
+    if(ob)ob.addEventListener('click',openPosProductOverlay);
+    {% if pos_product_overlay_open %}
+    openPosProductOverlay();
+    {% endif %}
   })();
 
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -665,6 +771,31 @@
         if(typeof f.requestSubmit==='function')f.requestSubmit();
         else{var sb=f.querySelector('button[type="submit"]');if(sb)sb.click();}
       }
+    });
+  })();
+
+  /* ── جدول الطاولات: نقر أو Enter/مسافة على الصف = فتح الطاولة ── */
+  (function initFloorTableRowOpen(){
+    var wrap=document.querySelector('#pos-tables-strip .pos-tables-scroll');
+    if(!wrap)return;
+    function submitRow(tr){
+      var f=tr&&tr.querySelector('form.pos-floor-open-form');
+      if(!f)return;
+      if(typeof f.requestSubmit==='function')f.requestSubmit();
+      else{var sb=f.querySelector('button[type="submit"]');if(sb)sb.click();}
+    }
+    wrap.addEventListener('click', function(e){
+      var tr=e.target.closest('tr.pos-floor-tr');
+      if(!tr||!wrap.contains(tr))return;
+      submitRow(tr);
+    });
+    wrap.addEventListener('keydown', function(e){
+      if(e.key!=='Enter'&&e.key!==' ')return;
+      var tr=e.target.closest('tr.pos-floor-tr');
+      if(!tr||!wrap.contains(tr))return;
+      if(document.activeElement!==tr)return;
+      e.preventDefault();
+      submitRow(tr);
     });
   })();
 
@@ -1051,6 +1182,12 @@
         closePosReceiptEmbed();
         return;
       }
+      var prodOv=document.getElementById('pos-product-overlay');
+      if(prodOv&&prodOv.style.display==='flex'){
+        e.preventDefault();
+        closePosProductOverlay();
+        return;
+      }
       var prOv=document.getElementById('pos-purchase-overlay');
       if(prOv&&prOv.style.display==='flex'){
         e.preventDefault();
@@ -1365,14 +1502,20 @@
   var addTableBtn=document.getElementById('strip-add-table');
   if(addTableBtn){
     addTableBtn.addEventListener('click',function(){
-      showPromptModal('اسم الطاولة الجديدة','مثال: طاولة 8',function(name){
+      showPromptModal('اسم الطاولة','اكتب اسماً يظهر في القائمة (مثال: عائلة أحمد)',function(name){
         fetch(TABLE_CREATE_URL,{
           method:'POST',
           headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRFToken':CSRF},
           body:'name_ar='+encodeURIComponent(name)
         }).then(function(r){return r.json()}).then(function(d){
-          if(d.ok)location.reload();else showToast(d.error||'خطأ','error');
-        });
+          if(!d.ok){showToast(d.error||'خطأ','error');return;}
+          var fd=new FormData();
+          fd.append('csrfmiddlewaretoken',CSRF);
+          fd.append('table_id',String(d.id));
+          fetch(TABLE_OPEN_URL,{method:'POST',body:fd,credentials:'same-origin'})
+            .then(function(){location.reload();})
+            .catch(function(){showToast('تعذّر فتح الطاولة','error');});
+        }).catch(function(){showToast('خطأ شبكة','error');});
       });
     });
   }

@@ -25,12 +25,13 @@ class SupplierForm(forms.ModelForm):
 
     class Meta:
         model = Supplier
-        fields = ["name_ar", "name_en", "phone", "email"]
+        fields = ["name_ar", "name_en", "phone", "email", "is_commission_vendor"]
         widgets = {
             "name_ar": forms.TextInput(attrs={"class": "form-input", "placeholder": "الاسم بالعربي"}),
             "name_en": forms.TextInput(attrs={"class": "form-input", "placeholder": "Name in English"}),
             "phone": forms.TextInput(attrs={"class": "form-input", "placeholder": "05xxxxxxxx"}),
             "email": forms.EmailInput(attrs={"class": "form-input", "placeholder": "email@example.com"}),
+            "is_commission_vendor": forms.CheckboxInput(attrs={"class": "form-check"}),
         }
 
 

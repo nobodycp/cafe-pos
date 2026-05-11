@@ -1,18 +1,30 @@
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
+from apps.purchasing.models import PurchaseInvoice
 from apps.billing.purge_service import purge_sale_invoice, purge_sale_return
 from apps.billing.sale_invoice_edit import apply_sale_invoice_line_edits, can_edit_sale_invoice
 from apps.core.models import get_pos_settings
 from apps.core.pagination import paginate_queryset
+
+
+def _invoice_list_parse_date(raw: str):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
 
 
 def _sale_invoice_edit_error_message(code: str) -> str:
@@ -39,29 +51,89 @@ def _sale_invoice_edit_error_message(code: str) -> str:
     return code.replace("_", " ")
 
 
+def _invoice_list_kind(request) -> str:
+    raw = (request.GET.get("invoice_kind") or "all").strip().lower()
+    if raw in ("sale", "purchase"):
+        return raw
+    return "all"
+
+
 @login_required
 def sale_invoice_list(request):
-    qs = SaleInvoice.objects.select_related(
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status")
+    date_from = _invoice_list_parse_date(request.GET.get("date_from", ""))
+    date_to = _invoice_list_parse_date(request.GET.get("date_to", ""))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    sale_qs = SaleInvoice.objects.select_related(
         "customer", "order__table_session__dining_table", "work_session",
     ).order_by("-created_at")
-
-    q = request.GET.get("q", "").strip()
     if q:
-        qs = qs.filter(
+        sale_qs = sale_qs.filter(
             Q(invoice_number__icontains=q)
             | Q(customer__name_ar__icontains=q)
             | Q(customer__name_en__icontains=q)
         )
-
-    status = request.GET.get("status")
     if status in ("active", "cancelled"):
-        qs = qs.filter(is_cancelled=(status == "cancelled"))
+        sale_qs = sale_qs.filter(is_cancelled=(status == "cancelled"))
+    if date_from:
+        sale_qs = sale_qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        sale_qs = sale_qs.filter(created_at__date__lte=date_to)
+
+    purchase_qs = PurchaseInvoice.objects.select_related("supplier", "work_session").order_by("-created_at")
+    if q:
+        purchase_qs = purchase_qs.filter(
+            Q(invoice_number__icontains=q)
+            | Q(supplier__name_ar__icontains=q)
+            | Q(supplier__name_en__icontains=q)
+        )
+    if status in ("active", "cancelled"):
+        purchase_qs = purchase_qs.filter(is_cancelled=(status == "cancelled"))
+    if date_from:
+        purchase_qs = purchase_qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        purchase_qs = purchase_qs.filter(created_at__date__lte=date_to)
+
+    kind = _invoice_list_kind(request)
+
+    sale_sum = Decimal("0")
+    purchase_sum = Decimal("0")
+    if kind in ("all", "sale"):
+        agg = sale_qs.aggregate(s=Sum("total"))
+        sale_sum = (agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
+    if kind in ("all", "purchase"):
+        agg = purchase_qs.aggregate(s=Sum("total"))
+        purchase_sum = (agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
+    if kind == "all":
+        sum_total = (sale_sum + purchase_sum).quantize(Decimal("0.01"))
+    elif kind == "sale":
+        sum_total = sale_sum
+    else:
+        sum_total = purchase_sum
+
+    merged_rows = []
+    if kind in ("all", "sale"):
+        for inv in sale_qs:
+            merged_rows.append({"kind": "sale", "obj": inv})
+    if kind in ("all", "purchase"):
+        for pinv in purchase_qs:
+            merged_rows.append({"kind": "purchase", "obj": pinv})
+    merged_rows.sort(key=lambda r: r["obj"].created_at, reverse=True)
+
+    invoice_totals = {"sum_total": sum_total}
 
     ctx = {
         "q": q,
         "status": status or "",
+        "invoice_kind": kind,
+        "date_from": date_from.isoformat() if date_from else "",
+        "date_to": date_to.isoformat() if date_to else "",
+        "invoice_totals": invoice_totals,
     }
-    ctx.update(paginate_queryset(request, qs))
+    ctx.update(paginate_queryset(request, merged_rows))
     return render(request, "shell/invoice_list.html", ctx)
 
 

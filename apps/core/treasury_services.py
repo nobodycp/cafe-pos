@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from decimal import Decimal
 
+from apps.contacts.models import Customer
 from apps.contacts.services import record_customer_payment
 from apps.core.models import AuditLog, log_audit
+from apps.core.payment_methods import get_payment_method_codes
 from apps.expenses.models import ExpenseCategory
 from apps.expenses.services import create_expense, resolve_expense_category_from_treasury_note
 from apps.payroll.models import Employee, EmployeeAdvance
+from apps.payroll.services import record_employee_debt_repayment
+from apps.purchasing.models import Supplier
 from apps.purchasing.services import record_supplier_payment
 
 TREASURY_VOUCHER_AUDIT_ACTION = "treasury.voucher"
@@ -22,6 +27,82 @@ def recent_treasury_voucher_logs(*, limit: int = 10):
         .select_related("user")
         .order_by("-created_at")[:limit]
     )
+
+
+def treasury_voucher_form_initial_from_audit(*, audit_log: AuditLog) -> dict:
+    """
+    يبني قيماً أولية لـ TreasuryVoucherForm من payload سجل سند موحّد (للتعديل).
+    يرفع ValueError إذا كان السند ملغى أو غير مدعوم.
+    """
+    payload = audit_log.payload or {}
+    if payload.get("cancelled"):
+        raise ValueError("CANCELLED")
+    vt = (payload.get("voucher_type") or "").strip()
+    pt = (payload.get("party_type") or "").strip()
+    if vt not in ("receipt", "disbursement") or not pt:
+        raise ValueError("UNSUPPORTED_EDIT")
+    if pt in ("discount_earned", "discount_allowed"):
+        raise ValueError("UNSUPPORTED_EDIT")
+
+    codes = set(get_payment_method_codes())
+    method = (payload.get("method") or "cash").strip().lower()
+    if method not in codes:
+        method = "cash" if "cash" in codes else next(iter(codes), "cash")
+
+    initial: dict = {
+        "voucher_type": vt,
+        "party_type": pt,
+        "amount": Decimal(str(payload.get("amount") or "0")),
+        "method": method,
+        "note": (payload.get("note") or "")[:2000],
+        "payer_name": (payload.get("payer_name") or "").strip()[:120],
+        "payer_phone": (payload.get("payer_phone") or "").strip()[:40],
+    }
+    vd = payload.get("voucher_date")
+    if vd:
+        initial["voucher_date"] = date.fromisoformat(str(vd).strip()[:10])
+
+    splits = payload.get("payment_splits")
+    if splits and isinstance(splits, list):
+        pairs: list[list[str]] = []
+        for item in splits:
+            if isinstance(item, dict):
+                m = str(item.get("method") or "").strip().lower()
+                a = item.get("amount")
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                m = str(item[0] or "").strip().lower()
+                a = item[1]
+            else:
+                continue
+            if m and m in codes:
+                pairs.append([m, str(a) if a is not None else ""])
+        use_splits = (vt == "receipt" and pt in ("customer", "employee")) or (
+            vt == "disbursement" and pt == "supplier"
+        )
+        if use_splits and pairs:
+            initial["payment_splits_json"] = json.dumps(pairs, ensure_ascii=False)
+            initial["method"] = pairs[0][0]
+
+    if pt == "customer":
+        pk = payload.get("customer_pk")
+        if pk is not None:
+            c = Customer.objects.filter(pk=int(pk), is_active=True).first()
+            if c:
+                initial["customer"] = c
+    elif pt == "supplier":
+        pk = payload.get("supplier_pk")
+        if pk is not None:
+            s = Supplier.objects.filter(pk=int(pk), is_active=True).first()
+            if s:
+                initial["supplier"] = s
+    elif pt == "employee":
+        pk = payload.get("employee_pk")
+        if pk is not None:
+            e = Employee.objects.filter(pk=int(pk), is_active=True).first()
+            if e:
+                initial["employee"] = e
+
+    return initial
 
 
 def _log_unified_treasury_voucher(user, payload: dict) -> None:
@@ -83,6 +164,40 @@ def submit_treasury_voucher(*, voucher_type: str, cleaned: dict, user, work_sess
             },
         )
         return out
+
+    if voucher_type == "receipt" and party_type == "employee":
+        emp = cleaned["employee"]
+        rep = record_employee_debt_repayment(
+            employee=emp,
+            amount=amount,
+            method=method,
+            note=note or "سند قبض — سداد ذمة موظف",
+            user=user,
+            work_session=work_session,
+            voucher_date=voucher_date,
+            payment_lines=payment_lines,
+        )
+        split_payload = (
+            [{"method": m, "amount": str(a)} for m, a in payment_lines] if payment_lines else None
+        )
+        _log_unified_treasury_voucher(
+            user,
+            {
+                "voucher_type": voucher_type,
+                "party_type": party_type,
+                "party_label": emp.name_ar,
+                "amount": str(amount),
+                "method": method,
+                "payment_splits": split_payload,
+                "note": (note or "")[:240],
+                "employee_pk": emp.pk,
+                "debt_repayment_pk": rep.pk,
+                "store_portion": str(rep.store_portion),
+                "advance_portion": str(rep.advance_portion),
+                "voucher_date": voucher_date.isoformat(),
+            },
+        )
+        return rep
 
     if voucher_type == "disbursement" and party_type == "supplier":
         sup = cleaned["supplier"]

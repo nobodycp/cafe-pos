@@ -6,7 +6,12 @@ from apps.core.payment_methods import load_payment_method_rows
 register = template.Library()
 
 _VOUCHER_TYPE_AR = {"receipt": "قبض", "disbursement": "صرف"}
-_PARTY_TYPE_AR = {"customer": "عميل", "supplier": "مورد", "employee": "موظف", "expense": "مصاريف"}
+_PARTY_TYPE_AR = {
+    "customer": "عميل",
+    "supplier": "مورد",
+    "employee": "موظف",
+    "expense": "مصاريف",
+}
 
 
 @register.filter

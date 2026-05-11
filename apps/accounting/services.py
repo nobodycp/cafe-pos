@@ -351,6 +351,87 @@ def post_customer_payment_journal_multi(
 
 
 @transaction.atomic
+def post_employee_debt_repayment_journal(
+    *,
+    employee,
+    amount: Decimal,
+    method: str,
+    reference_type: str = "",
+    reference_pk: str = "",
+    work_session=None,
+    user=None,
+    entry_date: Optional[date] = None,
+) -> JournalEntry:
+    """قيد تحصيل من موظف (سداد ذمة): مدين صندوق/بنك، دائن رواتب (تخفيض مصروف / تسوية ذمة)."""
+    amt = as_decimal(amount)
+    if amt <= 0:
+        raise ValueError("ZERO_PAYMENT")
+
+    entry = _build_entry(
+        description=f"سداد ذمة موظف {employee.name_ar} — {amt}",
+        reference_type=reference_type,
+        reference_pk=reference_pk,
+        work_session=work_session,
+        user=user,
+        date=entry_date,
+    )
+    entry.save()
+
+    pay_sys = resolve_cash_bank_line_code(method)
+    _add_line(entry, _get_account(pay_sys), debit=amt, desc="تحصيل من موظف")
+    _add_line(entry, _get_account("EXP_SALARIES"), credit=amt, desc=f"تسوية ذمة {employee.name_ar}")
+
+    return entry
+
+
+@transaction.atomic
+def post_employee_debt_repayment_journal_multi(
+    *,
+    employee,
+    payments: List[Tuple[str, Decimal]],
+    reference_type: str = "",
+    reference_pk: str = "",
+    work_session=None,
+    user=None,
+    entry_date: Optional[date] = None,
+) -> JournalEntry:
+    """سداد ذمة موظف بعدة طرق دفع: مدين صندوق/بنك لكل شريحة، دائن رواتب = مجموع المحصّل (بدون آجل)."""
+    debits: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    total_collected = Decimal("0")
+    for method, amount in payments:
+        amt = as_decimal(amount)
+        if amt <= 0:
+            continue
+        if resolve_ledger_account_code(method) == "AR":
+            continue
+        pay_sys = resolve_cash_bank_line_code(method)
+        debits[pay_sys] += amt
+        total_collected += amt
+    total_collected = total_collected.quantize(Decimal("0.01"))
+    if total_collected <= 0:
+        raise ValueError("ZERO_PAYMENT")
+
+    entry = _build_entry(
+        description=f"سداد ذمة موظف {employee.name_ar} — {total_collected}",
+        reference_type=reference_type,
+        reference_pk=reference_pk,
+        work_session=work_session,
+        user=user,
+        date=entry_date,
+    )
+    entry.save()
+
+    for pay_sys, sub in debits.items():
+        sub = sub.quantize(Decimal("0.01"))
+        if sub <= 0:
+            continue
+        _add_line(entry, _get_account(pay_sys), debit=sub, desc="تحصيل من موظف")
+    _add_line(entry, _get_account("EXP_SALARIES"), credit=total_collected, desc=f"تسوية ذمة {employee.name_ar}")
+
+    return entry
+
+
+@transaction.atomic
 def post_supplier_payment_journal_multi(
     *,
     supplier,

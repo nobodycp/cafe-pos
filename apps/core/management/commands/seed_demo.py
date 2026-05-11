@@ -9,7 +9,6 @@ from apps.contacts.models import Customer
 from apps.core.services import SessionService
 from apps.expenses.models import ExpenseCategory
 from apps.payroll.models import Employee
-from apps.pos.models import DiningTable
 from apps.purchasing.models import PurchaseInvoice, Supplier
 from apps.purchasing.services import post_purchase_invoice
 
@@ -113,9 +112,6 @@ class Command(BaseCommand):
             component=milk,
             defaults={"quantity_per_unit": Decimal("0.15")},
         )
-
-        for i in range(1, 7):
-            DiningTable.objects.get_or_create(name_ar=f"طاولة {i}", defaults={"sort_order": i, "name_en": f"Table {i}"})
 
         Supplier.objects.get_or_create(
             name_ar="شركة توريد المواد الغذائية",

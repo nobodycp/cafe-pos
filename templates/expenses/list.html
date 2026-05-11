@@ -55,6 +55,14 @@
             <tr><td colspan="6" class="p-8 text-center text-muted">لا توجد مصروفات</td></tr>
             {% endfor %}
           </tbody>
+          <tfoot>
+            <tr class="border-t-2 border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/80">
+              <td colspan="2" class="p-2 text-start text-xs font-extrabold text-gray-800 dark:text-gray-100">المجموع <span class="block font-normal text-muted font-semibold">(إجمالي المبالغ على كامل القائمة)</span></td>
+              <td class="p-2 text-start font-extrabold tabular-nums text-danger">{{ expense_totals.sum_amount|floatformat:2|intcomma }}</td>
+              <td colspan="2"></td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
         {% include "shell/_shell_pagination.html" %}
       </div>

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Max, Q, Sum
+from django.db.models import Case, IntegerField, Max, Q, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -33,14 +33,51 @@ def _contacts_tpl(request, shell_tpl, classic_tpl):
     return shell_tpl
 
 
+def _customer_list_hide_zero_balance(request) -> bool:
+    """
+    إخفاء العملاء ذوي الرصيد (عليه) = 0.
+    عند غياب المعامل: مفعّل افتراضياً (نموذج يرسل hidden=0 ثم checkbox=1).
+    """
+    parts = request.GET.getlist("hide_zero_balance")
+    if not parts:
+        return True
+    last = (parts[-1] or "").strip().lower()
+    return last not in ("0", "false", "off")
+
+
 @login_required
 def customer_list(request):
-    qs = Customer.objects.filter(is_active=True).order_by("name_ar")
+    qs = (
+        Customer.objects.filter(is_active=True)
+        .annotate(
+            _customer_name_script_group=Case(
+                When(name_ar__regex=r"^\s*[A-Za-z0-9]", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        )
+        .order_by("_customer_name_script_group", "name_ar", "pk")
+    )
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
+
+    hide_zero_balance = _customer_list_hide_zero_balance(request)
+    if hide_zero_balance:
+        qs = qs.exclude(balance=Decimal("0"))
+
+    totals_agg = qs.aggregate(sum_balance=Sum("balance"))
+    totals = {
+        "sum_balance": (totals_agg["sum_balance"] or Decimal("0")).quantize(Decimal("0.01")),
+    }
+
     tpl = _contacts_tpl(request, "shell/customers_list.html", "contacts/customers.html")
-    ctx = _contacts_ctx(request, q=q)
+    ctx = _contacts_ctx(
+        request,
+        q=q,
+        customer_filter_hide_zero_balance=hide_zero_balance,
+        customer_totals=totals,
+    )
     ctx.update(paginate_queryset(request, qs))
     return render(request, tpl, ctx)
 

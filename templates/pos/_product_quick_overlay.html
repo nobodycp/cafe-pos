@@ -1,0 +1,258 @@
+{# نموذج منتج سريع داخل طبقة الكاشير — يتوقع: pos_product_quick_form (ProductForm prefix=pq) #}
+{% url 'shell:category_quick_create' as pos_cat_qc_url %}
+{% url 'shell:unit_quick_create' as pos_unit_qc_url %}
+<style>
+#pos-product-overlay form input:not([type="checkbox"]):not([type="radio"]),
+#pos-product-overlay form select,
+#pos-product-overlay form textarea {
+  width: 100%;
+  min-height: 2rem;
+  font-size: 0.8125rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgb(209 213 219);
+  background: #fff;
+  box-sizing: border-box;
+}
+.dark #pos-product-overlay form input:not([type="checkbox"]):not([type="radio"]),
+.dark #pos-product-overlay form select,
+.dark #pos-product-overlay form textarea {
+  border-color: rgb(75 85 99);
+  background: rgb(17 24 39);
+  color: #f9fafb;
+}
+#pos-product-overlay label.pq-l {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: rgb(107 114 128);
+  margin-bottom: 0.125rem;
+}
+</style>
+<div id="pos-product-overlay-inner" class="space-y-2" dir="rtl"
+     data-cat-qc-url="{{ pos_cat_qc_url }}"
+     data-unit-qc-url="{{ pos_unit_qc_url }}"
+     data-cat-select-id="{{ pos_product_quick_form.category.id_for_label }}"
+     data-unit-select-id="{{ pos_product_quick_form.unit.id_for_label }}">
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+    <div class="rounded-md border border-emerald-200/80 bg-emerald-50/40 p-2 dark:border-emerald-800/60 dark:bg-emerald-950/25">
+      <div class="text-[10px] font-extrabold text-emerald-900 dark:text-emerald-200 mb-1">تصنيف جديد</div>
+      <div class="flex flex-col gap-1 min-w-0">
+        <input type="text" id="pos-qc-name-ar" maxlength="160" autocomplete="off" placeholder="اسم التصنيف (عربي)" class="w-full min-h-8 rounded-sm border border-gray-300 bg-white px-2 text-[11px] dark:border-gray-600 dark:bg-gray-900">
+        <button type="button" id="pos-qc-submit" class="h-7 rounded-sm bg-emerald-700 px-2 text-[10px] font-bold text-white hover:bg-emerald-800 shrink-0">إضافة للقائمة</button>
+        <p id="pos-qc-msg" class="text-[9px] text-muted m-0 min-h-[1rem]"></p>
+      </div>
+    </div>
+    <div class="rounded-md border border-sky-200/80 bg-sky-50/40 p-2 dark:border-sky-800/60 dark:bg-sky-950/25">
+      <div class="text-[10px] font-extrabold text-sky-900 dark:text-sky-200 mb-1">وحدة قياس جديدة</div>
+      <div class="grid grid-cols-2 gap-1">
+        <div class="min-w-0 col-span-2 sm:col-span-1">
+          <label class="pq-l" for="pos-qu-code">الرمز (إنجليزي)</label>
+          <input type="text" id="pos-qu-code" maxlength="32" dir="ltr" autocomplete="off" placeholder="pcs" class="w-full min-h-8 rounded-sm border border-gray-300 bg-white px-2 font-mono text-[11px] dark:border-gray-600 dark:bg-gray-900">
+        </div>
+        <div class="min-w-0 col-span-2 sm:col-span-1">
+          <label class="pq-l" for="pos-qu-name-ar">الاسم (عربي)</label>
+          <input type="text" id="pos-qu-name-ar" maxlength="128" autocomplete="off" placeholder="قطعة، كغ…" class="w-full min-h-8 rounded-sm border border-gray-300 bg-white px-2 text-[11px] dark:border-gray-600 dark:bg-gray-900">
+        </div>
+      </div>
+      <button type="button" id="pos-qu-submit" class="mt-1 h-7 w-full rounded-sm bg-sky-700 px-2 text-[10px] font-bold text-white hover:bg-sky-800">إضافة للقائمة</button>
+      <p id="pos-qu-msg" class="text-[9px] text-muted m-0 mt-0.5 min-h-[1rem]"></p>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'pos:product_quick_save' %}" id="pos-product-quick-form" class="rounded-md border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800/80">
+    {% csrf_token %}
+    {% if pos_product_quick_form.non_field_errors %}
+    <div class="mb-2 rounded-sm border border-danger/30 bg-danger/10 p-1.5 text-[10px] text-danger font-semibold">
+      {% for e in pos_product_quick_form.non_field_errors %}<p class="m-0">{{ e }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="text-[10px] font-extrabold text-gray-700 dark:text-gray-200 mb-1">بيانات المنتج</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-1.5">
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.name_ar.id_for_label }}">الاسم (عربي)</label>
+        {{ pos_product_quick_form.name_ar }}
+        {% for e in pos_product_quick_form.name_ar.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.name_en.id_for_label }}">الاسم (إنجليزي)</label>
+        {{ pos_product_quick_form.name_en }}
+        {% for e in pos_product_quick_form.name_en.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.category.id_for_label }}">التصنيف</label>
+        {{ pos_product_quick_form.category }}
+        {% for e in pos_product_quick_form.category.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.unit.id_for_label }}">الوحدة</label>
+        {{ pos_product_quick_form.unit }}
+        {% for e in pos_product_quick_form.unit.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.selling_price.id_for_label }}">سعر البيع</label>
+        {{ pos_product_quick_form.selling_price }}
+        {% for e in pos_product_quick_form.selling_price.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.product_type.id_for_label }}">نوع المنتج</label>
+        {{ pos_product_quick_form.product_type }}
+        {% for e in pos_product_quick_form.product_type.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1 lg:col-span-2">
+        <label class="pq-l" for="{{ pos_product_quick_form.barcode.id_for_label }}">الباركود</label>
+        {{ pos_product_quick_form.barcode }}
+        {% for e in pos_product_quick_form.barcode.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="min-w-0 sm:col-span-1">
+        <label class="pq-l" for="{{ pos_product_quick_form.min_stock_level.id_for_label }}">حد أدنى للمخزون</label>
+        {{ pos_product_quick_form.min_stock_level }}
+        {% for e in pos_product_quick_form.min_stock_level.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+      </div>
+      <div id="pos-pq-commission-wrap" class="min-w-0 sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 hidden">
+        <div>
+          <label class="pq-l" for="{{ pos_product_quick_form.commission_percentage.id_for_label }}">نسبة العمولة %</label>
+          {{ pos_product_quick_form.commission_percentage }}
+          {% for e in pos_product_quick_form.commission_percentage.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+        </div>
+        <div>
+          <label class="pq-l" for="{{ pos_product_quick_form.commission_vendor.id_for_label }}">بائع النسبة</label>
+          {{ pos_product_quick_form.commission_vendor }}
+          {% for e in pos_product_quick_form.commission_vendor.errors %}<p class="text-danger text-[9px] m-0">{{ e }}</p>{% endfor %}
+        </div>
+      </div>
+      <label class="flex items-center gap-1.5 text-[10px] font-bold text-gray-700 dark:text-gray-200 sm:col-span-1">
+        {{ pos_product_quick_form.is_stock_tracked }}<span>تتبع المخزون</span>
+      </label>
+      <label class="flex items-center gap-1.5 text-[10px] font-bold text-gray-700 dark:text-gray-200 sm:col-span-1">
+        {{ pos_product_quick_form.is_active }}<span>نشط</span>
+      </label>
+    </div>
+    <button type="submit" class="mt-2 w-full h-9 rounded-md bg-[#1e3a5f] text-[11px] font-bold text-white hover:bg-[#163051] dark:bg-sky-800 dark:hover:bg-sky-900">حفظ المنتج</button>
+  </form>
+  <p class="text-center text-[10px] text-muted m-0 pt-0.5">
+    <a href="{% url 'shell:product_workspace' %}" class="font-bold text-[#1e3a5f] hover:underline dark:text-sky-400">صفحة إعداد المنتج الكاملة</a>
+  </p>
+</div>
+<script>
+(function() {
+  var root = document.getElementById("pos-product-overlay-inner");
+  if (!root) return;
+  var catUrl = root.dataset.catQcUrl || "";
+  var unitUrl = root.dataset.unitQcUrl || "";
+  var catSel = document.getElementById(root.dataset.catSelectId || "");
+  var unitSel = document.getElementById(root.dataset.unitSelectId || "");
+  var qcIn = document.getElementById("pos-qc-name-ar");
+  var qcBtn = document.getElementById("pos-qc-submit");
+  var qcMsg = document.getElementById("pos-qc-msg");
+  var quCode = document.getElementById("pos-qu-code");
+  var quName = document.getElementById("pos-qu-name-ar");
+  var quBtn = document.getElementById("pos-qu-submit");
+  var quMsg = document.getElementById("pos-qu-msg");
+  var typeSel = document.getElementById("{{ pos_product_quick_form.product_type.id_for_label }}");
+  var commWrap = document.getElementById("pos-pq-commission-wrap");
+  var stockCb = document.getElementById("{{ pos_product_quick_form.is_stock_tracked.id_for_label }}");
+  var minStock = document.getElementById("{{ pos_product_quick_form.min_stock_level.id_for_label }}");
+
+  function csrf() {
+    var m = document.querySelector("#pos-product-quick-form input[name=csrfmiddlewaretoken]");
+    return m ? m.value : "";
+  }
+  function appendOpt(sel, id, text) {
+    if (!sel) return;
+    var v = String(id);
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === v) {
+        sel.selectedIndex = i;
+        return;
+      }
+    }
+    var o = document.createElement("option");
+    o.value = v;
+    o.textContent = text;
+    sel.appendChild(o);
+    sel.value = v;
+  }
+  function postJson(url, body, onOk, onErr) {
+    fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRFToken": csrf(),
+      },
+      body: JSON.stringify(body),
+    })
+      .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+      .then(function(x) {
+        if (x.ok && x.j.id) onOk(x.j);
+        else onErr((x.j && x.j.error) || "تعذّر التنفيذ");
+      })
+      .catch(function() { onErr("خطأ شبكة"); });
+  }
+  if (qcBtn && qcIn) {
+    qcBtn.addEventListener("click", function() {
+      if (qcMsg) qcMsg.textContent = "";
+      var name = (qcIn.value || "").trim();
+      if (name.length < 2) {
+        if (qcMsg) qcMsg.textContent = "أدخل اسماً بحرفين على الأقل.";
+        return;
+      }
+      postJson(
+        catUrl,
+        { name_ar: name },
+        function(j) {
+          appendOpt(catSel, j.id, j.name_ar);
+          qcIn.value = "";
+          if (qcMsg) qcMsg.textContent = j.reused ? "تصنيف موجود — تم اختياره." : "تمت الإضافة.";
+        },
+        function(err) { if (qcMsg) qcMsg.textContent = err; }
+      );
+    });
+  }
+  if (quBtn && quName) {
+    quBtn.addEventListener("click", function() {
+      if (quMsg) quMsg.textContent = "";
+      var nameAr = (quName.value || "").trim();
+      var code = (quCode && quCode.value) ? quCode.value.trim() : "";
+      if (nameAr.length < 2) {
+        if (quMsg) quMsg.textContent = "أدخل اسماً بحرفين على الأقل.";
+        return;
+      }
+      postJson(
+        unitUrl,
+        { code: code, name_ar: nameAr, name_en: "" },
+        function(j) {
+          appendOpt(unitSel, j.id, j.name_ar + " (" + (j.code || "") + ")");
+          quName.value = "";
+          if (quCode) quCode.value = "";
+          if (quMsg) quMsg.textContent = j.reused ? "وحدة موجودة — تم اختيارها." : "تمت الإضافة.";
+        },
+        function(err) { if (quMsg) quMsg.textContent = err; }
+      );
+    });
+  }
+  function syncTypeUi() {
+    if (!typeSel || !commWrap) return;
+    var v = typeSel.value;
+    var commission = v === "commission";
+    commWrap.classList.toggle("hidden", !commission);
+    var lock = v === "service" || v === "commission";
+    var manufactured = v === "manufactured";
+    if (stockCb && lock) stockCb.checked = false;
+    if (minStock) {
+      if (manufactured) {
+        minStock.value = "0";
+        minStock.disabled = true;
+      } else {
+        minStock.disabled = false;
+      }
+    }
+  }
+  if (typeSel) {
+    typeSel.addEventListener("change", syncTypeUi);
+    syncTypeUi();
+  }
+})();
+</script>

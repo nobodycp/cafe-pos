@@ -45,17 +45,16 @@ def ui_labels(request):
 
 
 def low_stock_count(request):
+    """عدد ومعاينة أصناف منخفضة المخزون — لجرس التنبيه في الشريط العلوي."""
     if not hasattr(request, "user") or not request.user.is_authenticated:
-        return {"LOW_STOCK_COUNT": 0}
-    from django.db.models import F
-    from apps.inventory.models import StockBalance
-    count = StockBalance.objects.filter(
-        product__is_active=True,
-        product__is_stock_tracked=True,
-        product__min_stock_level__gt=0,
-        quantity_on_hand__lte=F("product__min_stock_level"),
-    ).count()
-    return {"LOW_STOCK_COUNT": count}
+        return {"LOW_STOCK_COUNT": 0, "LOW_STOCK_PREVIEW": []}
+    from apps.inventory.services import low_stock_alert_queryset
+
+    qs = low_stock_alert_queryset()
+    return {
+        "LOW_STOCK_COUNT": qs.count(),
+        "LOW_STOCK_PREVIEW": list(qs[:10]),
+    }
 
 
 def open_work_session(request):

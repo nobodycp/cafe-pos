@@ -1,9 +1,11 @@
+{% if not customer_form_overlay %}
 <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
   <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ title }}</h1>
 </div>
+{% endif %}
 
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-  <form method="post">
+  <form method="post"{% if customer_form_action %} action="{{ customer_form_action }}"{% endif %}>
     {% csrf_token %}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
       <div>
@@ -36,6 +38,7 @@
   </form>
 </div>
 
+{% if not customer_form_overlay %}
 <p class="mt-4">
   {% if customer %}
     {% if contacts_ns == 'shell' %}
@@ -51,3 +54,4 @@
     {% endif %}
   {% endif %}
 </p>
+{% endif %}

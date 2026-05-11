@@ -1,0 +1,103 @@
+{% extends "shell/base.html" %}
+{% load core_extras humanize %}
+{% block title %}سندات{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="سندات" toolbar_hint="سندات الخزينة الموحّدة — قبض وصرف" %}
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
+  <form method="get" class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+    <div>
+      <label class="block text-[11px] font-bold text-muted mb-0.5">من تاريخ السند</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+    </div>
+    <div>
+      <label class="block text-[11px] font-bold text-muted mb-0.5">إلى تاريخ السند</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+    </div>
+    <div class="min-w-0 sm:min-w-[12rem]">
+      <label class="block text-[11px] font-bold text-muted mb-0.5">نوع السند / التصنيف</label>
+      <select name="v" class="h-8 w-full max-w-full rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700">
+        <option value="all"{% if kind_filter == "all" %} selected{% endif %}>الكل</option>
+        <option value="receipt"{% if kind_filter == "receipt" %} selected{% endif %}>قبض (كل أنواع القبض)</option>
+        <option value="disbursement"{% if kind_filter == "disbursement" %} selected{% endif %}>صرف (كل أنواع الصرف)</option>
+        <option value="customer"{% if kind_filter == "customer" %} selected{% endif %}>عميل</option>
+        <option value="supplier"{% if kind_filter == "supplier" %} selected{% endif %}>مورد</option>
+        <option value="employee"{% if kind_filter == "employee" %} selected{% endif %}>موظف</option>
+        <option value="expense"{% if kind_filter == "expense" %} selected{% endif %}>مصاريف</option>
+      </select>
+    </div>
+    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">عرض</button>
+  </form>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-0 overflow-hidden mb-3">
+  {% if page_obj.object_list %}
+  <div class="ds-table-wrap border-0 rounded-none">
+    <table class="ds-table text-xs">
+      <thead>
+        <tr>
+          <th class="w-16">رقم السجل</th>
+          <th>نوع الحركة</th>
+          <th>التصنيف</th>
+          <th>الجهة / الوصف</th>
+          <th class="text-end">المبلغ</th>
+          <th>طريقة الدفع</th>
+          <th>تاريخ السند</th>
+          <th>التسجيل</th>
+          <th class="text-center min-w-[8rem]">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in page_obj %}
+        {% with p=row.payload log=row.log %}
+        <tr class="{% if p.cancelled %}opacity-55{% endif %}">
+          <td class="text-muted font-mono tabular-nums">{{ log.pk }}</td>
+          <td>
+            {{ p.voucher_type|treasury_voucher_type_ar }}
+            {% if p.cancelled %}<span class="text-[10px] font-bold text-danger ms-0.5">(ملغى)</span>{% endif %}
+          </td>
+          <td>{{ p.party_type|treasury_party_type_ar }}</td>
+          <td class="max-w-[14rem] truncate" title="{{ p.party_label|default:'' }}">{{ p.party_label|default:"—" }}</td>
+          <td class="text-end font-bold tabular-nums">{{ p.amount|default:"—" }}</td>
+          <td>{{ p.method|payment_method_label }}</td>
+          <td class="tabular-nums whitespace-nowrap">{{ row.voucher_date|date:"Y-m-d" }}</td>
+          <td class="text-muted whitespace-nowrap text-[10px]">{{ log.created_at|naturaltime }}</td>
+          <td class="text-center">
+            <div class="flex flex-wrap items-center justify-center gap-0.5">
+              {% if not p.cancelled %}
+              <a href="{% url 'shell:treasury_start_edit_voucher' log.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل السند</a>
+              <form method="post" action="{% url 'shell:treasury_void_voucher' log.pk %}" class="inline m-0" onsubmit="return confirm('إلغاء هذا السند؟ سيتم عكس القيد والأرصدة.');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="ds-btn py-0.5 px-1 min-h-0 h-7 text-[10px] text-danger border-danger/40 hover:bg-danger/10">حذف</button>
+              </form>
+              {% else %}
+              <span class="text-muted text-[10px]">—</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="border-t-2 border-gray-300 bg-gray-50 dark:bg-gray-800/90 font-bold text-xs">
+          <td colspan="4" class="text-end align-middle py-2.5 pe-2">المجموع <span class="text-[10px] font-normal text-muted">(غير الملغاة — كل النتائج بعد الفلترة)</span></td>
+          <td class="text-end tabular-nums align-middle py-2.5" title="صافي = مجموع القبض − مجموع الصرف">{{ voucher_totals.net|intcomma }}</td>
+          <td colspan="4" class="text-start align-middle py-2.5 text-[10px] font-normal text-muted leading-snug">
+            قبض: <span class="tabular-nums font-semibold text-gray-800 dark:text-gray-200">{{ voucher_totals.receipt|intcomma }}</span>
+            <span class="mx-1.5">—</span>
+            صرف: <span class="tabular-nums font-semibold text-gray-800 dark:text-gray-200">{{ voucher_totals.disbursement|intcomma }}</span>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% include "shell/_shell_pagination.html" %}
+  {% else %}
+  <p class="text-center text-muted py-8 text-xs m-0">لا توجد سندات في هذه الفترة والفلتر المحدد.</p>
+  {% endif %}
+</div>
+
+{% include "reports/_reports_shell_end.html" %}
+{% endblock %}

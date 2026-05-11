@@ -15,6 +15,11 @@ class Supplier(TimeStampedModel):
     phone = models.CharField(_("الهاتف"), max_length=32, blank=True)
     email = models.EmailField(_("البريد"), blank=True)
     balance = models.DecimalField(_("الرصيد (لنا / علينا)"), max_digits=14, decimal_places=2, default=0)
+    is_commission_vendor = models.BooleanField(
+        _("بائع نسبة"),
+        default=False,
+        help_text=_("يُعرض في قائمة الموردين؛ منتجات «عمولة» تختاره كبائع نسبة من شاشة المنتج."),
+    )
     is_active = models.BooleanField(_("نشط"), default=True)
     linked_customer = models.OneToOneField(
         "contacts.Customer",

@@ -7,6 +7,7 @@ app_name = "pos"
 
 urlpatterns = [
     path("", views.pos_main, name="main"),
+    path("products/quick-save/", views.pos_product_quick_save, name="product_quick_save"),
     path("settings/", views.redirect_pos_settings_to_app, {"tail": ""}, name="settings_redirect"),
     path("settings/<path:tail>/", views.redirect_pos_settings_to_app, name="settings_redirect_tail"),
     path("tables/open/", views.table_open, name="table_open"),
@@ -15,6 +16,7 @@ urlpatterns = [
     path("payers/hints/", views.payer_hints_search, name="payer_hints"),
     path("products/search/", views.products_search, name="products_search"),
     path("customers/quick-create/", views.customer_quick_create, name="customer_quick_create"),
+    path("customers/create-save/", views.pos_customer_create_save, name="customer_create_save"),
     path("order/new/", views.order_new, name="order_new"),
     path("order/<int:order_id>/resume/", views.order_resume, name="order_resume"),
     path("order/<int:order_id>/add/", views.order_add_product, name="order_add"),

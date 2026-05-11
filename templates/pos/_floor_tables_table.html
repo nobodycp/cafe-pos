@@ -1,0 +1,50 @@
+{% comment %}
+جدول طاولات الوردية — نقر الصف يفتح الطاولة (لا عمود زر)
+{% endcomment %}
+<table class="pos-product-xl pos-floor-xl w-full text-[11px] tabular-nums" dir="rtl">
+  <thead>
+    <tr>
+      <th class="pos-pxl-num">#</th>
+      <th class="pos-pxl-name text-start">الطاولة</th>
+      <th class="pos-pxl-price text-end">الإجمالي</th>
+      <th class="pos-pxl-cat text-end max-w-[6.5rem]">المتبقي</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in floor_rows %}
+    <tr class="pos-floor-tr pos-floor-tr--{{ row.tile_color }}"
+        role="button"
+        tabindex="0"
+        title="{{ row.tile_label|escape }}{% if row.customer_label %} — {{ row.customer_label|escape }}{% endif %}">
+      <td class="pos-pxl-num text-muted font-mono">
+        {{ forloop.counter }}
+        <form method="post" action="{% url 'pos:table_open' %}" class="pos-floor-open-form m-0 inline p-0">
+          {% csrf_token %}
+          <input type="hidden" name="table_id" value="{{ row.table.pk }}">
+          {% if row.session and row.session.customer_id %}
+          <input type="hidden" name="customer_id" value="{{ row.session.customer_id }}">
+          {% endif %}
+          <button type="submit" class="sr-only">فتح {{ row.tile_label }}</button>
+        </form>
+      </td>
+      <td class="pos-pxl-name pos-pxl-name-cell font-bold text-gray-900 dark:text-gray-100">
+        <span class="truncate block" title="{{ row.table.name_ar|escape }}">{{ row.tile_label }}</span>
+      </td>
+      <td class="pos-pxl-price font-bold whitespace-nowrap text-[#0f172a] dark:text-gray-100">
+        {% if row.grand > 0 %}
+          {{ row.grand|floatformat:2 }} {{ POS_SETTINGS.currency_symbol }}
+        {% else %}
+          <span class="text-muted font-normal">—</span>
+        {% endif %}
+      </td>
+      <td class="pos-pxl-cat font-bold whitespace-nowrap tabular-nums text-end text-[#0f172a] dark:text-gray-100">
+        {% if row.grand > 0 or row.paid > 0 %}
+          {{ row.remaining|floatformat:2 }} {{ POS_SETTINGS.currency_symbol }}
+        {% else %}
+          <span class="text-muted font-normal">—</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

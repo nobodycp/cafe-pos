@@ -11,6 +11,11 @@ class DiningTable(SoftDeleteModel):
     name_en = models.CharField(_("اسم الطاولة (إنجليزي)"), max_length=80, blank=True)
     sort_order = models.PositiveIntegerField(_("الترتيب"), default=0)
     is_active = models.BooleanField(_("نشط"), default=True)
+    ephemeral = models.BooleanField(
+        _("مؤقتة (كاشير)"),
+        default=False,
+        help_text=_("طاولات تُنشأ من الكاشير وتُلغى تلقائياً عند إغلاق الجلسة — لا تُستخدم كطاولات ثابتة."),
+    )
 
     class Meta:
         verbose_name = _("طاولة")

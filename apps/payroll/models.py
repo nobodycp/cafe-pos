@@ -105,6 +105,42 @@ class EmployeeSalaryPayout(TimeStampedModel):
         verbose_name_plural = _("صرف الرواتب")
 
 
+class EmployeeDebtRepayment(TimeStampedModel):
+    """سداد نقدي من موظف لذمّة المحل (مشتريات مقهى / سلف) — يُسجَّل غالباً من سند قبض الصندوق."""
+
+    employee = models.ForeignKey(
+        Employee,
+        verbose_name=_("الموظف"),
+        related_name="debt_repayments",
+        on_delete=models.CASCADE,
+    )
+    work_session = models.ForeignKey(
+        WorkSession,
+        verbose_name=_("الوردية"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    amount = models.DecimalField(_("المبلغ المحصّل"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
+    method = models.CharField(_("طريقة التحصيل"), max_length=32, default="cash")
+    store_portion = models.DecimalField(_("من مشتريات المقهى"), max_digits=14, decimal_places=2, default=0)
+    advance_portion = models.DecimalField(_("من السلف المعلّقة"), max_digits=14, decimal_places=2, default=0)
+    note = models.TextField(_("ملاحظة"), blank=True)
+    journal_entry = models.ForeignKey(
+        "accounting.JournalEntry",
+        verbose_name=_("القيد اليومي"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="employee_debt_repayments",
+    )
+
+    class Meta:
+        verbose_name = _("سداد ذمة موظف")
+        verbose_name_plural = _("سدادات ذمم الموظفين")
+        ordering = ("-created_at",)
+
+
 class EmployeeCafePurchase(TimeStampedModel):
     employee = models.ForeignKey(
         Employee,

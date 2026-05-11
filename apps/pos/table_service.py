@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from collections import defaultdict
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
@@ -150,6 +151,7 @@ def close_stale_open_table_sessions_for_work_session(work_session) -> int:
         ts.closed_at = now
         ts.save(update_fields=["status", "closed_at", "updated_at"])
         log_audit(None, "pos.table_session.auto_close_stale", "pos.TableSession", str(ts.pk), {})
+        retire_ephemeral_dining_table_if_safe(dining_table_id=ts.dining_table_id)
         closed += 1
     return closed
 
@@ -163,6 +165,22 @@ def prepare_work_session_for_shift_close(work_session) -> None:
     """قبل محاولة إغلاق الوردية: طلبات صالة فارغة عالقة ثم جلسات يتيمة. لا تُستدعى من شاشة الكاشير العادية."""
     auto_close_empty_dine_in_tab_orders(work_session)
     close_stale_open_table_sessions_for_work_session(work_session)
+
+
+def retire_ephemeral_dining_table_if_safe(*, dining_table_id: int) -> None:
+    """
+    بعد إغلاق آخر جلسة مفتوحة على طاولة «مؤقتة» (كاشير): إلغاء الطاولة ناعماً.
+    لا تُمس الطاولات غير المؤقتة (إعدادات ثابتة).
+    """
+    table = DiningTable.objects.filter(pk=dining_table_id, is_cancelled=False).first()
+    if not table or not table.ephemeral:
+        return
+    if TableSession.objects.filter(dining_table_id=dining_table_id, status=TableSession.Status.OPEN).exists():
+        return
+    if Order.objects.filter(table_id=dining_table_id, status=Order.Status.OPEN).exists():
+        return
+    table.soft_cancel(reason="إغلاق جلسة طاولة من الكاشير")
+    log_audit(None, "pos.table.retire_ephemeral", "pos.DiningTable", str(table.pk), {"name_ar": table.name_ar})
 
 
 def table_tile_label(table: DiningTable) -> str:
@@ -212,81 +230,27 @@ def table_session_money_totals(table_session: TableSession) -> dict:
 
 
 def floor_rows_for_session(work_session) -> List[dict]:
-    """صفوف لعرض شبكة الطاولات.
-
-    لا نستخدم annotate على Order مع lines وtab_payments معاً — ينتج ضرباً كارتيزياً
-    فيُحسب كل دفعة بعدد أسطر الطلب (مثلاً 10 شيكل × 3 أسطر = 30).
-    """
+    """صفوف لعرض طاولات الوردية: جلسات مفتوحة فقط (أسماء كاملة) + طلبات يتيمة نادرة بلا جلسة."""
     repair_stale_table_sessions_for_floor(work_session)
 
-    tables = list(
-        DiningTable.objects.filter(is_active=True, is_cancelled=False).order_by("sort_order", "name_ar")
-    )
-
-    open_sessions = {
-        ts.dining_table_id: ts
-        for ts in TableSession.objects.filter(
+    open_sessions_list = list(
+        TableSession.objects.filter(
             work_session=work_session,
             status=TableSession.Status.OPEN,
-        ).select_related("customer")
-    }
+        )
+        .select_related("dining_table", "customer")
+        .order_by("dining_table__name_ar")
+    )
+    open_sessions_list = [ts for ts in open_sessions_list if not ts.dining_table.is_cancelled]
 
-    if open_sessions:
-        order_totals = {ts.pk: table_session_money_totals(ts) for ts in open_sessions.values()}
-    else:
-        order_totals = {}
+    order_totals = {ts.pk: table_session_money_totals(ts) for ts in open_sessions_list}
 
     rows = []
-    for t in tables:
-        ts = open_sessions.get(t.pk)
-        if not ts:
-            # طلب صالة مفتوح على الطاولة من دون جلسة طاولة مفتوحة (جلسة أُغلقت والطلب بقي، أو بيانات ناقصة)
-            orphan_qs = Order.objects.filter(
-                work_session=work_session,
-                status=Order.Status.OPEN,
-                table=t,
-                order_type=Order.OrderType.DINE_IN,
-            ).select_related("customer")
-            if not orphan_qs.exists():
-                rows.append({
-                    "table": t,
-                    "session": None,
-                    "status": "free",
-                    "grand": Decimal("0"),
-                    "paid": Decimal("0"),
-                    "remaining": Decimal("0"),
-                    "customer_label": "",
-                    "tile_label": table_tile_label(t),
-                    "tile_color": "green",
-                })
-                continue
-            grand = Decimal("0")
-            paid = Decimal("0")
-            cust = ""
-            for o in orphan_qs:
-                tr = compute_order_totals(o)
-                grand += tr["grand"]
-                paid += sum_tab_payments(o)
-                if o.customer_id and not cust and o.customer:
-                    cust = o.customer.name_ar
-            remaining = max(grand - paid, Decimal("0")).quantize(Decimal("0.01"))
-            st = "occupied"
-            if grand == 0:
-                st = "open_empty"
-            elif paid > 0 and remaining > Decimal("0"):
-                st = "partial"
-            rows.append({
-                "table": t,
-                "session": None,
-                "status": st,
-                "grand": grand,
-                "paid": paid,
-                "remaining": remaining,
-                "customer_label": cust,
-                "tile_label": table_tile_label(t),
-                "tile_color": table_tile_color(status=st, grand=grand, paid=paid, remaining=remaining),
-            })
-            continue
+    open_table_ids = {ts.dining_table_id for ts in open_sessions_list}
+    open_ts_ids = {ts.pk for ts in open_sessions_list}
+
+    for ts in open_sessions_list:
+        t = ts.dining_table
         m = order_totals.get(
             ts.pk,
             {"grand": Decimal("0"), "paid": Decimal("0"), "remaining": Decimal("0")},
@@ -304,6 +268,7 @@ def floor_rows_for_session(work_session) -> List[dict]:
             st = "open_empty"
         elif paid > 0 and remaining > Decimal("0"):
             st = "partial"
+        lbl = (t.name_ar or "").strip() or "طاولة"
         rows.append({
             "table": t,
             "session": ts,
@@ -312,9 +277,56 @@ def floor_rows_for_session(work_session) -> List[dict]:
             "paid": paid,
             "remaining": remaining,
             "customer_label": cust,
-            "tile_label": table_tile_label(t),
+            "tile_label": lbl,
             "tile_color": table_tile_color(status=st, grand=grand, paid=paid, remaining=remaining),
         })
+
+    orphan_orders = (
+        Order.objects.filter(
+            work_session=work_session,
+            status=Order.Status.OPEN,
+            order_type=Order.OrderType.DINE_IN,
+            table_id__isnull=False,
+        )
+        .exclude(table_session_id__in=open_ts_ids)
+        .select_related("table", "customer")
+    )
+    by_table: dict[int, list] = defaultdict(list)
+    for o in orphan_orders:
+        if o.table_id and o.table_id not in open_table_ids and o.table and not o.table.is_cancelled:
+            by_table[o.table_id].append(o)
+
+    for tid, olist in by_table.items():
+        t = olist[0].table
+        grand = Decimal("0")
+        paid = Decimal("0")
+        cust = ""
+        for o in olist:
+            tr = compute_order_totals(o)
+            grand += tr["grand"]
+            paid += sum_tab_payments(o)
+            if o.customer_id and not cust and o.customer:
+                cust = o.customer.name_ar
+        remaining = max(grand - paid, Decimal("0")).quantize(Decimal("0.01"))
+        st = "occupied"
+        if grand == 0:
+            st = "open_empty"
+        elif paid > 0 and remaining > Decimal("0"):
+            st = "partial"
+        lbl = (t.name_ar or "").strip() or "طاولة"
+        rows.append({
+            "table": t,
+            "session": None,
+            "status": st,
+            "grand": grand,
+            "paid": paid,
+            "remaining": remaining,
+            "customer_label": cust,
+            "tile_label": lbl,
+            "tile_color": table_tile_color(status=st, grand=grand, paid=paid, remaining=remaining),
+        })
+
+    rows.sort(key=lambda r: (r["table"].name_ar or "").strip())
     return rows
 
 

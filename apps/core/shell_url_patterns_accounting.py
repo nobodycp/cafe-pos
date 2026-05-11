@@ -14,10 +14,25 @@ urlpatterns_accounting = [
     path("accounting/journal/<int:pk>/", accounting_views.journal_detail, name="journal_detail"),
     path("accounting/journal/<int:pk>/edit/", accounting_views.journal_edit, name="journal_edit"),
     path("accounting/treasury/", core_views.treasury, name="accounting_treasury"),
+    path(
+        "accounting/treasury/void/<int:audit_pk>/",
+        core_views.treasury_void_voucher,
+        name="treasury_void_voucher",
+    ),
+    path(
+        "accounting/treasury/edit/<int:audit_pk>/",
+        core_views.treasury_start_edit_voucher,
+        name="treasury_start_edit_voucher",
+    ),
     path("accounting/treasury/party-search/", core_views.treasury_party_search, name="treasury_party_search"),
     path(
         "accounting/treasury/customers/quick-create/",
         core_views.treasury_customer_quick_create,
         name="treasury_customer_quick_create",
+    ),
+    path(
+        "accounting/treasury/employees/quick-create/",
+        core_views.treasury_employee_quick_create,
+        name="treasury_employee_quick_create",
     ),
 ]

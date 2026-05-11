@@ -1,21 +1,30 @@
 import json
+import logging
 from decimal import Decimal, InvalidOperation
-from typing import Optional
+from typing import Optional, Tuple
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.core.treasury_void import void_unified_treasury_voucher
+
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.models import Customer
-from apps.core.models import log_audit
+from apps.core.models import AuditLog, log_audit
 from apps.core.forms import TreasuryVoucherForm
-from apps.core.treasury_services import recent_treasury_voucher_logs, submit_treasury_voucher
+from apps.core.treasury_services import (
+    recent_treasury_voucher_logs,
+    submit_treasury_voucher,
+    treasury_voucher_form_initial_from_audit,
+    TREASURY_VOUCHER_AUDIT_ACTION,
+)
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.payroll.models import Employee
@@ -24,6 +33,8 @@ from apps.pos.models import DiningTable, TableSession
 from apps.pos.services import open_orders_with_lines_queryset
 from apps.pos.table_service import prepare_work_session_for_shift_close
 from apps.purchasing.models import Supplier
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -48,33 +59,117 @@ def _safe_treasury_redirect_next(request) -> Optional[str]:
     return raw
 
 
+def _safe_action_redirect_next(request) -> Optional[str]:
+    """إعادة توجيه داخلية بعد إلغاء سند أو إجراء مشابه (كاشير أو مسارات /app/)."""
+    raw = (request.POST.get("next") or "").strip()
+    if not raw or "\n" in raw or "\r" in raw or ".." in raw or raw.startswith("//"):
+        return None
+    if not raw.startswith("/"):
+        return None
+    path_only = raw.split("?", 1)[0]
+    if not (path_only.startswith("/pos") or path_only.startswith("/app/")):
+        return None
+    try:
+        resolve(path_only)
+    except Resolver404:
+        return None
+    return raw
+
+
+def _treasury_replace_context_from_post(request) -> Tuple[Optional[int], str]:
+    """يستخرج رقم سجل الاستبدال من الطلب والجلسة مع تسمية الجهة للعرض في النموذج."""
+    replace_raw = (request.POST.get("replace_audit_pk") or "").strip()
+    stored = request.session.get("treasury_edit_audit_pk")
+    if not replace_raw.isdigit() or stored is None or int(replace_raw) != int(stored):
+        return None, ""
+    try:
+        log = AuditLog.objects.get(pk=int(replace_raw), action=TREASURY_VOUCHER_AUDIT_ACTION)
+    except AuditLog.DoesNotExist:
+        return None, ""
+    label = str((log.payload or {}).get("party_label") or "")
+    return int(replace_raw), label
+
+
 @login_required
 def treasury(request):
     """سند موحّد: نوع السند قبض/صرف، وتصنيف الجهة منفصل."""
+    if request.method == "GET" and request.GET.get("cancel_edit"):
+        if request.session.pop("treasury_edit_audit_pk", None) is not None:
+            messages.info(request, "تم إلغاء وضع تعديل السند.")
+        return redirect("shell:accounting_treasury")
+
     ws = SessionService.get_open_session()
+    treasury_replace_audit_pk: Optional[int] = None
+    treasury_edit_party_label = ""
+
     voucher_form = TreasuryVoucherForm(prefix="tv")
+    if request.method == "GET":
+        edit_pk = request.session.get("treasury_edit_audit_pk")
+        if edit_pk is not None:
+            try:
+                log = AuditLog.objects.get(pk=int(edit_pk), action=TREASURY_VOUCHER_AUDIT_ACTION)
+                if (log.payload or {}).get("cancelled"):
+                    request.session.pop("treasury_edit_audit_pk", None)
+                else:
+                    initial = treasury_voucher_form_initial_from_audit(audit_log=log)
+                    voucher_form = TreasuryVoucherForm(initial=initial, prefix="tv")
+                    treasury_replace_audit_pk = int(edit_pk)
+                    treasury_edit_party_label = str((log.payload or {}).get("party_label") or "")
+            except AuditLog.DoesNotExist:
+                request.session.pop("treasury_edit_audit_pk", None)
+            except ValueError as e:
+                request.session.pop("treasury_edit_audit_pk", None)
+                if str(e) == "UNSUPPORTED_EDIT":
+                    messages.info(request, "لا يمكن تعديل هذا السند من النموذج — نوعه لم يعد مدعوماً.")
+
     if request.method == "POST":
         next_url = _safe_treasury_redirect_next(request)
         voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        rep_pk, rep_label = _treasury_replace_context_from_post(request)
+        treasury_replace_audit_pk = rep_pk
+        treasury_edit_party_label = rep_label
         if voucher_form.is_valid():
             vt = voucher_form.cleaned_data["voucher_type"]
+            replace_pk = rep_pk
             try:
-                submit_treasury_voucher(
-                    voucher_type=vt,
-                    cleaned=voucher_form.cleaned_data,
-                    user=request.user,
-                    work_session=ws,
-                )
-                if vt == TreasuryVoucherForm.VT_RECEIPT:
-                    messages.success(request, "تم تسجيل سند القبض بنجاح.")
+                if replace_pk is not None:
+                    with transaction.atomic():
+                        void_unified_treasury_voucher(audit_log_id=replace_pk, user=request.user)
+                        submit_treasury_voucher(
+                            voucher_type=vt,
+                            cleaned=voucher_form.cleaned_data,
+                            user=request.user,
+                            work_session=ws,
+                        )
+                    request.session.pop("treasury_edit_audit_pk", None)
+                    messages.success(request, "تم استبدال السند بنجاح (إلغاء القديم وتسجيل الجديد).")
                 else:
-                    messages.success(request, "تم تسجيل سند الصرف بنجاح.")
+                    submit_treasury_voucher(
+                        voucher_type=vt,
+                        cleaned=voucher_form.cleaned_data,
+                        user=request.user,
+                        work_session=ws,
+                    )
+                    if vt == TreasuryVoucherForm.VT_RECEIPT:
+                        messages.success(request, "تم تسجيل سند القبض بنجاح.")
+                    else:
+                        messages.success(request, "تم تسجيل سند الصرف بنجاح.")
                 if next_url:
                     return redirect(next_url)
                 return redirect("shell:accounting_treasury")
             except ValueError as e:
-                if str(e) == "UNKNOWN_VOUCHER_TYPE":
+                code = str(e)
+                if code == "UNKNOWN_VOUCHER_TYPE":
                     messages.error(request, "نوع السند غير معروف.")
+                elif code == "INVALID_AMOUNT":
+                    messages.error(request, "المبلغ غير صالح.")
+                elif code == "PAYMENT_LINES_SUM_MISMATCH":
+                    messages.error(request, "مجموع أسطر الدفع لا يطابق المبلغ الإجمالي.")
+                elif code == "ALREADY_VOIDED":
+                    messages.error(request, "السند المراد استبداله أصبح ملغىً — أعد فتح التعديل من الجدول.")
+                    request.session.pop("treasury_edit_audit_pk", None)
+                elif code in ("UNKNOWN_TREASURY_VOUCHER", "BAD_PAYLOAD", "INVALID_LEDGER_ENTRY", "ALREADY_REVERSED"):
+                    messages.error(request, f"تعذّر إلغاء السند السابق: {code}")
                 else:
                     messages.error(request, "المبلغ غير صالح.")
             except Exception as e:
@@ -88,14 +183,73 @@ def treasury(request):
             "voucher_form": voucher_form,
             "work_session": ws,
             "recent_treasury_rows": list(recent_treasury_voucher_logs(limit=10)),
+            "treasury_replace_audit_pk": treasury_replace_audit_pk,
+            "treasury_edit_party_label": treasury_edit_party_label,
         },
     )
 
 
 @login_required
+@require_POST
+def treasury_void_voucher(request, audit_pk):
+    """إلغاء سند صندوق موحّد (عكس قيود وأرصدة) من سجل التدقيق."""
+    try:
+        void_unified_treasury_voucher(audit_log_id=audit_pk, user=request.user)
+        messages.success(request, "تم إلغاء السند وعكس الأثر المحاسبي والأرصدة.")
+    except AuditLog.DoesNotExist:
+        messages.error(request, "سجل السند غير موجود.")
+    except ValueError as e:
+        code = str(e)
+        if code == "ALREADY_VOIDED":
+            messages.warning(request, "هذا السند ملغى مسبقاً.")
+        elif code == "UNKNOWN_TREASURY_VOUCHER":
+            messages.error(request, "نوع السند لا يدعم الإلغاء من هذه الشاشة.")
+        elif code == "INVALID_LEDGER_ENTRY":
+            messages.error(request, "قيد العميل غير صالح للإلغاء.")
+        elif code == "BAD_PAYLOAD":
+            messages.error(request, "بيانات السند غير مكتملة.")
+        elif code == "ALREADY_REVERSED":
+            messages.warning(request, "القيد المحاسبي معكوس مسبقاً.")
+        else:
+            messages.error(request, f"تعذّر الإلغاء: {code}")
+    except Exception as e:
+        messages.error(request, f"تعذّر الإلغاء: {e}")
+    if request.session.get("treasury_edit_audit_pk") == audit_pk:
+        request.session.pop("treasury_edit_audit_pk", None)
+    next_url = _safe_action_redirect_next(request)
+    if next_url:
+        return redirect(next_url)
+    return redirect("shell:accounting_treasury")
+
+
+@login_required
+@require_GET
+def treasury_start_edit_voucher(request, audit_pk):
+    """يبدأ تعديل سند موحّد: يحفظ معرف السجل في الجلسة ويعيد إلى نموذج السند."""
+    log = get_object_or_404(AuditLog, pk=audit_pk, action=TREASURY_VOUCHER_AUDIT_ACTION)
+    if (log.payload or {}).get("cancelled"):
+        messages.error(request, "لا يمكن تعديل سند ملغى.")
+        return redirect("shell:accounting_treasury")
+    request.session["treasury_edit_audit_pk"] = int(audit_pk)
+    messages.info(
+        request,
+        "عدّل الحقول ثم اضغط «تسجيل السند» — سيُلغى السند السابق ويُستبدل بالجديد بعد التحقق من صحة البيانات.",
+    )
+    return redirect("shell:accounting_treasury")
+
+
+def _supplier_net_balance_for_party(s: Supplier) -> Decimal:
+    """رصيد المورد بعد مسحوبات العميل المرتبط (رصيد المورد − رصيد العميل المرتبط) كما في قائمة الموردين."""
+    cust = Decimal("0")
+    if s.linked_customer_id:
+        cust = (s.linked_customer.balance or Decimal("0")).quantize(Decimal("0.01"))
+    return (s.balance - cust).quantize(Decimal("0.01"))
+
+
+@login_required
 @require_GET
 def treasury_party_search(request):
-    """اقتراحات عميل / مورد / موظف لحقل «اسم صاحب السند» في سند الصندوق."""
+    """اقتراحات عميل / مورد / موظف لحقل «اسم صاحب السند» في سند الصندوق — مع الرصيد النهائي."""
     q = (request.GET.get("q") or "").strip()
     party_type = (request.GET.get("party_type") or "").strip()
     if len(q) < 1 or party_type not in (
@@ -108,21 +262,28 @@ def treasury_party_search(request):
     limit = 24
     results = []
     if party_type == TreasuryVoucherForm.PARTY_CUSTOMER:
-        results = [{"id": c.pk, "label": c.name_ar} for c in active_customers_search_qs(q, limit=limit)]
+        for c in active_customers_search_qs(q, limit=limit):
+            bal = (c.balance or Decimal("0")).quantize(Decimal("0.01"))
+            results.append({"id": c.pk, "label": c.name_ar, "balance": str(bal)})
     elif party_type == TreasuryVoucherForm.PARTY_SUPPLIER:
         qs = (
             Supplier.objects.filter(is_active=True)
+            .select_related("linked_customer")
             .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
             .order_by("name_ar")[:limit]
         )
-        results = [{"id": s.pk, "label": s.name_ar} for s in qs]
+        for s in qs:
+            net_b = _supplier_net_balance_for_party(s)
+            results.append({"id": s.pk, "label": s.name_ar, "balance": str(net_b)})
     elif party_type == TreasuryVoucherForm.PARTY_EMPLOYEE:
         qs = (
             Employee.objects.filter(is_active=True)
             .filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
             .order_by("name_ar")[:limit]
         )
-        results = [{"id": e.pk, "label": e.name_ar} for e in qs]
+        for e in qs:
+            nb = (e.net_balance or Decimal("0")).quantize(Decimal("0.01"))
+            results.append({"id": e.pk, "label": e.name_ar, "balance": str(nb)})
     return JsonResponse({"results": results})
 
 
@@ -140,10 +301,31 @@ def treasury_customer_quick_create(request):
     phone = (body.get("phone") or "").strip()[:32]
     existing = Customer.objects.filter(name_ar__iexact=name_ar, is_active=True).first()
     if existing:
-        return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "reused": True})
+        bal = (existing.balance or Decimal("0")).quantize(Decimal("0.01"))
+        return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "balance": str(bal), "reused": True})
     c = Customer.objects.create(name_ar=name_ar, name_en="", phone=phone)
     log_audit(request.user, "contacts.customer.quick_create_treasury", "contacts.Customer", c.pk, {})
-    return JsonResponse({"id": c.pk, "name_ar": c.name_ar, "reused": False})
+    return JsonResponse({"id": c.pk, "name_ar": c.name_ar, "balance": "0.00", "reused": False})
+
+
+@login_required
+@require_POST
+def treasury_employee_quick_create(request):
+    """إنشاء موظف سريع من سند الصندوق (JSON) — حقول افتراضية للأجور."""
+    try:
+        body = json.loads(request.body.decode() or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON غير صالح"}, status=400)
+    name_ar = (body.get("name_ar") or "").strip()[:200]
+    if len(name_ar) < 2:
+        return JsonResponse({"error": "أدخل اسم موظف بحرفين على الأقل"}, status=400)
+    existing = Employee.objects.filter(name_ar__iexact=name_ar, is_active=True).first()
+    if existing:
+        nb = (existing.net_balance or Decimal("0")).quantize(Decimal("0.01"))
+        return JsonResponse({"id": existing.pk, "name_ar": existing.name_ar, "balance": str(nb), "reused": True})
+    emp = Employee.objects.create(name_ar=name_ar, name_en="")
+    log_audit(request.user, "payroll.employee.quick_create_treasury", "payroll.Employee", emp.pk, {})
+    return JsonResponse({"id": emp.pk, "name_ar": emp.name_ar, "balance": "0.00", "reused": False})
 
 
 @login_required
@@ -330,3 +512,56 @@ def session_summary(request):
         "net_profit": net_profit,
         "open_orders": open_orders,
     })
+
+
+@login_required
+@require_POST
+def settings_database_wipe(request):
+    """تفريغ بيانات التشغيل للاختبار — سوبر يوزر فقط، ومعطّل إلا ببيئة اختبار."""
+    from django.conf import settings as dj_settings
+
+    from apps.core.database_wipe import wipe_runtime_tables
+    from apps.core.models import PosSettings
+
+    redirect_url = reverse("shell:settings") + "?tab=test-data"
+    if not getattr(dj_settings, "ALLOW_TEST_DATABASE_WIPE", dj_settings.DEBUG):
+        messages.error(
+            request,
+            "تفريغ قاعدة البيانات من الواجهة معطّل. فعّل DEBUG أو ضع ALLOW_TEST_DATABASE_WIPE=1 في ملف البيئة.",
+        )
+        return redirect(redirect_url)
+    if not request.user.is_superuser:
+        messages.error(request, "يتطلب هذا الإجراء حساب مدير نظام (سوبر يوزر).")
+        return redirect(redirect_url)
+    if request.POST.get("accept_risk") != "1":
+        messages.error(request, "فعّل مربع «أفهم أن هذا الإجراء لا يُلغى».")
+        return redirect(redirect_url)
+    phrase = (request.POST.get("confirm_phrase") or "").strip()
+    if phrase != "تفريغ قاعدة البيانات":
+        messages.error(request, "اكتب عبارة التأكيد بالضبط كما في المربع الرمادي.")
+        return redirect(redirect_url)
+    try:
+        result = wipe_runtime_tables()
+    except NotImplementedError as e:
+        messages.error(request, str(e))
+        return redirect(redirect_url)
+    except Exception:
+        logger.exception("settings_database_wipe failed")
+        messages.error(request, "حدث خطأ أثناء المسح. راجع سجلات الخادم.")
+        return redirect(redirect_url)
+
+    PosSettings.objects.get_or_create(pk=1)
+    logger.warning(
+        "database wipe completed user_id=%s tables_cleared=%s vendor=%s",
+        getattr(request.user, "pk", None),
+        result.get("tables_cleared"),
+        result.get("vendor"),
+    )
+    messages.success(
+        request,
+        "تم تفريغ بيانات النظام التشغيلية. ما زال موجوداً: المستخدمون، إعدادات المقهى/النظام من هذه الصفحة، "
+        "ومخطط Django (الهجرات، أنواع المحتوى، الصلاحيات). "
+        f"عدد الجداول التي أُفرغت: {result['tables_cleared']}. "
+        "لإعادة بيانات تجربة شغّل من الطرفية: python manage.py seed_demo",
+    )
+    return redirect(redirect_url)

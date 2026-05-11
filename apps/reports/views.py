@@ -1,16 +1,18 @@
 import json
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.core.pagination import paginate_queryset
 from apps.core.payment_methods import get_payment_method_codes
-from apps.core.models import WorkSession
+from apps.core.models import AuditLog, WorkSession
+from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
 from apps.reports.payment_channel_ledger import (
     apply_search,
     attach_running_balance,
@@ -81,13 +83,9 @@ def reports_dashboard(request):
         chart_labels.append(d.strftime("%m/%d"))
         chart_data.append(float(day_sales))
 
-    from django.db.models import F
-    low_stock = StockBalance.objects.filter(
-        product__is_active=True,
-        product__is_stock_tracked=True,
-        product__min_stock_level__gt=0,
-        quantity_on_hand__lte=F("product__min_stock_level"),
-    ).count()
+    from apps.inventory.services import low_stock_alert_queryset
+
+    low_stock = low_stock_alert_queryset().count()
 
     unpaid_customers = Customer.objects.filter(balance__gt=0, is_active=True).count()
     total_receivable = Customer.objects.filter(balance__gt=0, is_active=True).aggregate(s=Sum("balance"))["s"] or Decimal("0")
@@ -572,7 +570,7 @@ def payment_channels_report(request):
 
 @login_required
 def payment_channel_ledger(request):
-    """كشف حركة طريقة دفع واحدة: مبيعات، مصروفات، سدادات موردين، سند قبض عميل."""
+    """كشف حركة طريقة دفع واحدة: مبيعات، مصروفات، سدادات موردين، سندات خزينة (قبض/صرف/خصومات)."""
     method = (request.GET.get("method") or "").strip()
     codes = get_payment_method_codes()
     if method not in codes:
@@ -610,3 +608,103 @@ def payment_channel_ledger(request):
     }
     ctx.update(paginate_queryset(request, row_dicts))
     return render(request, "reports/payment_channel_ledger.html", ctx)
+
+
+def _treasury_audit_voucher_row_date(payload: dict, log: AuditLog) -> date:
+    raw = payload.get("voucher_date")
+    if raw:
+        try:
+            return date.fromisoformat(str(raw)[:10])
+        except ValueError:
+            pass
+    ca = log.created_at
+    if timezone.is_aware(ca):
+        return ca.astimezone(timezone.get_current_timezone()).date()
+    return ca.date()
+
+
+def _treasury_audit_payload_amount(payload: dict) -> Decimal:
+    try:
+        return Decimal(str(payload.get("amount") or "0")).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal("0")
+
+
+def _treasury_audit_matches_kind_filter(payload: dict, kind: str) -> bool:
+    kind = (kind or "all").strip().lower()
+    if kind in ("", "all"):
+        return True
+    vt = (payload.get("voucher_type") or "").strip().lower()
+    pt = (payload.get("party_type") or "").strip().lower()
+    if kind == "receipt":
+        return vt == "receipt"
+    if kind == "disbursement":
+        return vt == "disbursement"
+    if kind == "customer":
+        return pt == "customer"
+    if kind == "supplier":
+        return pt == "supplier"
+    if kind == "employee":
+        return pt == "employee"
+    if kind == "expense":
+        return pt == "expense"
+    return True
+
+
+@login_required
+def treasury_vouchers_report(request):
+    """سندات الخزينة الموحّدة من سجل التدقيق — مع فلترة حسب النوع والفترة."""
+    today = date.today()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        d_to = today
+
+    kind = (request.GET.get("v") or "all").strip().lower()
+
+    rows = []
+    for log in (
+        AuditLog.objects.filter(action=TREASURY_VOUCHER_AUDIT_ACTION)
+        .select_related("user")
+        .order_by("-created_at")
+    ):
+        payload = dict(log.payload or {})
+        vd = _treasury_audit_voucher_row_date(payload, log)
+        if not (d_from <= vd <= d_to):
+            continue
+        if not _treasury_audit_matches_kind_filter(payload, kind):
+            continue
+        rows.append({"log": log, "payload": payload, "voucher_date": vd})
+
+    total_receipt = Decimal("0")
+    total_disbursement = Decimal("0")
+    for row in rows:
+        p = row["payload"]
+        if p.get("cancelled"):
+            continue
+        amt = _treasury_audit_payload_amount(p)
+        vt = (p.get("voucher_type") or "").strip().lower()
+        if vt == "receipt":
+            total_receipt += amt
+        elif vt == "disbursement":
+            total_disbursement += amt
+    total_net = (total_receipt - total_disbursement).quantize(Decimal("0.01"))
+
+    ctx = {
+        "date_from": d_from.isoformat(),
+        "date_to": d_to.isoformat(),
+        "kind_filter": kind,
+        "voucher_totals": {
+            "receipt": total_receipt,
+            "disbursement": total_disbursement,
+            "net": total_net,
+        },
+    }
+    ctx.update(paginate_queryset(request, rows))
+    return render(request, "reports/treasury_vouchers.html", ctx)

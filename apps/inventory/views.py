@@ -1,7 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.db.models import DecimalField, F, Value
+from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,13 +9,19 @@ from django.urls import reverse
 from django.db import transaction
 from django.views.decorators.http import require_POST
 
-from apps.catalog.models import Product, RecipeLine
+from apps.catalog.models import Category, Product, RecipeLine
 from apps.core.models import log_audit
 from apps.core.pagination import paginate_queryset
 from apps.core.services import SessionService
 from apps.inventory.forms import RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
-from apps.inventory.services import ensure_stock_balance, adjust_stock, get_unit_cost, receive_purchase_stock
+from apps.inventory.services import (
+    adjust_stock,
+    ensure_stock_balance,
+    get_unit_cost,
+    receive_purchase_stock,
+    stock_home_base_queryset,
+)
 from apps.purchasing.models import PurchaseLine
 
 
@@ -44,28 +50,75 @@ def _inventory_tpl(request, shell_tpl, classic_tpl):
 @login_required
 def inventory_home(request):
     base_qs = (
-        StockBalance.objects.select_related("product", "product__unit")
-        .filter(product__is_stock_tracked=True)
-        .exclude(product__product_type=Product.ProductType.MANUFACTURED)
-        .exclude(product__product_type=Product.ProductType.SERVICE)
-        .exclude(product__product_type=Product.ProductType.COMMISSION)
+        stock_home_base_queryset()
+        .select_related("product", "product__unit", "product__category")
         .order_by("product__name_ar")
     )
     zero_min = Value(Decimal("0"), output_field=DecimalField(max_digits=20, decimal_places=6))
-    low_qs = (
-        base_qs.annotate(_min_lvl=Coalesce(F("product__min_stock_level"), zero_min))
-        .filter(quantity_on_hand__lte=F("_min_lvl"))
-        .order_by("quantity_on_hand")[:40]
-    )
-    low = list(low_qs)
-    for r in low:
-        r.value = (r.quantity_on_hand * r.average_cost).quantize(Decimal("0.01"))
 
-    pag = paginate_queryset(request, base_qs)
+    filtered_qs = base_qs
+    q_text = (request.GET.get("q") or "").strip()
+    if q_text:
+        filtered_qs = filtered_qs.filter(
+            Q(product__name_ar__icontains=q_text)
+            | Q(product__name_en__icontains=q_text)
+            | Q(product__barcode__icontains=q_text)
+        )
+
+    cat_raw = request.GET.get("category", "").strip()
+    if cat_raw:
+        try:
+            filtered_qs = filtered_qs.filter(product__category_id=int(cat_raw))
+        except (TypeError, ValueError):
+            cat_raw = ""
+
+    ptype = (request.GET.get("product_type") or "").strip()
+    if ptype not in (Product.ProductType.RAW, Product.ProductType.READY):
+        ptype = ""
+
+    if ptype:
+        filtered_qs = filtered_qs.filter(product__product_type=ptype)
+
+    stock_filter = (request.GET.get("stock") or "").strip().lower()
+    if request.GET.get("filter") == "low":
+        stock_filter = "low"
+    if stock_filter == "low":
+        filtered_qs = filtered_qs.annotate(
+            _min_lvl_f=Coalesce(F("product__min_stock_level"), zero_min)
+        ).filter(quantity_on_hand__lte=F("_min_lvl_f"))
+    elif stock_filter == "zero":
+        filtered_qs = filtered_qs.filter(quantity_on_hand=0)
+    elif stock_filter == "positive":
+        filtered_qs = filtered_qs.filter(quantity_on_hand__gt=0)
+
+    line_value_expr = ExpressionWrapper(
+        F("quantity_on_hand") * F("average_cost"),
+        output_field=DecimalField(max_digits=24, decimal_places=6),
+    )
+    total_row = filtered_qs.annotate(_line_val=line_value_expr).aggregate(total=Sum("_line_val"))
+    inventory_total_value = (total_row["total"] or Decimal("0")).quantize(Decimal("0.01"))
+
+    pag = paginate_queryset(request, filtered_qs)
     balances_page = list(pag["page_obj"])
     for r in balances_page:
         r.value = (r.quantity_on_hand * r.average_cost).quantize(Decimal("0.01"))
-    ctx = _inventory_ctx(request, balances=balances_page, low_stock=low)
+
+    categories = Category.objects.filter(is_active=True).order_by("sort_order", "name_ar")
+    ctx = _inventory_ctx(
+        request,
+        balances=balances_page,
+        inventory_total_value=inventory_total_value,
+        filter_q=q_text,
+        filter_category=cat_raw,
+        filter_product_type=ptype,
+        filter_stock=stock_filter,
+        categories=categories,
+        product_type_choices=(
+            ("", "كل الأنواع"),
+            (Product.ProductType.RAW, Product.ProductType.RAW.label),
+            (Product.ProductType.READY, Product.ProductType.READY.label),
+        ),
+    )
     ctx.update(pag)
     return render(
         request,
@@ -363,13 +416,9 @@ def stocktake_detail(request, pk):
 
 @login_required
 def low_stock_alerts(request):
-    from django.db.models import F
-    alerts = StockBalance.objects.filter(
-        product__is_active=True,
-        product__is_stock_tracked=True,
-        product__min_stock_level__gt=0,
-        quantity_on_hand__lte=F("product__min_stock_level"),
-    ).select_related("product", "product__unit").order_by("product__name_ar")
+    from apps.inventory.services import low_stock_alert_queryset
+
+    alerts = list(low_stock_alert_queryset())
     for sb in alerts:
         sb.deficit = sb.quantity_on_hand - sb.product.min_stock_level
     return render(request, _inventory_tpl(request, "shell/low_stock_alerts.html", "inventory/low_stock_alerts.html"), _inventory_ctx(request, alerts=alerts))

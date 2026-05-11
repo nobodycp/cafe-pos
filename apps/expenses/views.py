@@ -1,6 +1,9 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -14,7 +17,11 @@ from apps.expenses.services import create_expense, delete_expense_permanent
 @login_required
 def expense_list(request):
     qs = Expense.objects.select_related("category").order_by("-expense_date", "-created_at")
-    ctx = {}
+    totals_agg = qs.aggregate(sum_amount=Sum("amount"))
+    expense_totals = {
+        "sum_amount": (totals_agg["sum_amount"] or Decimal("0")).quantize(Decimal("0.01")),
+    }
+    ctx = {"expense_totals": expense_totals}
     ctx.update(paginate_queryset(request, qs))
     return render(request, "expenses/list.html", ctx)
 

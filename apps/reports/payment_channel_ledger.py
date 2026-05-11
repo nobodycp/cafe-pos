@@ -1,4 +1,4 @@
-"""كشف حركة لكل طريقة دفع: مبيعات، مصروفات، سدادات موردين، سند قبض عميل."""
+"""كشف حركة لكل طريقة دفع: مبيعات، مصروفات، سدادات موردين، سند قبض عميل/موظف."""
 
 from __future__ import annotations
 
@@ -170,6 +170,8 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
     )
     for log in logs:
         payload = log.payload or {}
+        if payload.get("cancelled"):
+            continue
         if payload.get("voucher_type") != "receipt" or payload.get("party_type") != "customer":
             continue
         vd = _parse_voucher_date(payload, log.created_at)
@@ -219,6 +221,57 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
                     detail=detail if i == 0 else f"{detail} (تقسيم {i + 1})",
                     amount=amt,
                     customer_pk=customer_pk,
+                )
+            )
+
+    # سند قبض موظف (سداد ذمة) — الصندوق الموحّد (مع تقسيم طرق دفع)
+    for log in logs:
+        payload = log.payload or {}
+        if payload.get("cancelled"):
+            continue
+        if payload.get("voucher_type") != "receipt" or payload.get("party_type") != "employee":
+            continue
+        vd = _parse_voucher_date(payload, log.created_at)
+        if not (date_from <= vd <= date_to):
+            continue
+        party = (payload.get("party_label") or "").strip() or "موظف"
+        note = (payload.get("note") or "").strip()
+        detail = (note[:180] + "…") if len(note) > 180 else (note or "سند قبض موظف")
+        splits = payload.get("payment_splits")
+
+        amounts_for_method: List[Decimal] = []
+        if splits and isinstance(splits, list):
+            for item in splits:
+                if not isinstance(item, dict):
+                    continue
+                m = (item.get("method") or "").strip()
+                if m != method:
+                    continue
+                amounts_for_method.append(_as_decimal(item.get("amount")).quantize(Decimal("0.01")))
+        else:
+            m = (payload.get("method") or "").strip()
+            if m == method:
+                amounts_for_method.append(_as_decimal(payload.get("amount")).quantize(Decimal("0.01")))
+
+        for i, amt in enumerate(amounts_for_method):
+            if amt <= 0:
+                continue
+            sort_at = log.created_at
+            if i == 0 and payload.get("voucher_date"):
+                try:
+                    d = date.fromisoformat(str(payload["voucher_date"])[:10])
+                    sort_at = timezone.make_aware(datetime.combine(d, datetime.min.time()))
+                except ValueError:
+                    pass
+            rows.append(
+                LedgerRow(
+                    sort_at=sort_at,
+                    row_date=vd,
+                    flow_in=True,
+                    kind_ar="سند قبض موظف (ذمة)",
+                    party=party,
+                    detail=detail if i == 0 else f"{detail} (تقسيم {i + 1})",
+                    amount=amt,
                 )
             )
 

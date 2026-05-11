@@ -3,6 +3,7 @@ from django.urls import path
 from apps.catalog.views import (
     category_create,
     category_quick_create,
+    unit_quick_create,
     category_search,
     category_delete,
     category_edit,
@@ -42,6 +43,7 @@ urlpatterns = [
     path("categories/", category_list, name="category_list"),
     path("api/categories/search/", category_search, name="category_search"),
     path("api/categories/quick-create/", category_quick_create, name="category_quick_create"),
+    path("api/units/quick-create/", unit_quick_create, name="unit_quick_create"),
     path("categories/create/", category_create, name="category_create"),
     path("categories/<int:pk>/edit/", category_edit, name="category_edit"),
     path("categories/<int:pk>/delete/", category_delete, name="category_delete"),
