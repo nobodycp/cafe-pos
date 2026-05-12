@@ -20,6 +20,24 @@ def ensure_stock_balance(product: Product) -> StockBalance:
     return sb
 
 
+def sync_missing_stock_balance_rows() -> int:
+    """يُنشئ سطر رصيد صفر لكل منتج متتبع بلا StockBalance (لظهوره في شاشة المخزون)."""
+    tracked_ids = list(Product.objects.filter(is_stock_tracked=True).values_list("pk", flat=True))
+    if not tracked_ids:
+        return 0
+    have = set(StockBalance.objects.filter(product_id__in=tracked_ids).values_list("product_id", flat=True))
+    created = 0
+    for pid in tracked_ids:
+        if pid in have:
+            continue
+        StockBalance.objects.get_or_create(
+            product_id=pid,
+            defaults={"quantity_on_hand": Decimal("0"), "average_cost": Decimal("0")},
+        )
+        created += 1
+    return created
+
+
 def get_unit_cost(product: Product, _seen: Optional[set] = None) -> Decimal:
     """Latest valuation for one salable unit (manufacturing = rolled-up BOM cost)."""
     if product.product_type == Product.ProductType.COMMISSION:
@@ -239,12 +257,7 @@ def check_stock_available(product: Product, quantity: Decimal) -> None:
 
 def stock_home_base_queryset(*, active_products_only: bool = False):
     """أرصدة كما في صفحة المخزون الرئيسية (بدون ترتيب أو select_related إضافي)."""
-    qs = (
-        StockBalance.objects.filter(product__is_stock_tracked=True)
-        .exclude(product__product_type=Product.ProductType.MANUFACTURED)
-        .exclude(product__product_type=Product.ProductType.SERVICE)
-        .exclude(product__product_type=Product.ProductType.COMMISSION)
-    )
+    qs = StockBalance.objects.filter(product__is_stock_tracked=True)
     if active_products_only:
         qs = qs.filter(product__is_active=True)
     return qs

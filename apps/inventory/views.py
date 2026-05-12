@@ -21,6 +21,7 @@ from apps.inventory.services import (
     get_unit_cost,
     receive_purchase_stock,
     stock_home_base_queryset,
+    sync_missing_stock_balance_rows,
 )
 from apps.purchasing.models import PurchaseLine
 
@@ -49,6 +50,7 @@ def _inventory_tpl(request, shell_tpl, classic_tpl):
 
 @login_required
 def inventory_home(request):
+    sync_missing_stock_balance_rows()
     base_qs = (
         stock_home_base_queryset()
         .select_related("product", "product__unit", "product__category")
@@ -73,7 +75,8 @@ def inventory_home(request):
             cat_raw = ""
 
     ptype = (request.GET.get("product_type") or "").strip()
-    if ptype not in (Product.ProductType.RAW, Product.ProductType.READY):
+    valid_product_types = {c[0] for c in Product.ProductType.choices}
+    if ptype not in valid_product_types:
         ptype = ""
 
     if ptype:
@@ -113,11 +116,7 @@ def inventory_home(request):
         filter_product_type=ptype,
         filter_stock=stock_filter,
         categories=categories,
-        product_type_choices=(
-            ("", "كل الأنواع"),
-            (Product.ProductType.RAW, Product.ProductType.RAW.label),
-            (Product.ProductType.READY, Product.ProductType.READY.label),
-        ),
+        product_type_choices=[("", "كل الأنواع")] + list(Product.ProductType.choices),
     )
     ctx.update(pag)
     return render(
@@ -137,13 +136,7 @@ def movement_list(request):
 
 @login_required
 def stock_adjust(request):
-    products = (
-        Product.objects.filter(is_active=True, is_stock_tracked=True)
-        .exclude(product_type=Product.ProductType.MANUFACTURED)
-        .exclude(product_type=Product.ProductType.SERVICE)
-        .exclude(product_type=Product.ProductType.COMMISSION)
-        .order_by("name_ar")
-    )
+    products = Product.objects.filter(is_active=True, is_stock_tracked=True).order_by("name_ar")
     errors = []
 
     if request.method == "POST":
@@ -318,11 +311,7 @@ def stocktake_create(request):
         note = request.POST.get("note", "")
         take = StockTake.objects.create(work_session=session, note=note)
 
-        products = Product.objects.filter(
-            is_active=True, is_stock_tracked=True
-        ).exclude(
-            product_type__in=[Product.ProductType.MANUFACTURED, Product.ProductType.SERVICE, Product.ProductType.COMMISSION]
-        ).order_by("name_ar")
+        products = Product.objects.filter(is_active=True, is_stock_tracked=True).order_by("name_ar")
 
         for p in products:
             try:
