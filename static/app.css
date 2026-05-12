@@ -1,5 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
 
+/* إجبار الوضع الفاتح على مستوى المتصفح (حقول، تمرير) — لا نستخدم class="dark" على html */
+html {
+  color-scheme: light;
+}
+
 /* ── Minimal custom CSS (Tailwind CDN handles the rest) ── */
 /*
   هيكل التطبيق:

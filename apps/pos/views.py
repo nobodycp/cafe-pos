@@ -249,11 +249,11 @@ def pos_main(request):
     treasury_next = ""
     recent_treasury_rows: list = []
     pi_errors: list = []
-    pi_suppliers: list = []
-    pi_payment_rows: list = []
-    pi_form_state: dict = {}
-    pi_next = ""
-    pi_form_action = ""
+    pi_suppliers = list(Supplier.objects.filter(is_active=True).order_by("name_ar"))
+    pi_payment_rows = _payment_rows()
+    pi_form_state = _purchase_form_state(request)
+    pi_next = reverse("pos:main")
+    pi_form_action = reverse("shell:purchase_new")
     pos_product_quick_form = None
     pos_product_overlay_open = False
     pos_product_name_input_id = ""
@@ -264,11 +264,6 @@ def pos_main(request):
         treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
         treasury_next = reverse("pos:main")
         recent_treasury_rows = list(recent_treasury_voucher_logs(limit=8))
-        pi_suppliers = list(Supplier.objects.filter(is_active=True).order_by("name_ar"))
-        pi_payment_rows = _payment_rows()
-        pi_form_state = _purchase_form_state(request)
-        pi_next = reverse("pos:main")
-        pi_form_action = reverse("shell:purchase_new")
         if request.user.has_perm("catalog.add_product"):
             retry = request.session.pop("pos_product_quick_retry", None)
             if retry:

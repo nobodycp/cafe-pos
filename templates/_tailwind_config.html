@@ -1,6 +1,7 @@
 {# Shared Tailwind CDN theme — keep in sync with :root tokens in static/app.css #}
 <script>
 tailwind.config = {
+  /* class: dark: يعمل فقط تحت .dark على html — لا نضيفها فيبقى الوضع فاتحاً (لا يعتمد على نظام التشغيل) */
   darkMode: 'class',
   safelist: [
     'bg-success', 'bg-danger', 'bg-info', 'bg-warning',

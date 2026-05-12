@@ -12,15 +12,23 @@
     <input type="hidden" name="next" value="{{ purchase_next }}">
     {% endif %}
 
-    {% if suppliers %}
+    {% if supplier %}
+    {# فاتورة شراء من صفحة مورد محدد — المورد ثابت من الرابط #}
+    <div class="{% if purchase_form_compact %}mb-2 max-w-none{% else %}mb-4 max-w-xl{% endif %}">
+      <label class="{% if purchase_form_compact %}text-xs{% endif %} font-semibold text-gray-700 dark:text-gray-200">المورد</label>
+      <input type="hidden" name="supplier_id" id="purchase-supplier-id" value="{{ supplier.pk }}">
+      <input type="hidden" name="supplier_label" id="purchase-supplier-label" value="{{ supplier.name_ar }}">
+      <p class="mt-1 mb-0 text-sm font-bold text-gray-900 dark:text-gray-100">{{ supplier.name_ar }}</p>
+    </div>
+    {% else %}
     <div class="{% if purchase_form_compact %}mb-2 max-w-none{% else %}mb-4 max-w-xl{% endif %} relative">
-      <label class="{% if purchase_form_compact %}text-xs{% endif %}">المورد</label>
-      <input type="hidden" name="supplier_id" id="purchase-supplier-id">
-      <input type="hidden" name="supplier_label" id="purchase-supplier-label">
-      <input type="text" id="purchase-supplier-search" autocomplete="off" placeholder="ابحث عن المورد أو أضف مورد جديد" class="w-full">
+      <label class="{% if purchase_form_compact %}text-xs{% endif %} font-semibold text-gray-700 dark:text-gray-200">المورد</label>
+      <input type="hidden" name="supplier_id" id="purchase-supplier-id" value="">
+      <input type="hidden" name="supplier_label" id="purchase-supplier-label" value="">
+      <input type="text" id="purchase-supplier-search" autocomplete="off" placeholder="ابحث بالاسم أو اكتب اسماً جديداً…" class="w-full">
       <div id="purchase-supplier-hits" class="purchase-ac-hits absolute start-0 end-0 top-full mt-px z-40 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
-      <div id="purchase-supplier-new" class="hidden mt-1.5">
-        <button type="button" id="purchase-supplier-create" class="h-8 px-3 rounded-sm bg-success text-white text-xs font-bold">+ إضافة مورد جديد</button>
+      <div id="purchase-supplier-new" class="hidden mt-2">
+        <button type="button" id="purchase-supplier-create" class="w-full sm:w-auto min-h-9 px-4 rounded-sm bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-md border-0 cursor-pointer">إضافة مورد جديد بهذا الاسم</button>
       </div>
     </div>
     {% endif %}

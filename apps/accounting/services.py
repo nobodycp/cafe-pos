@@ -23,10 +23,21 @@ def _next_je_number() -> str:
 
 
 def _get_account(system_code: str) -> Account:
-    try:
-        return Account.objects.get(system_code=system_code, is_active=True)
-    except Account.DoesNotExist:
-        raise ValueError(f"ACCOUNT_NOT_FOUND:{system_code}")
+    acc = Account.objects.filter(system_code=system_code, is_active=True).first()
+    if acc:
+        return acc
+    inactive = Account.objects.filter(system_code=system_code, is_active=False).first()
+    if inactive:
+        inactive.is_active = True
+        inactive.save(update_fields=["is_active", "updated_at"])
+        return inactive
+    from apps.accounting.chart_defaults import ensure_default_chart_accounts
+
+    ensure_default_chart_accounts()
+    acc = Account.objects.filter(system_code=system_code, is_active=True).first()
+    if acc:
+        return acc
+    raise ValueError(f"ACCOUNT_NOT_FOUND:{system_code}")
 
 
 def _build_entry(
