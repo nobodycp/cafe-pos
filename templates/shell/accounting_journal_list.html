@@ -14,6 +14,7 @@
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="journal" %}
+    <div class="shell-spa-table-root">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -34,6 +35,7 @@
         </table>
         {% include "shell/_shell_pagination.html" %}
       </div>
+    </div>
     </div>
   </div>
 </div>

@@ -6,6 +6,7 @@
   </a>
 </div>
 
+<div class="shell-spa-table-root">
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
@@ -63,8 +64,8 @@
   </div>
 </div>
 
-<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-muted">
-  <p>صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} سجل</p>
+<div class="ds-shell-pagination flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-muted">
+  <p class="m-0">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} سجل</p>
   <div class="flex flex-wrap items-center gap-2">
     <span class="text-xs font-semibold">الصفوف</span>
     {% for n in per_page_choices %}
@@ -79,4 +80,5 @@
     <a href="?tab=payment&page={{ page_obj.next_page_number }}&per_page={{ per_page }}" class="h-8 px-3 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-bold hover:border-primary">التالية</a>
     {% endif %}
   </div>
+</div>
 </div>

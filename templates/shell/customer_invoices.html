@@ -18,6 +18,7 @@
         <div><span class="block text-xs text-muted font-bold">عدد الفواتير</span><span class="font-extrabold">{{ page_obj.paginator.count }}</span></div>
       </div>
     </div>
+    <div class="shell-spa-table-root">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -44,6 +45,7 @@
         </table>
         {% include "shell/_shell_pagination.html" %}
       </div>
+    </div>
     </div>
   </div>
 </div>

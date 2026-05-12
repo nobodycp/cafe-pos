@@ -6,6 +6,7 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   {% include "shell/_shell_toolbar.html" with toolbar_title="حركات المخزون" toolbar_hint="سجل الحركات حسب الوقت" toolbar_back_url=shell_inventory_home_url toolbar_back_label="← المخزون" toolbar_back_title="المخزون" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="shell-spa-table-root">
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
         <table class="w-full text-sm ds-table">
@@ -42,6 +43,7 @@
         </table>
         {% include "shell/_shell_pagination.html" %}
       </div>
+    </div>
     </div>
   </div>
 </div>

@@ -34,6 +34,7 @@
         <a href="{% url 'shell:suppliers' %}?per_page={{ per_page }}&amp;hide_zero_net=0" class="ds-btn shrink-0">مسح الفلاتر</a>
       </div>
     </form>
+    <div class="shell-spa-table-root">
     <div class="ds-panel">
     <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
       <table class="w-full text-sm ds-table">
@@ -85,6 +86,7 @@
         </tfoot>
       </table>
     {% include "shell/_shell_pagination.html" %}
+    </div>
     </div>
     </div>
   </div>
