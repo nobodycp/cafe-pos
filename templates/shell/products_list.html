@@ -36,12 +36,15 @@
         {% if active_tab == "products" %}
         <table class="w-full text-sm ds-table">
           <thead>
-            <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[22rem] w-[22rem]">إجراءات</th></tr>
+            <tr><th>المنتج</th><th>التصنيف</th><th>السعر</th><th>النوع</th><th>المخزون</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[14rem] w-[14rem]">إجراءات</th></tr>
           </thead>
           <tbody>
             {% for p in products %}
             <tr>
-              <td><span class="font-bold">{{ p.name_ar }}</span>{% if p.name_en %}<br><span class="text-xs text-muted">{{ p.name_en }}</span>{% endif %}</td>
+              <td>
+                <a href="{% url 'shell:product_card' p.pk %}" title="فتح كرت المنتج" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/30 rounded-sm">{{ p.name_ar }}</a>
+                {% if p.name_en %}<br><span class="text-xs text-muted">{{ p.name_en }}</span>{% endif %}
+              </td>
               <td>{{ p.category.name_ar|default:"—" }}</td>
               <td class="font-semibold">{{ p.selling_price|intcomma }}</td>
               <td>{{ p.get_product_type_display }}</td>
@@ -49,15 +52,9 @@
               <td>{% if p.is_active %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/15 text-success">نشط</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/15 text-danger">معطّل</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:product_card' p.pk %}" class="ds-btn" title="رصيد، حركات، وتصنيع دفعة">كرت المنتج</a>
                   <a href="{% url 'shell:product_edit' p.pk %}" class="ds-btn">تعديل</a>
                   {% if p.product_type == 'manufactured' %}
                   <a href="{% url 'shell:recipe_list' p.pk %}" class="ds-btn manufacturing-formula-link">معادلة التصنيع</a>
-                  {% if p.recipe_line_count %}
-                  <a href="{% url 'shell:product_card' p.pk %}#product-manufacture-batch" class="ds-btn bg-primary/15 border-primary/30 text-primary font-extrabold">تصنيع دفعة</a>
-                  {% else %}
-                  <a href="{% url 'shell:product_card' p.pk %}#product-manufacture-batch" class="ds-btn opacity-80" title="أضف معادلة تصنيع أولاً من «معادلة التصنيع»">تصنيع دفعة</a>
-                  {% endif %}
                   {% endif %}
                   <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
                   <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn text-danger border-danger/40">حذف</button></form>
