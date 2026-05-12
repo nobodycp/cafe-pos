@@ -258,9 +258,9 @@
   <div class="rounded-xl border-2 border-red-700/60 bg-red-950/20 dark:bg-red-950/30 p-5 shadow-sm">
     <h2 class="text-lg font-extrabold text-red-100 mb-2">تفريغ بيانات التشغيل (للاختبار)</h2>
     <p class="text-sm text-red-50/90 leading-relaxed mb-4">
-      يحذف <strong>كل السجلات التشغيلية</strong> من الجداول (فواتير، عملاء، موردين، مخزون، محاسبة، سندات، ورديات، …)
-      مع الإبقاء على: <strong>حسابات المستخدمين</strong>، و<strong>إعدادات المقهى/النظام</strong> من التبويبات أعلاه،
-      و<strong>هيكل Django</strong> (الهجرات، أنواع المحتوى، جدول الصلاحيات المرجعي).
+      يفرّغ <strong>سجلات التشغيل</strong> من الجداول (فواتير، مخزون، محاسبة، سندات، ورديات، …) مع الإبقاء دائماً على:
+      <strong>حسابات المستخدمين</strong>، و<strong>إعدادات المقهى/النظام</strong>، و<strong>هيكل Django</strong>.
+      يمكنك تحديد ما يُحفظ من البيانات التشغيلية عبر المربعات أدناه؛ إن لم تختر شيئاً يُمسح كل شيء كما كان سابقاً.
       لا يُستخدم على بيانات إنتاج حقيقية.
     </p>
     <ul class="text-xs text-red-100/85 list-disc list-inside mb-4 space-y-1">
@@ -268,10 +268,23 @@
       <li>يُفعّل عند <code class="bg-black/25 px-1 rounded">DEBUG=True</code> أو عند وضع <code class="bg-black/25 px-1 rounded">ALLOW_TEST_DATABASE_WIPE=1</code> في البيئة.</li>
       <li>يدعم حالياً SQLite و PostgreSQL فقط.</li>
       <li>بعد المسح قد تحتاج إعادة تعبئة تجربة: <code class="bg-black/25 px-1 rounded">python manage.py seed_demo</code></li>
+      <li><strong>الموظفون:</strong> يُحفظ جدول الموظفين فقط؛ تُفرغ سلف وصرف وشراء مقهى مرتبطة، وتُصفّر أرصدة الجاري على البطاقة.</li>
+      <li><strong>العملاء / الموردون:</strong> تُحفظ البطاقات وتُفرغ الدفاتر والحركات المرتبطة؛ يُصفّر حقل الرصيد الظاهر.</li>
     </ul>
     {% if user.is_superuser %}
-    <form method="post" action="{% url 'shell:settings_database_wipe' %}" class="max-w-xl" onsubmit="return confirm('تأكيد نهائي: سيتم حذف كل بيانات التشغيل من قاعدة البيانات. هل أنت متأكد؟');">
+    <form method="post" action="{% url 'shell:settings_database_wipe' %}" class="max-w-2xl" onsubmit="return confirm('تأكيد نهائي: سيتم تفريغ البيانات حسب اختيارك. هل أنت متأكد؟');">
       {% csrf_token %}
+      <fieldset class="mb-4 rounded-lg border border-red-400/40 bg-black/15 p-3">
+        <legend class="text-xs font-extrabold text-red-100 px-1 mb-2">ما الذي تُبقيه؟ (اترك الكل فارغاً = تفريغ كامل)</legend>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-red-50/95">
+          {% for key, label in wipe_preserve_options %}
+          <label class="flex items-start gap-2 cursor-pointer rounded-md p-1.5 hover:bg-white/5">
+            <input type="checkbox" name="preserve_{{ key }}" value="1" class="mt-0.5 shrink-0">
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
       <div class="mb-3">
         <label class="block text-xs font-bold text-red-100 mb-1">انسخ عبارة التأكيد في المربع</label>
         <p class="text-[11px] font-mono bg-black/30 text-amber-200 px-2 py-1 rounded mb-1 select-all" dir="rtl">تفريغ قاعدة البيانات</p>

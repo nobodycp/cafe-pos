@@ -618,7 +618,7 @@ def settings_database_wipe(request):
     """تفريغ بيانات التشغيل للاختبار — سوبر يوزر فقط، ومعطّل إلا ببيئة اختبار."""
     from django.conf import settings as dj_settings
 
-    from apps.core.database_wipe import wipe_runtime_tables
+    from apps.core.database_wipe import PRESERVE_LABELS_AR, wipe_runtime_tables
     from apps.core.models import PosSettings
 
     redirect_url = reverse("shell:settings") + "?tab=test-data"
@@ -638,8 +638,13 @@ def settings_database_wipe(request):
     if phrase != "تفريغ قاعدة البيانات":
         messages.error(request, "اكتب عبارة التأكيد بالضبط كما في المربع الرمادي.")
         return redirect(redirect_url)
+    preserve_keys = [
+        k
+        for k in PRESERVE_LABELS_AR
+        if (request.POST.get(f"preserve_{k}") or "").strip() in ("1", "on", "true", "yes")
+    ]
     try:
-        result = wipe_runtime_tables()
+        result = wipe_runtime_tables(preserve_keys=preserve_keys)
     except NotImplementedError as e:
         messages.error(request, str(e))
         return redirect(redirect_url)
@@ -650,16 +655,20 @@ def settings_database_wipe(request):
 
     PosSettings.objects.get_or_create(pk=1)
     logger.warning(
-        "database wipe completed user_id=%s tables_cleared=%s vendor=%s",
+        "database wipe completed user_id=%s tables_cleared=%s vendor=%s preserve=%s",
         getattr(request.user, "pk", None),
         result.get("tables_cleared"),
         result.get("vendor"),
+        result.get("preserve_keys"),
     )
+    kept = result.get("preserve_keys") or []
+    kept_ar = "، ".join(PRESERVE_LABELS_AR[k] for k in kept) if kept else "لا شيء (تفريغ كامل للجداول التشغيلية)"
     messages.success(
         request,
         "تم تفريغ بيانات النظام التشغيلية. ما زال موجوداً: المستخدمون، إعدادات المقهى/النظام من هذه الصفحة، "
         "ومخطط Django (الهجرات، أنواع المحتوى، الصلاحيات). "
         f"عدد الجداول التي أُفرغت: {result['tables_cleared']}. "
+        f"ما أُبقي من البيانات التشغيلية (حسب اختيارك): {kept_ar}. "
         "لإعادة بيانات تجربة شغّل من الطرفية: python manage.py seed_demo",
     )
     return redirect(redirect_url)

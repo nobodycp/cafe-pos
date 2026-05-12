@@ -66,4 +66,7 @@ def resolve_settings_request(
         ctx["receipt_preview_invoice_id"] = SaleInvoice.objects.order_by("-pk").values_list("pk", flat=True).first()
     except Exception:
         ctx["receipt_preview_invoice_id"] = None
+    from apps.core.database_wipe import PRESERVE_LABELS_AR
+
+    ctx["wipe_preserve_options"] = sorted(PRESERVE_LABELS_AR.items(), key=lambda x: x[0])
     return ctx
