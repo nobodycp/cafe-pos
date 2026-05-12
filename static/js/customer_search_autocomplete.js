@@ -77,17 +77,19 @@
             if (!list.length) {
               if (quickCreateUrl && q.length >= 2) {
                 hits.innerHTML = '';
-                var row = document.createElement('div');
-                row.style.padding = '8px 10px';
-                row.style.fontSize = '.8rem';
-                row.style.lineHeight = '1.35';
-                var t1 = document.createTextNode('لا توجد نتائج — ');
-                row.appendChild(t1);
+                var wrap = document.createElement('div');
+                wrap.className = 'px-2 py-2';
+                var emptyMsg = document.createElement('div');
+                emptyMsg.className =
+                  'text-center text-[11px] font-semibold text-gray-500 dark:text-gray-400';
+                emptyMsg.textContent = 'لا توجد نتائج';
+                wrap.appendChild(emptyMsg);
                 var qBtn = document.createElement('button');
                 qBtn.type = 'button';
                 qBtn.setAttribute('data-cust-quick-create', '1');
-                qBtn.className = hitClass;
-                qBtn.textContent = '+ عميل';
+                qBtn.className =
+                  'mt-2 flex h-8 w-full items-center justify-center rounded-sm bg-success px-3 text-xs font-bold text-white hover:opacity-95';
+                qBtn.textContent = '+ إضافة عميل جديد';
                 qBtn.addEventListener('mousedown', function (ev) {
                   ev.preventDefault();
                 });
@@ -126,8 +128,8 @@
                       window.alert('تعذّر الاتصال بالخادم');
                     });
                 };
-                row.appendChild(qBtn);
-                hits.appendChild(row);
+                wrap.appendChild(qBtn);
+                hits.appendChild(wrap);
                 if (useDisplay) hits.style.display = 'block';
                 return;
               }
@@ -165,6 +167,7 @@
       /* Tab: اختيار أول عميل (كاشير + خريطة الطاولات) — لا يعتمد على display:none */
       if (e.key === 'Tab') {
         var first = hits.querySelector('[data-cust-hit]');
+        if (!first) first = hits.querySelector('[data-cust-quick-create]');
         if (first && !String(first.textContent || '').includes('لا توجد')) {
           e.preventDefault();
           first.click();
