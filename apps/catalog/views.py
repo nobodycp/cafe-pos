@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 import json
 from django.shortcuts import get_object_or_404, redirect, render
@@ -129,7 +129,11 @@ def product_list(request):
     ctx = _catalog_ctx(request, q=q, active_tab=active_tab)
 
     if active_tab == "products":
-        qs = Product.objects.select_related("category", "unit").exclude(product_type=Product.ProductType.RAW)
+        qs = (
+            Product.objects.select_related("category", "unit")
+            .exclude(product_type=Product.ProductType.RAW)
+            .annotate(recipe_line_count=Count("recipe_lines"))
+        )
         if q:
             qs = qs.filter(name_ar__icontains=q)
         ctx.update(paginate_queryset(request, qs.order_by("name_ar")))

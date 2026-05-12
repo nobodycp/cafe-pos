@@ -65,8 +65,10 @@
   {% endif %}
 </div>
 
-{% if product.product_type == 'manufactured' and recipe_count > 0 %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5 no-print">
+{% if product.product_type == 'manufactured' %}
+<div id="product-manufacture-batch" class="scroll-mt-20 mb-5 no-print">
+{% if recipe_count > 0 %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
   <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">تصنيع دفعة</h3>
   <p class="text-sm text-muted mb-4 m-0">
     يُخصم المخزون من المواد حسب المعادلة ويُضاف رصيد الجاهز لهذا المنتج.
@@ -91,18 +93,20 @@
     </button>
   </form>
 </div>
-{% elif product.product_type == 'manufactured' %}
-<div class="bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-5 mb-5 no-print">
-  <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 m-0 mb-2">لماذا لا يظهر «تصنيع دفعة»؟</h3>
+{% else %}
+<div class="bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-5">
+  <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 m-0 mb-2">لماذا لا يظهر نموذج «تصنيع دفعة»؟</h3>
   <p class="text-sm text-amber-950/85 dark:text-amber-100/90 m-0 mb-3 leading-relaxed">
-    الصنف <strong>منتج مصنع</strong> لكن بدون <strong>معادلة تصنيع</strong> لا يُعرض نموذج الإنتاج.
-    عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا حقل «كمية الإنتاج»:
+    الصنف <strong>منتج مصنع</strong> لكن بدون <strong>معادلة تصنيع</strong> لا يُعرض حقل كمية الإنتاج.
+    عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا النموذج:
     تدخل مثلاً <strong>30</strong> فيُزاد رصيد الأراجيل ويُخصم المخزون من المكوّنات تلقائياً وفق المعادلة.
   </p>
   <a href="{% url 'shell:recipe_list' product.pk %}"
      class="inline-flex h-10 items-center px-4 rounded-lg bg-amber-800 text-white font-bold text-sm hover:bg-amber-900 no-underline">
     إضافة / تعديل معادلة التصنيع
   </a>
+</div>
+{% endif %}
 </div>
 {% endif %}
 
