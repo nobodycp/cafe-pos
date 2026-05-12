@@ -1,273 +1,260 @@
 {% extends "shell/base.html" %}
 {% load humanize %}
 {% block title %}كرت الصنف — {{ product.name_ar }}{% endblock %}
-{% block content %}
+{% block cashier_body %}
+{% url 'shell:product_list' as shell_product_list_url %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  {% include "shell/_shell_toolbar.html" with toolbar_title="كرت الصنف" toolbar_hint="رصيد، مبيعات، حركات" toolbar_back_url=shell_product_list_url toolbar_back_label="← المنتجات" toolbar_back_title="قائمة المنتجات" %}
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
 
-{# ── Page Header ── #}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-3">
-  <div>
-    <div class="flex items-center gap-3 flex-wrap">
-      <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white m-0">{{ product.name_ar }}</h1>
-      <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold
-        {% if product.product_type == 'manufactured' %}bg-info/15 text-info
-        {% elif product.product_type == 'ready' %}bg-success/15 text-success
-        {% elif product.product_type == 'service' %}bg-warning/20 text-yellow-700 dark:text-warning
-        {% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">
-        {{ product.get_product_type_display }}
-      </span>
+    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 flex flex-wrap items-center gap-2">
+      <div class="min-w-0 flex-1">
+        <p class="ds-section-title m-0 truncate" title="{{ product.name_ar }}">{{ product.name_ar }}</p>
+        {% if product.name_en %}<p class="text-xs text-muted m-0 mt-0.5 truncate">{{ product.name_en }}</p>{% endif %}
+        <span class="inline-flex mt-1.5 px-2 py-0.5 rounded-sm text-[10px] font-extrabold
+          {% if product.product_type == 'manufactured' %}bg-info/15 text-info
+          {% elif product.product_type == 'ready' %}bg-success/15 text-success
+          {% elif product.product_type == 'service' %}bg-warning/20 text-yellow-800 dark:text-warning
+          {% else %}bg-warning/20 text-yellow-800 dark:text-yellow-400{% endif %}">
+          {{ product.get_product_type_display }}
+        </span>
+      </div>
+      <div class="flex flex-wrap gap-1.5 items-center shrink-0 no-print">
+        <button type="button" onclick="window.print();"
+                class="ds-btn shrink-0 inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+          طباعة
+        </button>
+        <a href="{% url 'shell:product_edit' product.pk %}" class="ds-btn ds-btn-primary shrink-0">تعديل</a>
+        {% if product.product_type == 'manufactured' %}
+        <a href="{% url 'shell:recipe_list' product.pk %}" class="ds-btn shrink-0">معادلة التصنيع</a>
+        {% endif %}
+      </div>
     </div>
-    {% if product.name_en %}<p class="text-sm text-muted mt-0.5">{{ product.name_en }}</p>{% endif %}
-  </div>
-  <div class="flex gap-2 flex-wrap">
-    <button onclick="window.print();"
-            class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk inline-flex items-center gap-1.5 cursor-pointer border-none no-print">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-      طباعة
-    </button>
-    <a href="{% url 'shell:product_list' %}"
-       class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] border border-gray-300 dark:border-gray-600 text-muted hover:bg-gray-100 dark:hover:bg-gray-700 inline-flex items-center gap-1.5 no-print">
-      <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
-      المنتجات
-    </a>
-  </div>
-</div>
 
-{# ── Summary Cards ── #}
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 mb-5">
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">الرصيد الحالي</span>
-    <span class="text-2xl font-extrabold {% if on_hand > 0 %}text-success{% else %}text-danger{% endif %}">{{ on_hand|floatformat:2|intcomma }}</span>
-    {% if product.unit %}<span class="block text-xs text-muted mt-0.5">{{ product.unit.name_ar }}</span>{% endif %}
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">متوسط التكلفة</span>
-    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ avg_cost|floatformat:2|intcomma }}</span>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">القيمة</span>
-    <span class="text-2xl font-extrabold text-primary">{{ stock_value|floatformat:2|intcomma }}</span>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">سعر البيع</span>
-    <span class="text-2xl font-extrabold text-primary">{{ product.selling_price|floatformat:2|intcomma }}</span>
-  </div>
-  {% if last_purchase_cost != None %}
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">آخر سعر شراء</span>
-    <span class="text-2xl font-extrabold text-gray-800 dark:text-white">{{ last_purchase_cost|floatformat:2|intcomma }}</span>
-  </div>
-  {% endif %}
-  {% if bom_cost != None %}
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-    <span class="block text-xs font-semibold text-muted mb-1">تكلفة التصنيع</span>
-    <span class="text-2xl font-extrabold text-danger">{{ bom_cost|floatformat:2|intcomma }}</span>
-  </div>
-  {% endif %}
-</div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-2 mb-2">
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">الرصيد الحالي</span>
+        <span class="text-xl font-extrabold tabular-nums {% if on_hand > 0 %}text-success{% else %}text-danger{% endif %}">{{ on_hand|floatformat:2|intcomma }}</span>
+        {% if product.unit %}<span class="block text-xs text-muted mt-0.5">{{ product.unit.name_ar }}</span>{% endif %}
+      </div>
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">متوسط التكلفة</span>
+        <span class="text-xl font-extrabold tabular-nums text-gray-800 dark:text-gray-100">{{ avg_cost|floatformat:2|intcomma }}</span>
+      </div>
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">القيمة</span>
+        <span class="text-xl font-extrabold tabular-nums text-primary">{{ stock_value|floatformat:2|intcomma }}</span>
+      </div>
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">سعر البيع</span>
+        <span class="text-xl font-extrabold tabular-nums text-primary">{{ product.selling_price|floatformat:2|intcomma }}</span>
+      </div>
+      {% if last_purchase_cost != None %}
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">آخر سعر شراء</span>
+        <span class="text-xl font-extrabold tabular-nums text-gray-800 dark:text-gray-100">{{ last_purchase_cost|floatformat:2|intcomma }}</span>
+      </div>
+      {% endif %}
+      {% if bom_cost != None %}
+      <div class="rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-center">
+        <span class="block text-[10px] font-extrabold text-muted mb-1">تكلفة التصنيع</span>
+        <span class="text-xl font-extrabold tabular-nums text-danger">{{ bom_cost|floatformat:2|intcomma }}</span>
+      </div>
+      {% endif %}
+    </div>
 
-{% if product.product_type == 'manufactured' %}
-<div id="product-manufacture-batch" class="scroll-mt-20 mb-5 no-print">
-{% if recipe_count > 0 %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-  <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">تصنيع دفعة</h3>
-  <p class="text-sm text-muted mb-4 m-0">
-    يُخصم المخزون من المواد حسب المعادلة ويُضاف رصيد الجاهز لهذا المنتج.
-    فعّل <strong>تتبع المخزون</strong> و<strong>الحد الأدنى</strong> في تعديل المنتج لتظهر التنبيهات مع
-    <a href="{% url 'shell:low_stock_alerts' %}" class="text-primary font-semibold hover:underline">تنبيهات المخزون</a>.
-  </p>
-  <form method="post" action="{% url 'shell:product_manufacture_batch' product.pk %}" class="flex flex-wrap items-end gap-3 m-0">
-    {% csrf_token %}
-    <div>
-      <label class="block text-xs font-semibold text-muted mb-1">كمية الإنتاج</label>
-      <input type="number" name="quantity" step="0.0001" min="0.0001" required
-             class="h-11 w-36 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm font-semibold">
+    {% if product.product_type == 'manufactured' %}
+    <div id="product-manufacture-batch" class="scroll-mt-20 mb-2 no-print">
+      {% if recipe_count > 0 %}
+      <div class="ds-panel">
+        <div class="ds-panel-header">تصنيع دفعة</div>
+        <div class="ds-panel-body">
+          <p class="text-xs text-muted m-0 mb-3">
+            يُخصم المخزون من المواد حسب المعادلة ويُضاف رصيد الجاهز لهذا المنتج.
+            فعّل <strong>تتبع المخزون</strong> و<strong>الحد الأدنى</strong> في تعديل المنتج لتظهر التنبيهات مع
+            <a href="{% url 'shell:low_stock_alerts' %}" class="text-primary font-semibold hover:underline">تنبيهات المخزون</a>.
+          </p>
+          <form method="post" action="{% url 'shell:product_manufacture_batch' product.pk %}" class="m-0 flex flex-wrap items-end gap-2">
+            {% csrf_token %}
+            <label class="flex flex-col gap-0.5">
+              <span class="text-[10px] font-extrabold text-muted">كمية الإنتاج</span>
+              <input type="number" name="quantity" step="0.0001" min="0.0001" required class="ds-input w-36 text-sm tabular-nums">
+            </label>
+            <label class="flex flex-col gap-0.5 flex-1 min-w-[12rem] max-w-md">
+              <span class="text-[10px] font-extrabold text-muted">ملاحظة (اختياري)</span>
+              <input type="text" name="note" maxlength="500" placeholder="مثال: دفعة يوم الأحد" class="ds-input w-full text-sm">
+            </label>
+            <button type="submit" class="ds-btn ds-btn-primary shrink-0">تسجيل التصنيع</button>
+          </form>
+        </div>
+      </div>
+      {% else %}
+      <div class="ds-panel border-amber-300 dark:border-amber-700/80 bg-amber-50/90 dark:bg-amber-950/25">
+        <div class="ds-panel-header text-amber-950 dark:text-amber-100">لماذا لا يظهر نموذج «تصنيع دفعة»؟</div>
+        <div class="ds-panel-body text-sm text-amber-950/90 dark:text-amber-50/95 leading-relaxed">
+          <p class="m-0 mb-3">
+            الصنف <strong>منتج مصنع</strong> لكن بدون <strong>معادلة تصنيع</strong> لا يُعرض حقل كمية الإنتاج.
+            عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا النموذج:
+            تدخل مثلاً <strong>30</strong> فيُزاد رصيد الأراجيل ويُخصم المخزون من المكوّنات تلقائياً وفق المعادلة.
+          </p>
+          <a href="{% url 'shell:recipe_list' product.pk %}" class="ds-btn ds-btn-primary inline-flex">إضافة / تعديل معادلة التصنيع</a>
+        </div>
+      </div>
+      {% endif %}
     </div>
-    <div class="flex-1 min-w-[12rem]">
-      <label class="block text-xs font-semibold text-muted mb-1">ملاحظة (اختياري)</label>
-      <input type="text" name="note" maxlength="500" placeholder="مثال: دفعة يوم الأحد"
-             class="h-11 w-full max-w-md rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm">
-    </div>
-    <button type="submit"
-            class="h-11 px-6 rounded-lg font-bold text-sm bg-primary text-white hover:bg-primary-dk transition-colors border-none cursor-pointer">
-      تسجيل التصنيع
-    </button>
-  </form>
-</div>
-{% else %}
-<div class="bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-5">
-  <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 m-0 mb-2">لماذا لا يظهر نموذج «تصنيع دفعة»؟</h3>
-  <p class="text-sm text-amber-950/85 dark:text-amber-100/90 m-0 mb-3 leading-relaxed">
-    الصنف <strong>منتج مصنع</strong> لكن بدون <strong>معادلة تصنيع</strong> لا يُعرض حقل كمية الإنتاج.
-    عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا النموذج:
-    تدخل مثلاً <strong>30</strong> فيُزاد رصيد الأراجيل ويُخصم المخزون من المكوّنات تلقائياً وفق المعادلة.
-  </p>
-  <a href="{% url 'shell:recipe_list' product.pk %}"
-     class="inline-flex h-10 items-center px-4 rounded-lg bg-amber-800 text-white font-bold text-sm hover:bg-amber-900 no-underline">
-    إضافة / تعديل معادلة التصنيع
-  </a>
-</div>
-{% endif %}
-</div>
-{% endif %}
-
-{# ── Sales Summary ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
-  <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4">ملخص المبيعات</h3>
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-    <div class="text-center">
-      <span class="block text-xs font-semibold text-muted mb-1">كمية مباعة</span>
-      <span class="text-xl font-extrabold text-gray-800 dark:text-white">{{ sales_stats.total_qty|default_if_none:0|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="text-center">
-      <span class="block text-xs font-semibold text-muted mb-1">إيراد</span>
-      <span class="text-xl font-extrabold text-primary">{{ sales_stats.total_revenue|default_if_none:0|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="text-center">
-      <span class="block text-xs font-semibold text-muted mb-1">ربح</span>
-      <span class="text-xl font-extrabold text-success">{{ sales_stats.total_profit|default_if_none:0|floatformat:2|intcomma }}</span>
-    </div>
-    <div class="text-center">
-      <span class="block text-xs font-semibold text-muted mb-1">عدد الفواتير</span>
-      <span class="text-xl font-extrabold text-gray-800 dark:text-white">{{ sales_stats.sale_count|default_if_none:0|intcomma }}</span>
-    </div>
-  </div>
-</div>
-
-{# ── Date Filter ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5 no-print">
-  <form method="get" class="flex gap-3 items-end flex-wrap">
-    <div>
-      <label class="block text-sm font-semibold text-muted mb-1.5">من تاريخ</label>
-      <input type="date" name="from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
-             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none min-w-[150px]">
-    </div>
-    <div>
-      <label class="block text-sm font-semibold text-muted mb-1.5">إلى تاريخ</label>
-      <input type="date" name="to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
-             class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none min-w-[150px]">
-    </div>
-    <button type="submit"
-            class="h-11 px-5 rounded-lg font-bold text-sm transition-all duration-200 active:scale-[0.98] bg-primary text-white hover:bg-primary-dk">
-      تصفية
-    </button>
-    {% if date_from or date_to %}
-      <a href="{% url 'shell:product_card' product.pk %}"
-         class="h-11 inline-flex items-center text-sm font-semibold text-muted hover:text-danger transition-colors">
-        إلغاء الفلتر
-      </a>
     {% endif %}
-  </form>
-</div>
 
-{# ── Stock Movements ── #}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
-  <div class="px-5 pt-5 pb-3">
-    <h3 class="text-lg font-bold text-gray-800 dark:text-white">حركات المخزون</h3>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="bg-gray-50 dark:bg-gray-700">
-          <th class="text-start p-3 font-semibold text-muted">التاريخ</th>
-          <th class="text-start p-3 font-semibold text-muted">نوع الحركة</th>
-          <th class="text-start p-3 font-semibold text-muted">التغيير</th>
-          <th class="text-start p-3 font-semibold text-muted">ملاحظة</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for m in movements %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 whitespace-nowrap">{{ m.created_at|date:"Y-m-d H:i" }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-            <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold
-              {% if m.movement_type == 'purchase' %}bg-success/15 text-success
-              {% elif m.movement_type == 'sale' %}bg-info/15 text-info
-              {% elif m.movement_type == 'waste' %}bg-danger/15 text-danger
-              {% elif m.movement_type == 'manufacturing' %}bg-warning/20 text-yellow-700 dark:text-warning
-              {% elif m.movement_type == 'production' %}bg-success/15 text-success
-              {% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">
-              {{ m.get_movement_type_display }}
-            </span>
-          </td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold {% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">
-            {% if m.quantity_delta > 0 %}+{% endif %}{{ m.quantity_delta|floatformat:2 }}
-          </td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">{{ m.note|default:"—" }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="4" class="text-center text-muted p-10">لا توجد حركات في الفترة المحددة</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+    <div class="ds-panel mb-2">
+      <div class="ds-panel-header">ملخص المبيعات</div>
+      <div class="ds-panel-body">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div>
+            <span class="block text-[10px] font-extrabold text-muted mb-1">كمية مباعة</span>
+            <span class="text-lg font-extrabold tabular-nums text-gray-800 dark:text-gray-100">{{ sales_stats.total_qty|default_if_none:0|floatformat:2|intcomma }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] font-extrabold text-muted mb-1">إيراد</span>
+            <span class="text-lg font-extrabold tabular-nums text-primary">{{ sales_stats.total_revenue|default_if_none:0|floatformat:2|intcomma }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] font-extrabold text-muted mb-1">ربح</span>
+            <span class="text-lg font-extrabold tabular-nums text-success">{{ sales_stats.total_profit|default_if_none:0|floatformat:2|intcomma }}</span>
+          </div>
+          <div>
+            <span class="block text-[10px] font-extrabold text-muted mb-1">عدد الفواتير</span>
+            <span class="text-lg font-extrabold tabular-nums text-gray-800 dark:text-gray-100">{{ sales_stats.sale_count|default_if_none:0|intcomma }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-{# ── Suppliers ── #}
-{% if suppliers_list %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
-  <div class="px-5 pt-5 pb-3">
-    <h3 class="text-lg font-bold text-gray-800 dark:text-white">الموردون</h3>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="bg-gray-50 dark:bg-gray-700">
-          <th class="text-start p-3 font-semibold text-muted">المورد</th>
-          <th class="text-start p-3 font-semibold text-muted">آخر تكلفة</th>
-          <th class="text-start p-3 font-semibold text-muted">آخر توريد</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in suppliers_list %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-bold">{{ s.supplier.name_ar }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_cost|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ s.last_date|date:"Y-m-d" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
+    <div class="ds-panel mb-2 no-print">
+      <div class="ds-panel-header">فلترة حركات المخزون</div>
+      <div class="ds-panel-body">
+        <form method="get" class="m-0 flex flex-wrap items-end gap-2">
+          <label class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-extrabold text-muted">من تاريخ</span>
+            <input type="date" name="from" value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}" class="ds-input text-sm tabular-nums min-w-[10rem]">
+          </label>
+          <label class="flex flex-col gap-0.5">
+            <span class="text-[10px] font-extrabold text-muted">إلى تاريخ</span>
+            <input type="date" name="to" value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}" class="ds-input text-sm tabular-nums min-w-[10rem]">
+          </label>
+          <button type="submit" class="ds-btn ds-btn-primary shrink-0">تصفية</button>
+          {% if date_from or date_to %}
+          <a href="{% url 'shell:product_card' product.pk %}" class="ds-btn shrink-0">إلغاء الفلتر</a>
+          {% endif %}
+        </form>
+      </div>
+    </div>
 
-{# ── Used in Recipes ── #}
-{% if used_in_recipes %}
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-5">
-  <div class="px-5 pt-5 pb-3">
-    <h3 class="text-lg font-bold text-gray-800 dark:text-white">يستخدم في وصفات</h3>
-  </div>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="bg-gray-50 dark:bg-gray-700">
-          <th class="text-start p-3 font-semibold text-muted">المنتج المصنّع</th>
-          <th class="text-start p-3 font-semibold text-muted">الكمية لكل وحدة</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rl in used_in_recipes %}
-        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-            <a href="{% url 'shell:product_card' rl.manufactured_product.pk %}"
-               class="font-bold text-primary hover:text-primary-dk transition-colors">{{ rl.manufactured_product.name_ar }}</a>
-          </td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ rl.quantity_per_unit|floatformat:4 }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
+    <div class="shell-spa-table-root mb-2">
+      <div class="ds-panel">
+        <div class="ds-panel-header">حركات المخزون</div>
+        <div class="ds-panel-body p-0">
+          <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+            <table class="w-full text-sm ds-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>نوع الحركة</th>
+                  <th>التغيير</th>
+                  <th>ملاحظة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in movements %}
+                <tr>
+                  <td class="whitespace-nowrap">{{ m.created_at|date:"Y-m-d H:i" }}</td>
+                  <td>
+                    <span class="inline-flex px-2 py-0.5 rounded-sm text-[10px] font-extrabold
+                      {% if m.movement_type == 'purchase' %}bg-success/15 text-success
+                      {% elif m.movement_type == 'sale' %}bg-info/15 text-info
+                      {% elif m.movement_type == 'waste' %}bg-danger/15 text-danger
+                      {% elif m.movement_type == 'manufacturing' %}bg-warning/20 text-yellow-800 dark:text-warning
+                      {% elif m.movement_type == 'production' %}bg-success/15 text-success
+                      {% else %}bg-warning/20 text-yellow-800 dark:text-warning{% endif %}">
+                      {{ m.get_movement_type_display }}
+                    </span>
+                  </td>
+                  <td class="font-semibold tabular-nums {% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">
+                    {% if m.quantity_delta > 0 %}+{% endif %}{{ m.quantity_delta|floatformat:2 }}
+                  </td>
+                  <td class="text-muted text-xs">{{ m.note|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="p-8 text-center text-muted">لا توجد حركات في الفترة المحددة</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
 
-{# ── Back Link ── #}
-<div class="mt-4 no-print">
-  <a href="{% url 'shell:product_list' %}" class="text-sm font-semibold text-primary hover:text-primary-dk transition-colors inline-flex items-center gap-1">
-    <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
-    العودة لقائمة المنتجات
-  </a>
+    {% if suppliers_list %}
+    <div class="shell-spa-table-root mb-2">
+      <div class="ds-panel">
+        <div class="ds-panel-header">الموردون</div>
+        <div class="ds-panel-body p-0">
+          <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+            <table class="w-full text-sm ds-table">
+              <thead>
+                <tr>
+                  <th>المورد</th>
+                  <th>آخر تكلفة</th>
+                  <th>آخر توريد</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in suppliers_list %}
+                <tr>
+                  <td class="font-semibold">{{ s.supplier.name_ar }}</td>
+                  <td class="tabular-nums">{{ s.last_cost|floatformat:2|intcomma }}</td>
+                  <td class="tabular-nums whitespace-nowrap">{{ s.last_date|date:"Y-m-d" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if used_in_recipes %}
+    <div class="shell-spa-table-root mb-2">
+      <div class="ds-panel">
+        <div class="ds-panel-header">يستخدم في وصفات</div>
+        <div class="ds-panel-body p-0">
+          <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+            <table class="w-full text-sm ds-table">
+              <thead>
+                <tr>
+                  <th>المنتج المصنّع</th>
+                  <th>الكمية لكل وحدة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for rl in used_in_recipes %}
+                <tr>
+                  <td>
+                    <a href="{% url 'shell:product_card' rl.manufactured_product.pk %}" class="font-semibold text-primary hover:underline">{{ rl.manufactured_product.name_ar }}</a>
+                  </td>
+                  <td class="tabular-nums">{{ rl.quantity_per_unit|floatformat:4 }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
 </div>
 {% endblock %}
