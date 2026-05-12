@@ -65,6 +65,34 @@
   {% endif %}
 </div>
 
+{% if product.product_type == 'manufactured' and recipe_count > 0 %}
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5 no-print">
+  <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-2">تصنيع دفعة</h3>
+  <p class="text-sm text-muted mb-4 m-0">
+    يُخصم المخزون من المواد حسب المعادلة ويُضاف رصيد الجاهز لهذا المنتج.
+    فعّل <strong>تتبع المخزون</strong> و<strong>الحد الأدنى</strong> في تعديل المنتج لتظهر التنبيهات مع
+    <a href="{% url 'shell:low_stock_alerts' %}" class="text-primary font-semibold hover:underline">تنبيهات المخزون</a>.
+  </p>
+  <form method="post" action="{% url 'shell:product_manufacture_batch' product.pk %}" class="flex flex-wrap items-end gap-3 m-0">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs font-semibold text-muted mb-1">كمية الإنتاج</label>
+      <input type="number" name="quantity" step="0.0001" min="0.0001" required
+             class="h-11 w-36 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm font-semibold">
+    </div>
+    <div class="flex-1 min-w-[12rem]">
+      <label class="block text-xs font-semibold text-muted mb-1">ملاحظة (اختياري)</label>
+      <input type="text" name="note" maxlength="500" placeholder="مثال: دفعة يوم الأحد"
+             class="h-11 w-full max-w-md rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm">
+    </div>
+    <button type="submit"
+            class="h-11 px-6 rounded-lg font-bold text-sm bg-primary text-white hover:bg-primary-dk transition-colors border-none cursor-pointer">
+      تسجيل التصنيع
+    </button>
+  </form>
+</div>
+{% endif %}
+
 {# ── Sales Summary ── #}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
   <h3 class="text-lg font-bold text-gray-800 dark:text-white mb-4">ملخص المبيعات</h3>
@@ -139,6 +167,7 @@
               {% elif m.movement_type == 'sale' %}bg-info/15 text-info
               {% elif m.movement_type == 'waste' %}bg-danger/15 text-danger
               {% elif m.movement_type == 'manufacturing' %}bg-warning/20 text-yellow-700 dark:text-warning
+              {% elif m.movement_type == 'production' %}bg-success/15 text-success
               {% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">
               {{ m.get_movement_type_display }}
             </span>

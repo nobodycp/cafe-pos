@@ -94,9 +94,9 @@ def apply_sale_invoice_line_edits(
         prod = ln.product
         if delta > 0:
             check_stock_available(prod, delta)
-            consume_for_sale(product=prod, quantity=delta, session=session, invoice_pk=inv.pk)
+            consume_for_sale(product=prod, quantity=delta, session=session, invoice_pk=inv.pk, sale_line=ln)
         else:
-            return_sale_consumption(product=prod, quantity=-delta, session=session, invoice_pk=inv.pk)
+            return_sale_consumption(product=prod, quantity=-delta, session=session, invoice_pk=inv.pk, sale_line=ln)
 
     gross_by_line: Dict[int, Decimal] = {}
     for ln in line_map.values():

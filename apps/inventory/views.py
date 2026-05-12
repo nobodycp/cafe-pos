@@ -13,20 +13,29 @@ from apps.catalog.models import Category, Product, RecipeLine
 from apps.core.models import log_audit
 from apps.core.pagination import paginate_queryset
 from apps.core.services import SessionService
-from apps.inventory.forms import RawMaterialForm
+from apps.inventory.forms import ManualStockMovementForm, RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
 from apps.inventory.services import (
     adjust_stock,
+    delete_manual_stock_movement,
     ensure_stock_balance,
     get_unit_cost,
+    is_manual_stock_movement,
     receive_purchase_stock,
     stock_home_base_queryset,
     sync_missing_stock_balance_rows,
+    update_manual_stock_movement,
 )
 from apps.purchasing.models import PurchaseLine
 
 
-_SHELL_INV_VIEW = {"home": "inventory_home", "movements": "inventory_movements", "adjust": "inventory_adjust"}
+_SHELL_INV_VIEW = {
+    "home": "inventory_home",
+    "movements": "inventory_movements",
+    "adjust": "inventory_adjust",
+    "movement_create": "inventory_movement_create",
+    "movement_edit": "inventory_movement_edit",
+}
 
 
 def _inventory_ctx(request, **kwargs):
@@ -128,10 +137,195 @@ def inventory_home(request):
 
 @login_required
 def movement_list(request):
-    qs = StockMovement.objects.select_related("product", "product__unit").order_by("-created_at")
-    ctx = _inventory_ctx(request)
+    from datetime import datetime
+
+    qs = StockMovement.objects.select_related("product", "product__unit", "work_session").order_by("-created_at", "-pk")
+
+    q_text = (request.GET.get("q") or "").strip()
+    if q_text:
+        qs = qs.filter(
+            Q(product__name_ar__icontains=q_text)
+            | Q(product__name_en__icontains=q_text)
+            | Q(product__barcode__icontains=q_text)
+        )
+
+    mtype = (request.GET.get("type") or "").strip()
+    if mtype in {c[0] for c in StockMovement.MovementType.choices}:
+        qs = qs.filter(movement_type=mtype)
+
+    pid = (request.GET.get("product") or "").strip()
+    if pid.isdigit():
+        qs = qs.filter(product_id=int(pid))
+
+    date_from = request.GET.get("from")
+    date_to = request.GET.get("to")
+    try:
+        date_from = datetime.strptime(date_from, "%Y-%m-%d").date() if date_from else None
+    except ValueError:
+        date_from = None
+    try:
+        date_to = datetime.strptime(date_to, "%Y-%m-%d").date() if date_to else None
+    except ValueError:
+        date_to = None
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    filter_products = Product.objects.filter(is_active=True, is_stock_tracked=True).order_by("name_ar")[:500]
+
+    ctx = _inventory_ctx(
+        request,
+        filter_q=q_text,
+        filter_type=mtype,
+        filter_product=pid,
+        filter_date_from=date_from,
+        filter_date_to=date_to,
+        movement_type_choices=[("", "كل الأنواع")] + list(StockMovement.MovementType.choices),
+    )
     ctx.update(paginate_queryset(request, qs))
     return render(request, _inventory_tpl(request, "shell/inventory_movements.html", "inventory/movements.html"), ctx)
+
+
+@login_required
+def movement_manual_create(request):
+    session = SessionService.get_open_session()
+    if request.method == "POST":
+        form = ManualStockMovementForm(request.POST)
+        if form.is_valid():
+            product = form.cleaned_data["product"]
+            kind = form.cleaned_data["kind"]
+            qty = form.cleaned_data["quantity"]
+            cost = form.cleaned_data.get("unit_cost") or Decimal("0")
+            note = (form.cleaned_data.get("note") or "").strip()
+            try:
+                mv = None
+                if kind == ManualStockMovementForm.KIND_PURCHASE:
+                    if not product.is_stock_tracked:
+                        product.is_stock_tracked = True
+                        product.save(update_fields=["is_stock_tracked"])
+                    mv = receive_purchase_stock(
+                        product=product,
+                        quantity=qty,
+                        unit_cost=cost if cost > 0 else Decimal("0"),
+                        session=session,
+                        reference_model="manual",
+                        reference_pk="adjust",
+                        note=note or "إضافة مخزون يدوية",
+                    )
+                    messages.success(request, f"تم تسجيل حركة شراء يدوية: {qty} من «{product.name_ar}»")
+                elif kind == ManualStockMovementForm.KIND_WASTE:
+                    mv = adjust_stock(
+                        product=product,
+                        quantity_delta=-qty,
+                        movement_type=StockMovement.MovementType.WASTE,
+                        session=session,
+                        reference_model="manual",
+                        reference_pk="waste",
+                        note=note or "هالك / تلف",
+                    )
+                    messages.success(request, f"تم تسجيل هالك: {qty} من «{product.name_ar}»")
+                else:
+                    mv = adjust_stock(
+                        product=product,
+                        quantity_delta=qty,
+                        movement_type=StockMovement.MovementType.ADJUSTMENT,
+                        session=session,
+                        reference_model="manual",
+                        reference_pk="adjust",
+                        note=note or "تسوية يدوية",
+                    )
+                    messages.success(request, f"تم تسجيل تسوية: {qty} «{product.name_ar}»")
+                log_audit(
+                    request.user,
+                    "inventory.movement.manual_create",
+                    "inventory.StockMovement",
+                    str(mv.pk),
+                    {"product_id": product.pk, "kind": kind},
+                )
+                return _inventory_redirect(request, "movements")
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = ManualStockMovementForm()
+    return render(
+        request,
+        _inventory_tpl(request, "shell/inventory_movement_form.html", "shell/inventory_movement_form.html"),
+        _inventory_ctx(request, form=form, title="إضافة حركة مخزون يدوية", is_edit=False, movement=None),
+    )
+
+
+@login_required
+def movement_manual_edit(request, pk):
+    mv = get_object_or_404(StockMovement.objects.select_related("product"), pk=pk)
+    if not is_manual_stock_movement(mv):
+        messages.error(request, "لا يمكن تعديل هذه الحركة لأنها مرتبطة بفاتورة أو عملية نظام.")
+        return _inventory_redirect(request, "movements")
+
+    session = SessionService.get_open_session()
+    if mv.movement_type == StockMovement.MovementType.PURCHASE:
+        initial_kind = ManualStockMovementForm.KIND_PURCHASE
+        initial_qty = mv.quantity_delta
+        initial_cost = mv.unit_cost or Decimal("0")
+    elif mv.movement_type == StockMovement.MovementType.WASTE:
+        initial_kind = ManualStockMovementForm.KIND_WASTE
+        initial_qty = -mv.quantity_delta
+        initial_cost = Decimal("0")
+    else:
+        initial_kind = ManualStockMovementForm.KIND_ADJUSTMENT
+        initial_qty = mv.quantity_delta
+        initial_cost = Decimal("0")
+
+    if request.method == "POST":
+        form = ManualStockMovementForm(request.POST)
+        if form.is_valid():
+            try:
+                update_manual_stock_movement(
+                    mv=mv,
+                    product=form.cleaned_data["product"],
+                    kind=form.cleaned_data["kind"],
+                    quantity=form.cleaned_data["quantity"],
+                    unit_cost=form.cleaned_data.get("unit_cost") or Decimal("0"),
+                    note=(form.cleaned_data.get("note") or "").strip(),
+                    session=session,
+                )
+                log_audit(request.user, "inventory.movement.manual_update", "inventory.StockMovement", str(pk), {})
+                messages.success(request, "تم تحديث الحركة وتحديث الرصيد بنجاح.")
+                return _inventory_redirect(request, "movements")
+            except ValueError as e:
+                messages.error(request, str(e))
+    else:
+        form = ManualStockMovementForm(
+            initial={
+                "product": mv.product_id,
+                "kind": initial_kind,
+                "quantity": initial_qty,
+                "unit_cost": initial_cost,
+                "note": mv.note,
+            }
+        )
+    return render(
+        request,
+        _inventory_tpl(request, "shell/inventory_movement_form.html", "shell/inventory_movement_form.html"),
+        _inventory_ctx(request, form=form, title="تعديل حركة مخزون يدوية", is_edit=True, movement=mv),
+    )
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def movement_manual_delete(request, pk):
+    mv = get_object_or_404(StockMovement, pk=pk)
+    if not is_manual_stock_movement(mv):
+        messages.error(request, "لا يمكن حذف هذه الحركة لأنها مرتبطة بفاتورة أو عملية نظام.")
+        return _inventory_redirect(request, "movements")
+    try:
+        delete_manual_stock_movement(mv)
+        log_audit(request.user, "inventory.movement.manual_delete", "inventory.StockMovement", str(pk), {})
+        messages.success(request, "تم حذف الحركة وعكس أثرها على الرصيد.")
+    except ValueError as e:
+        messages.error(request, str(e))
+    return _inventory_redirect(request, "movements")
 
 
 @login_required

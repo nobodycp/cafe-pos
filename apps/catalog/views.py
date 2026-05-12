@@ -19,8 +19,9 @@ from apps.catalog.forms import (
 )
 from apps.catalog.models import Category, Product, RecipeLine, Unit
 from apps.core.models import log_audit
+from apps.core.services import SessionService
 from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
-from apps.inventory.services import get_unit_cost
+from apps.inventory.services import get_unit_cost, record_manufacturing_batch
 from apps.billing.models import SaleInvoiceLine
 from apps.core.pagination import paginate_queryset
 from apps.pos.models import OrderLine
@@ -681,8 +682,10 @@ def product_card(request, pk):
     used_in_recipes = RecipeLine.objects.filter(component=product).select_related("manufactured_product")
 
     bom_cost = None
+    recipe_count = 0
     if product.product_type == Product.ProductType.MANUFACTURED:
         bom_cost = get_unit_cost(product)
+        recipe_count = RecipeLine.objects.filter(manufactured_product=product).count()
 
     return render(request, "catalog/product_card.html", {
         "product": product,
@@ -695,6 +698,45 @@ def product_card(request, pk):
         "last_purchase_cost": last_purchase_cost,
         "used_in_recipes": used_in_recipes,
         "bom_cost": bom_cost,
+        "recipe_count": recipe_count,
         "date_from": date_from,
         "date_to": date_to,
     })
+
+
+@login_required
+@require_POST
+def product_manufacture_batch(request, pk):
+    from decimal import Decimal, InvalidOperation
+
+    product = get_object_or_404(Product, pk=pk, product_type=Product.ProductType.MANUFACTURED)
+    raw = (request.POST.get("quantity") or "").strip()
+    note = (request.POST.get("note") or "").strip()[:500]
+    try:
+        qty = Decimal(raw)
+    except (InvalidOperation, ValueError, TypeError):
+        messages.error(request, "أدخل كمية صالحة.")
+        return redirect(reverse("shell:product_card", args=[pk]))
+    if qty <= 0:
+        messages.error(request, "الكمية يجب أن تكون أكبر من صفر.")
+        return redirect(reverse("shell:product_card", args=[pk]))
+    try:
+        session = SessionService.get_open_session()
+        batch = record_manufacturing_batch(product=product, quantity=qty, session=session, note=note)
+        log_audit(
+            request.user,
+            "catalog.product.manufacture_batch",
+            "inventory.ManufacturingBatch",
+            batch.pk,
+            {"qty": str(qty), "product_id": product.pk},
+        )
+        messages.success(request, f"تم تسجيل دفعة تصنيع: {qty} وحدة.")
+    except ValueError as exc:
+        code = str(exc)
+        if code.startswith("INSUFFICIENT_STOCK:"):
+            messages.error(request, "المواد غير كافية في المخزون لتنفيذ هذه الدفعة.")
+        elif code == "NO_RECIPE":
+            messages.error(request, "أضف معادلة تصنيع للمنتج أولاً.")
+        else:
+            messages.error(request, code)
+    return redirect(reverse("shell:product_card", args=[pk]))

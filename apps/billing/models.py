@@ -79,6 +79,14 @@ class SaleInvoiceLine(TimeStampedModel):
     line_cost_total = models.DecimalField(_("إجمالي التكلفة"), max_digits=14, decimal_places=2, default=0)
     recognized_revenue = models.DecimalField(_("الإيراد المعترف"), max_digits=14, decimal_places=2, default=0)
     line_profit = models.DecimalField(_("الربح المعترف"), max_digits=14, decimal_places=2, default=0)
+    manufacturing_finished_qty = models.DecimalField(
+        _("كمية مباعة من الرصيد الجاهز"),
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text=_("للمنتج المصنع المتتبع: جزء السطر المسحوب من مخزون الجاهز (الباقي من المواد حسب المعادلة)."),
+    )
 
     class Meta:
         verbose_name = _("سطر فاتورة")

@@ -1,0 +1,38 @@
+{% extends "shell/base.html" %}
+{% block title %}{{ title }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% url 'shell:inventory_movements' as shell_inventory_movements_url %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  {% include "shell/_shell_toolbar.html" with toolbar_title=title toolbar_hint="حركة يدوية — تُسجّل بالوقت وتؤثر على الرصيد" toolbar_back_url=shell_inventory_movements_url toolbar_back_label="← سجل الحركات" toolbar_back_title="حركات المخزون" %}
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if form.non_field_errors %}
+    <div class="mb-3 rounded-sm border border-danger/30 bg-danger/5 dark:bg-danger/10 px-3 py-2">
+      {% for err in form.non_field_errors %}<p class="text-danger text-sm font-semibold m-0">{{ err }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="ds-panel max-w-2xl">
+      <div class="ds-panel-header">{% if is_edit %}تعديل الحركة #{{ movement.pk }}{% else %}بيانات الحركة{% endif %}</div>
+      <div class="ds-panel-body">
+        <form method="post" class="space-y-4 m-0">
+          {% csrf_token %}
+          {% for field in form %}
+          {% if field.is_hidden %}{{ field }}{% else %}
+          <div>
+            <label class="block text-sm font-semibold mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="text-xs text-muted mt-1 m-0">{{ field.help_text }}</p>{% endif %}
+            {% for err in field.errors %}<p class="text-danger text-xs m-0 mt-1">{{ err }}</p>{% endfor %}
+          </div>
+          {% endif %}
+          {% endfor %}
+          <p class="text-xs text-muted m-0">تكلفة الوحدة تُستخدم مع نوع «إضافة شراء» فقط.</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="ds-btn ds-btn-primary justify-center h-11 min-w-[8rem]">{% if is_edit %}حفظ التعديل{% else %}تسجيل الحركة{% endif %}</button>
+            <a href="{{ shell_inventory_movements_url }}" class="ds-btn h-11 items-center inline-flex">إلغاء</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

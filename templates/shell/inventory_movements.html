@@ -1,43 +1,97 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
 {% block title %}حركات المخزون{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 {% url 'shell:inventory_home' as shell_inventory_home_url %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  {% include "shell/_shell_toolbar.html" with toolbar_title="حركات المخزون" toolbar_hint="سجل الحركات حسب الوقت" toolbar_back_url=shell_inventory_home_url toolbar_back_label="← المخزون" toolbar_back_title="المخزون" %}
+  {% include "shell/_shell_toolbar.html" with toolbar_title="حركات المخزون" toolbar_hint="سجل الحركات حسب الوقت — تصفية، إضافة، وتعديل أو حذف الحركات اليدوية فقط" toolbar_back_url=shell_inventory_home_url toolbar_back_label="← المخزون" toolbar_back_title="المخزون" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <div class="ds-toolbar mb-2 flex flex-wrap items-end gap-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2">
+      <a href="{% url 'shell:inventory_movement_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة حركة يدوية</a>
+      <span class="flex-1 min-w-[1rem]"></span>
+      <form method="get" class="flex flex-wrap items-end gap-2 m-0">
+        <div>
+          <label class="block text-xs font-semibold text-muted mb-0.5">بحث</label>
+          <input type="search" name="q" value="{{ filter_q }}" placeholder="اسم أو باركود" class="ds-input w-40 sm:w-48">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-muted mb-0.5">الصنف</label>
+          <select name="product" class="ds-input min-w-[10rem]">
+            <option value="">— الكل —</option>
+            {% for p in filter_products %}
+            <option value="{{ p.pk }}" {% if filter_product == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name_ar }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-muted mb-0.5">نوع الحركة</label>
+          <select name="type" class="ds-input min-w-[9rem]">
+            {% for val, label in movement_type_choices %}
+            <option value="{{ val }}" {% if filter_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-muted mb-0.5">من تاريخ</label>
+          <input type="date" name="from" value="{{ filter_date_from|date:'Y-m-d' }}" class="ds-input w-[11rem]">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-muted mb-0.5">إلى تاريخ</label>
+          <input type="date" name="to" value="{{ filter_date_to|date:'Y-m-d' }}" class="ds-input w-[11rem]">
+        </div>
+        <button type="submit" class="ds-btn h-9">تصفية</button>
+        <a href="{% url 'shell:inventory_movements' %}" class="ds-btn h-9 border-gray-300 dark:border-gray-600">الكل</a>
+      </form>
+    </div>
     <div class="shell-spa-table-root">
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
         <table class="w-full text-sm ds-table">
           <thead>
             <tr>
-              <th>الوقت</th>
+              <th class="whitespace-nowrap">الوقت</th>
               <th>الصنف</th>
               <th>نوع المنتج</th>
               <th>نوع الحركة</th>
               <th>التغيير</th>
               <th>مرجع</th>
+              <th>ملاحظة</th>
+              <th class="text-center whitespace-nowrap min-w-[10rem]">إجراءات</th>
             </tr>
           </thead>
           <tbody>
             {% for m in page_obj %}
             <tr>
-              <td>{{ m.created_at }}</td>
+              <td class="whitespace-nowrap text-muted">{{ m.created_at|date:"Y-m-d H:i" }}</td>
               <td class="font-semibold">{{ m.product.name_ar }}</td>
               <td class="text-muted whitespace-nowrap">{{ m.product.get_product_type_display }}</td>
               <td>{{ m.get_movement_type_display }}</td>
-              <td class="font-semibold {% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">{{ m.quantity_delta|floatformat:2 }}</td>
+              <td class="font-semibold {% if m.quantity_delta > 0 %}text-success{% elif m.quantity_delta < 0 %}text-danger{% endif %}">{{ m.quantity_delta|floatformat:2 }}</td>
               <td class="text-xs text-muted">
                 {% if m.reference_model == "billing.SaleInvoice" and m.reference_pk %}
                 <a href="{% url 'shell:invoice_detail' m.reference_pk %}" class="text-primary hover:underline">فاتورة بيع #{{ m.reference_pk }}</a>
                 {% elif m.reference_model == "purchasing.PurchaseInvoice" and m.reference_pk %}
                 <a href="{% url 'shell:purchase_detail' m.reference_pk %}" class="text-primary hover:underline">فاتورة شراء #{{ m.reference_pk }}</a>
+                {% elif m.reference_model == "inventory.ManufacturingBatch" and m.reference_pk %}
+                دفعة تصنيع #{{ m.reference_pk }}
                 {% else %}{{ m.reference_model }} #{{ m.reference_pk }}{% endif %}
+              </td>
+              <td class="text-xs max-w-[12rem] truncate" title="{{ m.note }}">{{ m.note|default:"—" }}</td>
+              <td class="text-end align-middle">
+                {% if m.reference_model == "manual" %}
+                <div class="ds-table-actions justify-end">
+                  <a href="{% url 'shell:inventory_movement_edit' m.pk %}" class="ds-btn">تعديل</a>
+                  <form method="post" action="{% url 'shell:inventory_movement_delete' m.pk %}" class="m-0 inline" onsubmit="return confirm('حذف الحركة وعكس أثرها على الرصيد؟');">
+                    {% csrf_token %}
+                    <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
+                  </form>
+                </div>
+                {% else %}
+                <span class="text-xs text-muted">—</span>
+                {% endif %}
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="p-8 text-center text-muted">لا توجد حركات</td></tr>
+            <tr><td colspan="8" class="p-8 text-center text-muted">لا توجد حركات</td></tr>
             {% endfor %}
           </tbody>
         </table>

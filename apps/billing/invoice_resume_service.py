@@ -254,6 +254,7 @@ def update_sale_invoice_from_order(
             quantity=as_decimal(sil.quantity),
             session=inv.work_session,
             invoice_pk=inv.pk,
+            sale_line=sil,
         )
 
     inv.payments.all().delete()
@@ -286,6 +287,7 @@ def update_sale_invoice_from_order(
 
     total_cost = Decimal("0")
     total_profit = Decimal("0")
+    created_invoice_lines: list = []
     for line, lg in line_grosses:
         share = (lg / gross_sum) if gross_sum else Decimal("0")
         line_discount = (discount_total * share).quantize(Decimal("0.01"))
@@ -304,7 +306,7 @@ def update_sale_invoice_from_order(
         else:
             recognized = adjusted_line_sub
             line_profit = (recognized - line_cost).quantize(Decimal("0.01"))
-        SaleInvoiceLine.objects.create(
+        sil = SaleInvoiceLine.objects.create(
             invoice=inv,
             product=line.product,
             quantity=qty,
@@ -315,6 +317,7 @@ def update_sale_invoice_from_order(
             recognized_revenue=recognized,
             line_profit=line_profit,
         )
+        created_invoice_lines.append(sil)
         total_cost += line_cost
         total_profit += line_profit
 
@@ -370,8 +373,14 @@ def update_sale_invoice_from_order(
         )
         tabs._deduct_linked_supplier(cust, credit_total, inv)
 
-    for line in order.lines.select_related("product"):
-        consume_for_sale(product=line.product, quantity=as_decimal(line.quantity), session=session, invoice_pk=inv.pk)
+    for sil, line in zip(created_invoice_lines, [x[0] for x in line_grosses]):
+        consume_for_sale(
+            product=line.product,
+            quantity=as_decimal(line.quantity),
+            session=session,
+            invoice_pk=inv.pk,
+            sale_line=sil,
+        )
 
     from apps.accounting.services import post_sale_invoice_journal
 

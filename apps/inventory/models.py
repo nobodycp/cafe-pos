@@ -28,6 +28,7 @@ class StockMovement(TimeStampedModel):
         PURCHASE = "purchase", _("شراء")
         SALE = "sale", _("بيع")
         MANUFACTURING = "manufacturing", _("استهلاك تصنيع")
+        PRODUCTION = "production", _("إنتاج / تجميع")
         ADJUSTMENT = "adjustment", _("تسوية يدوية")
         WASTE = "waste", _("هالك / تلف")
 
@@ -58,6 +59,35 @@ class StockMovement(TimeStampedModel):
 
     def __str__(self):
         return f"{self.get_movement_type_display()} {self.product_id} {self.quantity_delta}"
+
+
+class ManufacturingBatch(TimeStampedModel):
+    """دفعة تصنيع مسجّلة من بطاقة المنتج المصنع — تربط حركات المخزون."""
+
+    product = models.ForeignKey(
+        Product,
+        verbose_name=_("المنتج المصنع"),
+        related_name="manufacturing_batches",
+        on_delete=models.PROTECT,
+        limit_choices_to={"product_type": "manufactured"},
+    )
+    quantity = models.DecimalField(_("كمية الإنتاج"), max_digits=18, decimal_places=4)
+    work_session = models.ForeignKey(
+        WorkSession,
+        verbose_name=_("الوردية"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    note = models.TextField(_("ملاحظة"), blank=True)
+
+    class Meta:
+        verbose_name = _("دفعة تصنيع")
+        verbose_name_plural = _("دفعات التصنيع")
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"batch {self.pk} product={self.product_id} qty={self.quantity}"
 
 
 class StockTake(TimeStampedModel):
