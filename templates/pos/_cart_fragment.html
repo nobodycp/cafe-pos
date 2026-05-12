@@ -234,18 +234,6 @@
 .dark .pos-cart-toolbar .tb-btn{border-color:#4b5563;background:#1f2937;color:#f3f4f6}
 
 #pos-cart #checkout-form{display:flex;flex-direction:column;gap:2px;min-width:0;margin:0;flex:0 1 auto;min-height:0}
-#pos-cart #pay-methods{
-  display:flex;flex-direction:row;flex-wrap:nowrap;gap:2px;align-items:center;width:100%;
-  overflow-x:auto;overflow-y:hidden;flex:0 0 auto;padding:0;-webkit-overflow-scrolling:touch;
-}
-#pos-cart #pay-methods .pm-btn{
-  flex:1 0 auto;min-width:3.15rem;height:32px;max-height:34px;padding:0 6px;border-radius:4px;
-  border:1px solid #cbd5e1;font-size:10px;font-weight:800;background:#fff;color:#0f172a;white-space:nowrap;
-}
-.dark #pos-cart #pay-methods .pm-btn{background:#1f2937;border-color:#4b5563;color:#f8fafc}
-#pos-cart #pay-methods .pm-btn.on{border-color:#1e3a5f;background:#e2e8f0;color:#0f172a}
-.dark #pos-cart #pay-methods .pm-btn.on{border-color:#3b82f6;background:rgba(30,58,95,.45);color:#fff}
-
 #pos-cart .pos-checkout-row3{
   display:flex;flex-direction:row;flex-wrap:nowrap;align-items:stretch;width:100%;min-width:0;gap:0;margin:0;
   border-radius:5px;overflow:hidden;border:1px solid #0f172a;flex:0 0 auto;min-height:40px;max-height:48px;
@@ -253,32 +241,18 @@
 .dark #pos-cart .pos-checkout-row3{border-color:#e2e8f0}
 #pos-cart .pos-checkout-row3 .pos-ca-btn{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;margin:0;border:none;border-radius:0;
-  cursor:pointer;font-weight:800;font-size:10px;line-height:1.05;padding:3px 4px;color:#fff;font-family:inherit;flex:0 0 auto;min-width:2.85rem;
+  cursor:pointer;font-weight:800;font-size:10px;line-height:1.05;padding:3px 4px;color:#fff;font-family:inherit;flex:1 1 0;min-width:2.5rem;
 }
 #pos-cart .pos-checkout-row3 .pos-ca-kbd{font-size:7.5px;font-weight:600;opacity:.9;font-family:ui-monospace,monospace}
-#pos-cart .pos-checkout-row3 .pos-ca-cancel{background:#dc2626}
+#pos-cart .pos-checkout-row3 .pos-ca-cancel{flex:0 0 auto;min-width:2.85rem;background:#dc2626}
 #pos-cart .pos-checkout-row3 .pos-ca-cancel:hover{background:#b91c1c}
-#pos-cart .pos-checkout-row3 .pos-ca-hold{background:#b45309;border-inline:1px solid rgba(0,0,0,.2)}
+#pos-cart .pos-checkout-row3 .pos-ca-hold{flex:0 0 auto;min-width:2.85rem;background:#b45309;border-inline:1px solid rgba(0,0,0,.2)}
 #pos-cart .pos-checkout-row3 .pos-ca-hold:hover{background:#92400e}
 .dark #pos-cart .pos-checkout-row3 .pos-ca-hold{border-color:rgba(255,255,255,.12)}
-#pos-cart .pos-checkout-row3 .pos-ca-pay{
-  flex:1 1 0;min-width:2.6rem;background:#059669;font-size:10.5px;font-weight:900;overflow:hidden;
-}
+#pos-cart .pos-checkout-row3 .pos-ca-pay{background:#059669;font-size:10.5px;font-weight:900;overflow:hidden;}
 #pos-cart .pos-checkout-row3 .pos-ca-pay:hover{background:#047857}
-#pos-cart .pos-checkout-row3 .pos-ca-pay-print{
-  flex:1 1 0;min-width:2.5rem;background:#0f766e;font-size:9.5px;font-weight:900;overflow:hidden;line-height:1.08;
-}
+#pos-cart .pos-checkout-row3 .pos-ca-pay-print{background:#0f766e;font-size:9.5px;font-weight:900;overflow:hidden;line-height:1.08;}
 #pos-cart .pos-checkout-row3 .pos-ca-pay-print:hover{background:#115e59}
-#pos-cart .pos-checkout-row3 .pos-ca-amt-wrap{
-  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:2px;background:#fde68a;padding:0 4px;border-inline-start:1px solid #ca8a04;min-width:0;
-}
-.dark #pos-cart .pos-checkout-row3 .pos-ca-amt-wrap{background:rgba(253,224,71,.22);border-color:#eab308}
-#pos-cart .pos-checkout-row3 .pos-ci-pay-amt{
-  min-height:30px!important;height:30px!important;font-size:11.5px!important;
-  width:6.25rem!important;min-width:5.5rem!important;max-width:7.25rem!important;box-sizing:border-box!important;
-}
-#pos-cart .pos-cart-hint-pay{font-size:8px;color:#64748b;margin:0;line-height:1.15;flex:0 0 auto}
-#pos-cart #ep-payer-panel,#pos-cart #pay-ar-customer-panel{gap:4px;padding:0;margin:0}
 </style>
 {% if not current_order %}
 <div class="pos-cart-inner flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-3 py-6 text-center" dir="rtl">
@@ -438,47 +412,19 @@
     <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" id="tb-hold-form" class="hidden" aria-hidden="true">{% csrf_token %}</form>
     <form method="post" action="{% url 'pos:order_checkout' current_order.pk %}" id="checkout-form" class="m-0 min-w-0" novalidate data-balance="{{ tab_balance|dec_plain }}" data-grand="{{ order_totals.grand|dec_plain }}" data-currency="{{ POS_SETTINGS.currency_symbol }}">
       {% csrf_token %}
-      <div id="pay-methods" dir="rtl" class="w-full">
-        {% for row in POS_SETTINGS.payment_method_rows %}
-        <button type="button" class="pm-btn"
-          data-m="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
-        {% endfor %}
-      </div>
+      <input type="hidden" name="customer_id" id="pay-cust-id" value="{% if current_order.customer_id %}{{ current_order.customer_id }}{% endif %}">
+      <input type="hidden" name="customer_name_draft" id="pay-cust-name-draft" value="">
       <input type="hidden" name="payment_mode" id="pay-mode-val" value="">
-
-      <p class="pos-cart-hint-pay">دفعات جزئية: غيّر «مبلغ الدفعة» دون إغلاق الطاولة.</p>
-
-      <div class="hidden grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="ep-payer-panel">
-        <div class="relative min-w-0">
-          <input type="text" name="payer_name" id="pay-payer-name" maxlength="120" autocomplete="off" placeholder="اسم المحوّل"
-            class="pos-payer-field pos-payer-name rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-          <div id="pay-payer-hits" class="absolute top-full start-0 end-0 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-b max-h-[100px] overflow-y-auto shadow text-[10px]" style="display:none"></div>
-        </div>
-        <input type="tel" name="payer_phone" id="pay-payer-phone" maxlength="40" inputmode="tel" placeholder="جوال"
-          class="pos-payer-field pos-payer-phone rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums">
-      </div>
-
-      <div class="hidden grid grid-cols-2 gap-1.5 items-center min-w-0 w-full" id="pay-ar-customer-panel">
-        <div class="relative min-w-0 pos-ar-cust-wrap">
-          <input type="hidden" name="customer_id" id="pay-cust-id" value="{{ current_order.customer_id|default:'' }}">
-          <input type="hidden" name="customer_name_draft" id="pay-cust-name-draft" value="">
-          <input type="search" id="pay-cust-search" placeholder="بحث عميل للآجل… (لا يوجد؟ + عميل)" autocomplete="off" aria-label="اختيار عميل للدفع الآجل"
-            value="{% if current_order.customer %}{{ current_order.customer.name_ar }}{% endif %}"
-            class="pos-ar-cust rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
-          <div id="pay-cust-hits" class="absolute top-full start-0 end-0 z-50 mt-px bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-b max-h-[120px] overflow-y-auto shadow-lg text-[10px]" style="display:none"></div>
-        </div>
-        <div class="min-w-0 min-h-[1.625rem]" aria-hidden="true"></div>
-      </div>
-
+      <input type="hidden" name="pay_amount" id="pay-amt" value="{{ tab_balance|dec_plain }}">
+      <input type="hidden" name="payer_name" id="checkout-hid-payer-name" value="">
+      <input type="hidden" name="payer_phone" id="checkout-hid-payer-phone" value="">
+      <input type="hidden" name="use_payment_splits" id="checkout-use-splits" value="">
+      <input type="hidden" name="payment_splits_json" id="checkout-splits-json" value="">
       <div class="pos-checkout-row3" dir="ltr">
         <button type="button" class="pos-ca-btn pos-ca-cancel" id="pos-btn-cancel-order" title="إلغاء الطلب كاملاً">إلغاء</button>
         <button type="submit" class="pos-ca-btn pos-ca-hold" id="pos-btn-hold-order" form="tb-hold-form" title="تعليق الطلب">تعليق</button>
-        <button type="submit" class="pos-ca-btn pos-ca-pay" id="pay-btn" title="دفع وحفظ الفاتورة (بدون الانتقال للطباعة)">دفع<span class="pos-ca-kbd">F9</span></button>
-        <button type="submit" class="pos-ca-btn pos-ca-pay-print" id="pay-print-btn" title="دفع ثم معاينة الإيصال للطباعة">دفع وطباعة</button>
-        <div class="pos-ca-amt-wrap" id="pos-ca-amt-wrap">
-          <label for="pay-amt" class="sr-only">مبلغ الدفعة</label>
-          <input type="number" name="pay_amount" id="pay-amt" step="0.01" min="0" inputmode="decimal" lang="en" value="{{ tab_balance|dec_plain }}" class="pos-ci-pay-amt rounded border border-amber-800/40 dark:border-amber-500/50 bg-white dark:bg-gray-800 font-bold text-primary tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-        </div>
+        <button type="button" class="pos-ca-btn pos-ca-pay" id="pos-co-open-pay" title="دفع (نافذة التحصيل)">دفع<span class="pos-ca-kbd">F9</span></button>
+        <button type="button" class="pos-ca-btn pos-ca-pay-print" id="pos-co-open-pay-print" title="دفع وطباعة">دفع وطباعة</button>
       </div>
     </form>
     <form method="post" action="{% url 'pos:order_cancel' current_order.pk %}" id="pos-cancel-order-form" class="hidden" aria-hidden="true">{% csrf_token %}</form>

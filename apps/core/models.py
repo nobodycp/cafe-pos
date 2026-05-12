@@ -58,6 +58,12 @@ class WorkSession(models.Model):
     updated_at = models.DateTimeField(_("عُدّل في"), auto_now=True)
     closed_at = models.DateTimeField(_("وقت الإغلاق"), null=True, blank=True)
     opening_cash = models.DecimalField(_("الصندوق الافتتاحي"), max_digits=14, decimal_places=2, default=0)
+    opening_balances_json = models.JSONField(
+        _("أرصدة افتتاحية لطرق الدفع"),
+        default=dict,
+        blank=True,
+        help_text=_("مفتاح = رمز طريقة الدفع، قيمة = المبلغ كنص عشري (مثل «5000.00» للكاش)."),
+    )
     closing_cash = models.DecimalField(_("الصندوق الختامي"), max_digits=14, decimal_places=2, null=True, blank=True)
     notes = models.TextField(_("ملاحظات"), blank=True)
 

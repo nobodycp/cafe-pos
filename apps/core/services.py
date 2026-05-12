@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from django.db import transaction
 from django.utils import timezone
 
 from apps.core.models import WorkSession, log_audit
+from apps.core.payment_methods import load_payment_method_rows
 
 
 class SessionService:
@@ -20,15 +23,47 @@ class SessionService:
 
     @staticmethod
     @transaction.atomic
-    def open_session(user, opening_cash, notes=""):
+    def open_session(user, opening_cash, notes="", opening_balances=None):
         if SessionService.get_open_session():
             raise ValueError("SESSION_ALREADY_OPEN")
+        rows = load_payment_method_rows()
+        balances: dict[str, str] = {}
+        q = Decimal("0.01")
+        if opening_balances:
+            for r in rows:
+                code = r["code"]
+                raw = str(opening_balances.get(code, "0") or "0").strip().replace(",", ".")
+                try:
+                    v = Decimal(raw) if raw else Decimal("0")
+                except (InvalidOperation, ValueError):
+                    v = Decimal("0")
+                if v < 0:
+                    v = Decimal("0")
+                balances[code] = str(v.quantize(q))
+        else:
+            try:
+                oc = Decimal(str(opening_cash or 0).replace(",", "."))
+            except (InvalidOperation, ValueError):
+                oc = Decimal("0")
+            if oc < 0:
+                oc = Decimal("0")
+            for r in rows:
+                c = r["code"]
+                balances[c] = str(oc.quantize(q)) if c == "cash" else "0.00"
+        cash_dec = Decimal(balances.get("cash", "0"))
         ws = WorkSession.objects.create(
             opened_by=user,
-            opening_cash=opening_cash or 0,
+            opening_cash=cash_dec,
+            opening_balances_json=balances,
             notes=notes or "",
         )
-        log_audit(user, "work_session.open", "core.WorkSession", ws.pk, {"opening_cash": str(opening_cash)})
+        log_audit(
+            user,
+            "work_session.open",
+            "core.WorkSession",
+            ws.pk,
+            {"opening_cash": str(cash_dec), "opening_balances_json": balances},
+        )
         return ws
 
     @staticmethod

@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from typing import Optional, Tuple
 
@@ -25,6 +26,7 @@ from apps.core.treasury_services import (
     treasury_voucher_form_initial_from_audit,
     TREASURY_VOUCHER_AUDIT_ACTION,
 )
+from apps.core.payment_methods import load_payment_method_rows, payment_method_label_map
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
 from apps.payroll.models import Employee
@@ -35,6 +37,37 @@ from apps.pos.table_service import prepare_work_session_for_shift_close
 from apps.purchasing.models import Supplier
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_opening_balances_post(request) -> dict[str, str]:
+    """قراءة أرصدة افتتاحية لكل طريقة دفع من POST؛ أو الحقل القديم opening_cash فقط."""
+    rows = load_payment_method_rows()
+    use_split = any(k.startswith("opening_balance_") for k in request.POST)
+    out: dict[str, str] = {}
+    q = Decimal("0.01")
+    if use_split:
+        for r in rows:
+            code = r["code"]
+            raw = (request.POST.get(f"opening_balance_{code}") or "").strip()
+            try:
+                v = Decimal(str(raw).replace(",", ".")) if raw else Decimal("0")
+            except (InvalidOperation, ValueError):
+                v = Decimal("0")
+            if v < 0:
+                v = Decimal("0")
+            out[code] = str(v.quantize(q))
+        return out
+    raw = (request.POST.get("opening_cash") or "0").strip()
+    try:
+        oc = Decimal(str(raw).replace(",", "."))
+    except (InvalidOperation, ValueError):
+        oc = Decimal("0")
+    if oc < 0:
+        oc = Decimal("0")
+    for r in rows:
+        c = r["code"]
+        out[c] = str(oc.quantize(q)) if c == "cash" else "0.00"
+    return out
 
 
 @login_required
@@ -331,13 +364,18 @@ def treasury_employee_quick_create(request):
 @login_required
 @require_POST
 def open_session_view(request):
-    raw = request.POST.get("opening_cash", "0")
+    balances = _parse_opening_balances_post(request)
     try:
-        opening = Decimal(str(raw).replace(",", "."))
+        opening = Decimal(balances.get("cash", "0"))
     except (InvalidOperation, ValueError):
         opening = Decimal("0")
     try:
-        SessionService.open_session(request.user, opening, request.POST.get("notes", ""))
+        SessionService.open_session(
+            request.user,
+            opening,
+            request.POST.get("notes", ""),
+            opening_balances=balances,
+        )
     except ValueError as e:
         if str(e) == "SESSION_ALREADY_OPEN":
             request.session["flash_error"] = "يوجد وردية مفتوحة بالفعل."
@@ -473,27 +511,85 @@ def session_summary(request):
         .values("method")
         .annotate(s=Sum("amount"))
     )
-    pay_map = {
-        "cash": Decimal("0"),
-        "bank": Decimal("0"),
-        "bank_ps": Decimal("0"),
-        "palpay": Decimal("0"),
-        "jawwalpay": Decimal("0"),
-        "credit": Decimal("0"),
-    }
+    pay_map: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for p in pay_qs:
-        m = p["method"]
-        if m in pay_map:
-            pay_map[m] = p["s"] or Decimal("0")
+        pay_map[p["method"]] = p["s"] or Decimal("0")
+    pay_map = dict(pay_map)
+
+    pm_rows = load_payment_method_rows()
+    for r in pm_rows:
+        pay_map.setdefault(r["code"], Decimal("0"))
+    labels = payment_method_label_map()
+    payment_channel_totals = []
+    seen_codes = set()
+    for r in pm_rows:
+        code = r["code"]
+        seen_codes.add(code)
+        payment_channel_totals.append(
+            {
+                "code": code,
+                "label": r["label_ar"] or labels.get(code, code),
+                "ledger": r["ledger"],
+                "amount": pay_map.get(code, Decimal("0")),
+            }
+        )
+    for method, amt in sorted(pay_map.items(), key=lambda x: x[0]):
+        if method not in seen_codes:
+            payment_channel_totals.append(
+                {
+                    "code": method,
+                    "label": labels.get(method, method),
+                    "ledger": "",
+                    "amount": amt,
+                }
+            )
 
     expenses_qs = Expense.objects.filter(work_session=ws)
     total_expenses = expenses_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    cash_expenses = (
-        expenses_qs.filter(payment_method="cash").aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    )
+    exp_by_method: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for row in expenses_qs.values("payment_method").annotate(s=Sum("amount")):
+        m = row["payment_method"] or "cash"
+        exp_by_method[m] = row["s"] or Decimal("0")
+    exp_by_method = dict(exp_by_method)
+    cash_expenses = exp_by_method.get("cash", Decimal("0"))
 
-    opening_cash = ws.opening_cash or Decimal("0")
-    expected_cash = opening_cash + pay_map["cash"] - cash_expenses
+    opening_json = ws.opening_balances_json or {}
+    if not opening_json and (ws.opening_cash is not None):
+        opening_json = {"cash": str((ws.opening_cash or Decimal("0")).quantize(Decimal("0.01")))}
+    q = Decimal("0.01")
+
+    def _opening_for(code: str) -> Decimal:
+        raw = opening_json.get(code)
+        if raw is None or raw == "":
+            if code == "cash" and ws.opening_cash is not None:
+                return (ws.opening_cash or Decimal("0")).quantize(q)
+            return Decimal("0")
+        try:
+            return Decimal(str(raw)).quantize(q)
+        except (InvalidOperation, ValueError):
+            return Decimal("0")
+
+    desk_reconcile_rows = []
+    for r in pm_rows:
+        if r["ledger"] not in ("cash", "bank"):
+            continue
+        code = r["code"]
+        op = _opening_for(code)
+        sales = pay_map.get(code, Decimal("0"))
+        expm = exp_by_method.get(code, Decimal("0"))
+        desk_reconcile_rows.append(
+            {
+                "code": code,
+                "label": r["label_ar"] or labels.get(code, code),
+                "opening": op,
+                "sales": sales,
+                "expenses": expm,
+                "expected": op + sales - expm,
+            }
+        )
+
+    opening_cash = _opening_for("cash")
+    expected_cash = opening_cash + pay_map.get("cash", Decimal("0")) - cash_expenses
 
     open_orders = open_orders_with_lines_queryset(ws).select_related("table", "customer")
 
@@ -505,6 +601,8 @@ def session_summary(request):
         "profit": profit,
         "invoice_count": invoice_count,
         "payments": pay_map,
+        "payment_channel_totals": payment_channel_totals,
+        "desk_reconcile_rows": desk_reconcile_rows,
         "total_expenses": total_expenses,
         "cash_expenses": cash_expenses,
         "opening_cash": opening_cash,

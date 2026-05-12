@@ -1,0 +1,91 @@
+{% load core_extras %}
+{# طبقة إتمام الدفع — تُفتح من أزرار السلة؛ طرق الدفع + دفع مختلط #}
+<div id="pos-checkout-overlay" class="fixed inset-0 z-[311] flex items-center justify-center p-2 sm:p-3" style="display:none" role="dialog" aria-modal="true" aria-labelledby="pos-checkout-overlay-title" dir="rtl">
+  <button type="button" id="pos-checkout-backdrop" class="absolute inset-0 cursor-default border-0 bg-black/45 p-0" aria-label="إغلاق"></button>
+  <div class="relative z-[1] flex w-full max-w-[min(26rem,96vw)] max-h-[min(88vh,36rem)] flex-col overflow-hidden rounded-lg border border-gray-300 bg-[#f4f5f7] shadow-2xl dark:border-gray-600 dark:bg-gray-900">
+    <div class="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+      <span id="pos-checkout-overlay-title" class="text-sm font-bold text-gray-800 dark:text-gray-100">إتمام الدفع</span>
+      <button type="button" id="pos-checkout-close" class="rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-bold text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600">إغلاق</button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 px-3 py-2.5 text-xs">
+      <div class="mb-2 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+        <div class="text-[10px] font-bold text-emerald-800 dark:text-emerald-200">المبلغ المطلوب دفعه الآن</div>
+        <div class="text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-300" dir="ltr"><span id="pos-co-hero-amt">0.00</span> <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">{{ POS_SETTINGS.currency_symbol }}</span></div>
+      </div>
+
+      <label class="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-0.5" for="pos-co-pay-amt">مبلغ هذه الدفعة</label>
+      <input type="number" id="pos-co-pay-amt" step="0.01" min="0" inputmode="decimal" lang="en"
+        class="mb-2 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm font-bold tabular-nums dark:border-gray-600 dark:bg-gray-800">
+
+      <label class="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-0.5" for="pos-co-cust-search">اسم الزبون / بحث عميل <span class="text-muted font-normal">(اختياري)</span></label>
+      <div class="relative mb-2 min-w-0">
+        <input type="hidden" id="pos-co-cust-id" value="">
+        <input type="search" id="pos-co-cust-search" autocomplete="off" placeholder="بحث أو اسم جديد للآجل…"
+          class="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-800">
+        <div id="pos-co-cust-hits" class="absolute start-0 end-0 top-full z-30 mt-px max-h-[min(8rem,28vh)] overflow-y-auto rounded-b-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800" style="display:none"></div>
+      </div>
+
+      <div class="mb-1 flex flex-wrap items-center gap-2">
+        <input type="checkbox" id="pos-co-split-chk" value="1" class="rounded border-gray-400">
+        <label for="pos-co-split-chk" class="text-[11px] font-bold cursor-pointer">دفع مختلط</label>
+      </div>
+
+      <div id="pos-co-single-wrap" class="mb-2 min-w-0">
+        <span class="mb-1 block text-[11px] font-bold text-gray-600 dark:text-gray-400">طريقة الدفع</span>
+        <div id="pos-co-methods" class="flex flex-row flex-wrap gap-1" role="group" aria-label="طريقة الدفع">
+          {% for row in POS_SETTINGS.payment_method_rows %}
+          <button type="button" class="pos-co-pm-btn flex-1 min-w-[4.5rem] rounded-md border border-gray-300 bg-white px-1.5 py-1.5 text-[10px] font-bold leading-tight text-gray-900 hover:border-[#1e3a5f] dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:border-sky-500"
+            data-m="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="pos-co-split-wrap" class="mb-2 hidden min-w-0 rounded-md border border-gray-200 bg-gray-50/80 p-2 dark:border-gray-600 dark:bg-gray-900/50">
+        <p class="mb-1 text-[10px] font-semibold text-muted">أسطر الدفع — مجموع المبالغ = «مبلغ هذه الدفعة»</p>
+        <div class="overflow-x-auto rounded border border-gray-200 dark:border-gray-600">
+          <table class="w-full border-collapse text-[10px]">
+            <thead>
+              <tr class="border-b border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-800">
+                <th class="p-1 text-end font-bold">طريقة</th>
+                <th class="p-1 text-end font-bold w-24">مبلغ</th>
+                <th class="w-7 p-0"></th>
+              </tr>
+            </thead>
+            <tbody id="pos-co-split-tbody"></tbody>
+          </table>
+        </div>
+        <button type="button" id="pos-co-split-add" class="mt-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-[10px] font-bold dark:border-gray-600 dark:bg-gray-800">+ بند</button>
+        <p id="pos-co-split-hint" class="mt-1 text-[10px] tabular-nums text-muted"></p>
+      </div>
+
+      <div id="pos-co-payer-panel" class="mb-2 hidden grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        <span class="sm:col-span-2 text-[10px] font-bold text-gray-600 dark:text-gray-400">بيانات المحوّل <span class="font-normal text-muted">(بنك فلسطين / بال باي / جوال باي)</span></span>
+        <div class="relative min-w-0 sm:col-span-1">
+          <input type="text" id="pos-co-payer-name" maxlength="120" autocomplete="off" placeholder="اسم المحوّل"
+            class="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800">
+          <div id="pos-co-payer-hits" class="absolute start-0 end-0 top-full z-30 mt-px max-h-[6.5rem] overflow-y-auto rounded-b-md border border-gray-300 bg-white shadow dark:border-gray-600 dark:bg-gray-800" style="display:none"></div>
+        </div>
+        <input type="tel" id="pos-co-payer-phone" maxlength="40" inputmode="tel" placeholder="جوال"
+          class="min-w-0 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs tabular-nums dark:border-gray-600 dark:bg-gray-800 sm:col-span-1">
+      </div>
+
+      <div class="mt-1 flex flex-wrap gap-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+        <button type="button" id="pos-checkout-cancel" class="h-9 flex-1 min-w-[6rem] rounded-lg border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">إلغاء</button>
+        <button type="button" id="pos-checkout-confirm" class="h-9 flex-[1.35] min-w-[8rem] rounded-lg bg-primary text-xs font-bold text-white hover:bg-primary-dk">تأكيد الدفع</button>
+      </div>
+    </div>
+  </div>
+</div>
+<style>
+#pos-checkout-overlay .pos-co-pm-btn.on{border-color:#1e3a5f;background:#e2e8f0;color:#0f172a;}
+.dark #pos-checkout-overlay .pos-co-pm-btn.on{border-color:#3b82f6;background:rgba(30,58,95,.4);color:#f8fafc;}
+</style>
+<script>
+(function(){
+  window.CHECKOUT_PM_ROWS = [
+    {% for row in POS_SETTINGS.payment_method_rows %}
+    { code: "{{ row.code|escapejs }}", label_ar: "{{ row.label_ar|escapejs }}", ledger: "{{ row.ledger|escapejs }}", needsPayer: {% if row.ledger == 'bank' %}true{% else %}false{% endif %} }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+})();
+</script>

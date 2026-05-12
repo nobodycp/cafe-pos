@@ -108,17 +108,25 @@
 {% if not work_session %}
 {# ─── No session ─── #}
 <div class="pos-start-shell flex items-center justify-center flex-1 p-2">
-  <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-5 w-full max-w-sm mx-2">
-    <h2 class="text-base font-bold text-center mb-4">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
+  <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-5 w-full max-w-md mx-2 max-h-[min(92vh,36rem)] overflow-y-auto">
+    <h2 class="text-base font-bold text-center mb-1">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
+    <p class="text-[11px] text-muted text-center mb-3 leading-snug">أدخل رصيد كل طريقة دفع عند الافتتاح لمطابقة المبيعات والمصروفات في ملخص نهاية اليوم.</p>
     <form method="post" action="{% url 'core:session_open' %}">
       {% csrf_token %}
+      {% for row in POS_SETTINGS.payment_method_rows %}
+      <div class="mb-2.5">
+        <label class="block text-xs font-semibold text-muted mb-0.5">{{ row.label_ar }}</label>
+        <input type="number" name="opening_balance_{{ row.code }}" value="0" step="0.01" min="0" class="w-full rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm">
+      </div>
+      {% empty %}
       <div class="mb-4">
         <label class="block text-xs font-semibold text-muted mb-1">{{ LBL.opening_cash|default:"الصندوق الافتتاحي" }}</label>
         <input type="number" name="opening_cash" value="0" step="0.01" min="0" class="w-full">
       </div>
+      {% endfor %}
       <div class="mb-3">
         <label class="block text-xs font-semibold text-muted mb-1">ملاحظات</label>
-        <input type="text" name="notes" placeholder="اختياري" class="w-full">
+        <input type="text" name="notes" placeholder="اختياري" class="w-full rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm">
       </div>
       <button class="w-full h-9 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-sm mt-1 border border-[#163051]" type="submit">{{ LBL.open_btn|default:"فتح الوردية" }}</button>
     </form>
@@ -149,6 +157,7 @@
   <div id="pos-cart" class="flex flex-1 flex-col min-h-0 min-w-0 h-full overflow-hidden dir-rtl" data-cart-url="{% url 'pos:cart_fragment' %}">
   {% include "pos/_cart_fragment.html" %}
   </div>
+  {% include "pos/_checkout_pay_overlay.html" %}
 </div>
 
 {# ─── CENTER: Products — 50٪ علوي (المنتجات) + 50٪ سفلي (زر سندات → نافذة عند وجود طلب ووردية) #}
@@ -465,6 +474,7 @@
   }
   function openPosReceiptEmbed(url){
     if(!url)return;
+    closePosCheckoutOverlay();
     var ov=document.getElementById('pos-receipt-embed-overlay');
     var fr=document.getElementById('pos-receipt-embed-iframe');
     if(!ov||!fr)return;
@@ -491,6 +501,7 @@
   }
   function openPosInvoiceOverlay(){
     if(!LAST_INVOICE_URL)return;
+    closePosCheckoutOverlay();
     var ov=document.getElementById('pos-invoice-overlay');
     var mount=document.getElementById('pos-invoice-panel-mount');
     if(!ov||!mount)return;
@@ -572,12 +583,19 @@
     ov.style.display='none';
     ov.setAttribute('aria-hidden','true');
   }
+  function closePosCheckoutOverlay(){
+    var ov=document.getElementById('pos-checkout-overlay');
+    if(!ov)return;
+    ov.style.display='none';
+    ov.setAttribute('aria-hidden','true');
+  }
   function openPosCustomerOverlay(){
     var ov=document.getElementById('pos-customer-overlay');
     if(!ov)return;
     closePosTreasuryOverlay();
     closePosPurchaseOverlay();
     closePosProductOverlay();
+    closePosCheckoutOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var nid=typeof POS_CUSTOMER_NAME_ID!=='undefined'?POS_CUSTOMER_NAME_ID:'';
@@ -598,6 +616,7 @@
     closePosTreasuryOverlay();
     closePosPurchaseOverlay();
     closePosCustomerOverlay();
+    closePosCheckoutOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var nid=typeof POS_PRODUCT_NAME_ID!=='undefined'?POS_PRODUCT_NAME_ID:'';
@@ -618,6 +637,7 @@
     closePosTreasuryOverlay();
     closePosProductOverlay();
     closePosCustomerOverlay();
+    closePosCheckoutOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var si=document.getElementById('purchase-supplier-search');
@@ -637,6 +657,7 @@
     closePosPurchaseOverlay();
     closePosProductOverlay();
     closePosCustomerOverlay();
+    closePosCheckoutOverlay();
     ov.style.display='flex';
     ov.setAttribute('aria-hidden','false');
     var si=document.getElementById('tv-party-search');
@@ -1116,8 +1137,7 @@
       ni.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();ni.blur();}});
       if(btn)btn.addEventListener('click',function(e){e.preventDefault();saveOrderNote();});
     })();
-    initPaymentUI();
-    initCustomerAutocomplete();
+    bindPosCoOpenInCart();
   }
   initCartInteractions();
 
@@ -1125,7 +1145,7 @@
     if(!ORDER_ADD_URL)return;
     var ae=document.activeElement;
     if(ae&&/^modal-/.test(String(ae.id||'')))return;
-    if(ae&&ae.closest&&ae.closest('#checkout-form')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
+    if(ae&&ae.closest&&ae.closest('#pos-checkout-overlay')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
     if(e.key==='/'){
       e.preventDefault();
       var si0=document.getElementById('pos-search-input');
@@ -1147,6 +1167,12 @@
     var tr=getSelectedCartLine();
     var lid=tr?tr.getAttribute('data-line-id'):null;
     if(e.key==='Escape'){
+      var coOv=document.getElementById('pos-checkout-overlay');
+      if(coOv&&coOv.style.display==='flex'){
+        e.preventDefault();
+        closePosCheckoutOverlay();
+        return;
+      }
       var invOv=document.getElementById('pos-invoice-overlay');
       if(invOv&&invOv.style.display==='flex'){
         e.preventDefault();
@@ -1181,8 +1207,8 @@
       if(aeEsc&&aeEsc.id==='pos-search-input')return;
       if(aeEsc&&aeEsc.id==='order-note-compact')return;
       if(aeEsc&&aeEsc.closest&&aeEsc.closest('#cart-discount-note-block'))return;
-      var pHits=document.getElementById('pay-payer-hits');
-      var cHits=document.getElementById('pay-cust-hits');
+      var pHits=document.getElementById('pos-co-payer-hits');
+      var cHits=document.getElementById('pos-co-cust-hits');
       var tvPayerHits=document.getElementById('tv-payer-hits');
       if(pHits&&pHits.style.display==='block'){pHits.style.display='none';e.preventDefault();return;}
       if(tvPayerHits&&!tvPayerHits.classList.contains('hidden')){tvPayerHits.classList.add('hidden');e.preventDefault();return;}
@@ -1196,13 +1222,8 @@
     }
     if(e.key==='F9'){
       e.preventDefault();
-      var cf9=document.getElementById('checkout-form');
-      var pb=document.getElementById('pay-btn');
-      if(cf9&&pb){
-        pb.focus();
-        if(typeof cf9.requestSubmit==='function')cf9.requestSubmit(pb);
-        else pb.click();
-      }
+      if(document.getElementById('pos-checkout-overlay')&&document.getElementById('pos-checkout-overlay').style.display==='flex')return;
+      openPosCheckoutOverlay('save');
       return;
     }
     if(e.key==='F4'&&lid){e.preventDefault();posCartTbLineNote();return;}
@@ -1224,229 +1245,435 @@
     }
   },true);
 
-  /* ── Payment mode ── */
-  function initPaymentUI(){
-    var pmBtns=document.querySelectorAll('#pay-methods .pm-btn');
-    var pmVal=document.getElementById('pay-mode-val');
-    var cf=document.getElementById('checkout-form');
-    var payBtn=document.getElementById('pay-btn');
-    var payPrintBtn=document.getElementById('pay-print-btn');
-    var epPanel=document.getElementById('ep-payer-panel');
-    var arCustPanel=document.getElementById('pay-ar-customer-panel');
-    var payAmt=document.getElementById('pay-amt');
-
-    function syncPayAmountDefault(opts){
-      opts=opts||{};
-      if(!payAmt||!cf)return;
-      var M=(typeof CafeMoney!=='undefined'&&CafeMoney&&CafeMoney.parse)?CafeMoney:{
-        parse:function(s){if(s==null||s==='')return NaN;var t=String(s).trim().replace(/,/g,'.');return parseFloat(t);},
-        format2:function(n){if(isNaN(n)||n<0)return'0.00';return(Math.round(n*100)/100).toFixed(2);}
-      };
-      var bal=M.parse(cf.getAttribute('data-balance'));
-      if(isNaN(bal)||bal<0)bal=0;
-      var force=opts.force===true;
-      var cur=M.parse(payAmt.value);
-      if(force||!String(payAmt.value||'').trim()||isNaN(cur)||cur<=0)
-        payAmt.value=M.format2(bal);
-    }
-
-    function setMode(m){
-      if(!pmVal)return;
-      pmVal.value=m;
-      pmBtns.forEach(function(b){b.classList.toggle('on',b.getAttribute('data-m')===m)});
-      var onBtn=document.querySelector('#pay-methods .pm-btn.on');
-      var needPayer=onBtn&&onBtn.getAttribute('data-needs-payer')==='1';
-      var isAr=onBtn&&(onBtn.getAttribute('data-ledger')||'')==='ar';
-      if(epPanel)epPanel.classList.toggle('hidden',!needPayer);
-      if(arCustPanel)arCustPanel.classList.toggle('hidden',!isAr);
-      syncPayAmountDefault({force:true});
-      [payBtn,payPrintBtn].forEach(function(pb){
-        if(!pb)return;
-        if(m){pb.style.opacity='1';pb.style.pointerEvents='auto';}
-        else{pb.style.opacity='0.55';pb.style.pointerEvents='auto';}
-      });
-    }
-    pmBtns.forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-m'))})});
-
-    var lastCheckoutAction='save';
-    if(payPrintBtn)payPrintBtn.addEventListener('mousedown',function(){lastCheckoutAction='save_print';});
-    if(payBtn)payBtn.addEventListener('mousedown',function(){lastCheckoutAction='save';});
-
-    var cancelOrd=document.getElementById('pos-btn-cancel-order');
-    if(cancelOrd)cancelOrd.addEventListener('click',function(){
-      var cff=document.getElementById('pos-cancel-order-form');
-      if(cff)cff.submit();
+  var lastCheckoutAction = 'save';
+  function bindPosCoOpenInCart() {
+    var cart = document.getElementById('pos-cart');
+    if (!cart || cart.getAttribute('data-co-open') === '1') return;
+    cart.setAttribute('data-co-open', '1');
+    cart.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('#pos-co-open-pay')) {
+        e.preventDefault();
+        openPosCheckoutOverlay('save');
+        return;
+      }
+      if (e.target.closest && e.target.closest('#pos-co-open-pay-print')) {
+        e.preventDefault();
+        openPosCheckoutOverlay('save_print');
+        return;
+      }
+      if (e.target.closest && e.target.closest('#pos-btn-cancel-order')) {
+        e.preventDefault();
+        var cff = document.getElementById('pos-cancel-order-form');
+        if (cff) cff.submit();
+      }
     });
-    if(cf){cf.addEventListener('keydown',function(e){
-      if(e.key!=='Enter')return;
-      var t=e.target;if(!t)return;
-      if(t.id==='pay-btn'||t.id==='pay-print-btn')return;
-      if(t.tagName==='TEXTAREA')return;
-      if(t.tagName==='BUTTON'&&t.type==='button')return;
-      var pch=document.getElementById('pay-cust-hits');
-      if(t.id==='pay-cust-search'&&pch&&pch.style.display==='block'){
-        var ca=pch.querySelector('.cust-ac-hit');
-        if(ca)return;
+  }
+  function coMoneyParse(s) {
+    if (typeof CafeMoney !== 'undefined' && CafeMoney && CafeMoney.parse) return CafeMoney.parse(s);
+    if (s == null || s === '') return NaN;
+    return parseFloat(String(s).trim().replace(/,/g, '.'));
+  }
+  function coMoneyFmt2(n) {
+    if (typeof CafeMoney !== 'undefined' && CafeMoney && CafeMoney.format2) return CafeMoney.format2(n);
+    if (isNaN(n) || n < 0) return '0.00';
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+  function coPmMeta(code) {
+    var c = (code || '').trim().toLowerCase();
+    var rows = typeof CHECKOUT_PM_ROWS !== 'undefined' ? CHECKOUT_PM_ROWS : [];
+    for (var i = 0; i < rows.length; i++) if (rows[i].code === c) return rows[i];
+    return { code: c, label_ar: c, ledger: '', needsPayer: false };
+  }
+  function coSplitModeOn() {
+    var x = document.getElementById('pos-co-split-chk');
+    return !!(x && x.checked);
+  }
+  function coAnySplitNeedsPayer() {
+    if (!coSplitModeOn()) return false;
+    var tb = document.getElementById('pos-co-split-tbody');
+    if (!tb) return false;
+    var need = false;
+    tb.querySelectorAll('select.pos-co-split-m').forEach(function (sel) {
+      if (coPmMeta(sel.value).needsPayer) need = true;
+    });
+    return need;
+  }
+  function coSingleNeedsPayer() {
+    if (coSplitModeOn()) return false;
+    var b = document.querySelector('#pos-co-methods .pos-co-pm-btn.on');
+    return !!(b && b.getAttribute('data-needs-payer') === '1');
+  }
+  function coAnySplitIsAr() {
+    if (!coSplitModeOn()) return false;
+    var tb = document.getElementById('pos-co-split-tbody');
+    if (!tb) return false;
+    var ar = false;
+    tb.querySelectorAll('select.pos-co-split-m').forEach(function (sel) {
+      if (coPmMeta(sel.value).ledger === 'ar') ar = true;
+    });
+    return ar;
+  }
+  function coSingleIsAr() {
+    if (coSplitModeOn()) return false;
+    var b = document.querySelector('#pos-co-methods .pos-co-pm-btn.on');
+    return !!(b && (b.getAttribute('data-ledger') || '') === 'ar');
+  }
+  function syncCheckoutPayerPanel() {
+    var p = document.getElementById('pos-co-payer-panel');
+    if (!p) return;
+    p.classList.toggle('hidden', !coSingleNeedsPayer() && !coAnySplitNeedsPayer());
+  }
+  function serializeCheckoutSplits() {
+    var tb = document.getElementById('pos-co-split-tbody');
+    if (!tb) return '';
+    var pairs = [];
+    tb.querySelectorAll('tr').forEach(function (tr) {
+      var sel = tr.querySelector('select.pos-co-split-m');
+      var am = tr.querySelector('input.pos-co-split-amt');
+      if (!sel || !am) return;
+      var c = (sel.value || '').trim().toLowerCase();
+      var v = coMoneyParse(am.value);
+      if (c && !isNaN(v) && v > 0) pairs.push([c, v]);
+    });
+    return pairs.length ? JSON.stringify(pairs) : '';
+  }
+  function checkoutSplitRowsSum() {
+    var tb = document.getElementById('pos-co-split-tbody');
+    if (!tb) return 0;
+    var s = 0;
+    tb.querySelectorAll('input.pos-co-split-amt').forEach(function (inp) {
+      var v = coMoneyParse(inp.value);
+      if (!isNaN(v)) s += v;
+    });
+    return Math.round((s + Number.EPSILON) * 100) / 100;
+  }
+  function syncCheckoutSplitHint() {
+    var el = document.getElementById('pos-co-split-hint');
+    if (!el) return;
+    var tgt = coMoneyParse(document.getElementById('pos-co-pay-amt') && document.getElementById('pos-co-pay-amt').value);
+    if (isNaN(tgt)) tgt = 0;
+    var sum = checkoutSplitRowsSum();
+    var r = tgt - sum;
+    el.textContent =
+      'مجموع الأسطر: ' +
+      sum.toFixed(2) +
+      ' — المستهدف: ' +
+      tgt.toFixed(2) +
+      (r > 0.02 ? ' — فرق: ' + r.toFixed(2) : r < -0.02 ? ' — يتجاوز المستهدف' : '');
+  }
+  function addCheckoutSplitRow(code, amtStr) {
+    var tb = document.getElementById('pos-co-split-tbody');
+    if (!tb) return;
+    var rows = typeof CHECKOUT_PM_ROWS !== 'undefined' ? CHECKOUT_PM_ROWS : [];
+    var tr = document.createElement('tr');
+    var sel = document.createElement('select');
+    sel.className = 'pos-co-split-m w-full rounded border border-gray-300 bg-white text-[10px] dark:border-gray-600 dark:bg-gray-800';
+    rows.forEach(function (r) {
+      var o = document.createElement('option');
+      o.value = r.code;
+      o.textContent = r.label_ar;
+      if (code && r.code === code) o.selected = true;
+      sel.appendChild(o);
+    });
+    var am = document.createElement('input');
+    am.type = 'number';
+    am.step = '0.01';
+    am.className =
+      'pos-co-split-amt w-full rounded border border-gray-300 bg-white px-1 py-0.5 text-end text-[10px] tabular-nums dark:border-gray-600 dark:bg-gray-800';
+    am.value = amtStr || '';
+    var rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'text-rose-600 font-bold text-sm leading-none';
+    rm.textContent = '×';
+    rm.addEventListener('click', function () {
+      tr.remove();
+      syncCheckoutSplitHint();
+      syncCheckoutPayerPanel();
+    });
+    var td1 = document.createElement('td');
+    td1.className = 'p-1';
+    td1.appendChild(sel);
+    var td2 = document.createElement('td');
+    td2.className = 'p-1';
+    td2.appendChild(am);
+    var td3 = document.createElement('td');
+    td3.className = 'p-1 text-center';
+    td3.appendChild(rm);
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tr.appendChild(td3);
+    tb.appendChild(tr);
+    sel.addEventListener('change', function () {
+      syncCheckoutPayerPanel();
+    });
+    am.addEventListener('input', function () {
+      syncCheckoutSplitHint();
+    });
+  }
+  function syncCheckoutSplitMode(on) {
+    var sw = document.getElementById('pos-co-single-wrap');
+    var sp = document.getElementById('pos-co-split-wrap');
+    if (sw) sw.classList.toggle('hidden', !!on);
+    if (sp) sp.classList.toggle('hidden', !on);
+    if (on) {
+      var tb = document.getElementById('pos-co-split-tbody');
+      if (tb && !tb.children.length) {
+        var def = CHECKOUT_PM_ROWS && CHECKOUT_PM_ROWS[0] ? CHECKOUT_PM_ROWS[0].code : '';
+        addCheckoutSplitRow(def, '');
       }
-      var pph=document.getElementById('pay-payer-hits');
-      if(t.id==='pay-payer-name'&&pph&&pph.style.display==='block'){
-        var pa=pph.querySelector('.cust-ac-hit');
-        if(pa&&!String(pa.textContent||'').includes('لا نتائج'))return;
-      }
-      e.preventDefault();
-      var cfEnt=document.getElementById('checkout-form');
-      var pb=document.getElementById('pay-btn');
-      if(cfEnt&&pb){
-        if(typeof cfEnt.requestSubmit==='function')cfEnt.requestSubmit(pb);
-        else pb.click();
-      }
-    },true);}
-
-    function validateCheckoutBeforeSubmit(){
-      if(!pmVal||!String(pmVal.value||'').trim()){
-        showToast('اختر طريقة الدفع أولاً','error');
+      syncCheckoutSplitHint();
+    }
+    syncCheckoutPayerPanel();
+  }
+  function openPosCheckoutOverlay(action) {
+    var ov = document.getElementById('pos-checkout-overlay');
+    var cf = document.getElementById('checkout-form');
+    if (!ov || !cf) return;
+    lastCheckoutAction = action === 'save_print' ? 'save_print' : 'save';
+    closePosTreasuryOverlay();
+    closePosPurchaseOverlay();
+    closePosCustomerOverlay();
+    closePosProductOverlay();
+    var bal = coMoneyParse(cf.getAttribute('data-balance'));
+    if (isNaN(bal) || bal < 0) bal = 0;
+    var hero = document.getElementById('pos-co-hero-amt');
+    if (hero) hero.textContent = coMoneyFmt2(bal);
+    var amtEl = document.getElementById('pos-co-pay-amt');
+    if (amtEl) amtEl.value = coMoneyFmt2(bal);
+    var hidCust = document.getElementById('pay-cust-id');
+    var coId = document.getElementById('pos-co-cust-id');
+    var coSearch = document.getElementById('pos-co-cust-search');
+    if (coId && hidCust) coId.value = String(hidCust.value || '');
+    if (coSearch) {
+      coSearch.value = '';
+      var dnf = document.getElementById('pay-cust-name-draft');
+      if (dnf && String(dnf.value || '').trim()) coSearch.value = String(dnf.value || '').trim();
+    }
+    var sc = document.getElementById('pos-co-split-chk');
+    if (sc) sc.checked = false;
+    syncCheckoutSplitMode(false);
+    document.querySelectorAll('#pos-co-methods .pos-co-pm-btn').forEach(function (b) {
+      b.classList.remove('on');
+    });
+    var first = document.querySelector('#pos-co-methods .pos-co-pm-btn');
+    var pmVal = document.getElementById('pay-mode-val');
+    if (first) {
+      first.classList.add('on');
+      if (pmVal) pmVal.value = first.getAttribute('data-m') || '';
+    } else if (pmVal) pmVal.value = '';
+    var pn = document.getElementById('pos-co-payer-name');
+    var ph = document.getElementById('pos-co-payer-phone');
+    if (pn) pn.value = '';
+    if (ph) ph.value = '';
+    syncCheckoutPayerPanel();
+    ov.style.display = 'flex';
+    ov.setAttribute('aria-hidden', 'false');
+    if (amtEl) {
+      try {
+        amtEl.focus();
+        amtEl.select();
+      } catch (x) {}
+    }
+  }
+  function validateCheckoutOverlay() {
+    var cf = document.getElementById('checkout-form');
+    if (!cf) return false;
+    var bal = coMoneyParse(cf.getAttribute('data-balance'));
+    if (isNaN(bal) || bal < 0) bal = 0;
+    var amt = coMoneyParse(document.getElementById('pos-co-pay-amt') && document.getElementById('pos-co-pay-amt').value);
+    if (isNaN(amt) || amt <= 0) {
+      showToast('أدخل مبلغ الدفعة', 'error');
+      return false;
+    }
+    if (amt > bal + 0.02) {
+      showToast('المبلغ يتجاوز المتبقي للتحصيل', 'error');
+      return false;
+    }
+    var coId = document.getElementById('pos-co-cust-id');
+    var coSearch = document.getElementById('pos-co-cust-search');
+    var hasId = coId && String(coId.value || '').trim();
+    var draftName = coSearch ? String(coSearch.value || '').trim() : '';
+    if (coSplitModeOn()) {
+      var sum = checkoutSplitRowsSum();
+      if (Math.abs(sum - amt) > 0.02) {
+        showToast('مجموع أسطر الدفع المختلط يجب أن يساوي مبلغ الدفعة', 'error');
         return false;
       }
-      var onPm=document.querySelector('#pay-methods .pm-btn.on');
-      if(onPm&&(onPm.getAttribute('data-ledger')||'')==='ar'){
-        var hid=document.getElementById('pay-cust-id');
-        var psAr=document.getElementById('pay-cust-search');
-        var hasId=hid&&String(hid.value||'').trim();
-        var hasNewName=psAr&&String(psAr.value||'').trim().length>=2;
-        if(!hasId&&!hasNewName){
-          showToast('اختر عميلاً أو اكتب اسماً جديداً (حرفان على الأقل) للدفع الآجل','error');
-          return false;
-        }
+      if (coAnySplitIsAr() && !hasId && draftName.length < 2) {
+        showToast('للآجل: اختر عميلاً أو اكتب اسماً جديداً (حرفان على الأقل)', 'error');
+        return false;
       }
-      if(onPm&&onPm.getAttribute('data-needs-payer')==='1'){
-        var pn=document.getElementById('pay-payer-name');
-        var ph=document.getElementById('pay-payer-phone');
-        var n=pn?String(pn.value||'').trim():'';
-        var p=ph?String(ph.value||'').replace(/\D/g,'').trim():'';
-        if(n.length<2||p.length<8){
-          showToast('أدخل اسم المحوّل ورقم الجوال','error');
-          return false;
-        }
+    } else {
+      var pmVal = document.getElementById('pay-mode-val');
+      if (!pmVal || !String(pmVal.value || '').trim()) {
+        showToast('اختر طريقة الدفع', 'error');
+        return false;
       }
-      return true;
+      if (coSingleIsAr() && !hasId && draftName.length < 2) {
+        showToast('للآجل: اختر عميلاً أو اكتب اسماً جديداً (حرفان على الأقل)', 'error');
+        return false;
+      }
     }
-
-    if(cf&&cf.getAttribute('data-pos-checkout-bound')!=='1'){
-      cf.setAttribute('data-pos-checkout-bound','1');
-      cf.addEventListener('submit',function(e){
-        e.preventDefault();
-        var dDraft=document.getElementById('pay-cust-name-draft');
-        var ps=document.getElementById('pay-cust-search');
-        if(dDraft&&ps)dDraft.value=String(ps.value||'').trim();
-        if(!validateCheckoutBeforeSubmit())return;
-        var fd=new FormData(cf);
-        var sub=e.submitter;
-        var checkoutAction='save';
-        if(sub&&sub.id==='pay-print-btn')checkoutAction='save_print';
-        else if(sub&&sub.id==='pay-btn')checkoutAction='save';
-        else if(lastCheckoutAction==='save_print')checkoutAction='save_print';
-        fd.set('checkout_action',checkoutAction);
-        lastCheckoutAction=checkoutAction;
-        var bodyParams=new URLSearchParams();
-        try{
-          fd.forEach(function(v,k){bodyParams.append(k,v);});
-        }catch(err){
-          bodyParams=new URLSearchParams(fd);
-        }
-        fetch(cf.action,{
-          method:'POST',
-          headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':CSRF},
-          body:bodyParams,
-          credentials:'same-origin'
-        })
-        .then(function(r){
-          return r.json().then(function(j){return{ok:r.ok,json:j};}).catch(function(){
-            return{ok:false,json:{error:'تعذر قراءة الاستجابة من الخادم'}};
-          });
-        })
-        .then(function(res){
-          var j=res.json||{};
-          if(!res.ok||j.ok===false){
-            showToast(j.error||'تعذر إتمام الدفع','error');
-            return;
-          }
-          if(j.receipt_embed_url){
-            var em=j.message||'تم إتمام البيع';
-            return refreshCart().then(function(){
-              showToast(em,'success');
-              openPosReceiptEmbed(j.receipt_embed_url);
-            });
-          }
-          if(j.redirect){
-            window.location.href=j.redirect;
-            return;
-          }
-          if(j.refresh_cart){
-            var m=j.message||'تم تسجيل الدفعة';
-            return refreshCart().then(function(){showToast(m,'success');});
-          }
-          if(j.message)showToast(j.message,'success');
-          return refreshCart();
-        })
-        .catch(function(){showToast('تعذر الاتصال بالخادم','error');});
+    if (coSingleNeedsPayer() || coAnySplitNeedsPayer()) {
+      var pn = document.getElementById('pos-co-payer-name');
+      var ph = document.getElementById('pos-co-payer-phone');
+      var n = pn ? String(pn.value || '').trim() : '';
+      var p = ph ? String(ph.value || '').replace(/\D/g, '').trim() : '';
+      if (n.length < 2 || p.length < 8) {
+        showToast('أدخل اسم المحوّل ورقم الجوال (للتتبع)', 'error');
+        return false;
+      }
+    }
+    return true;
+  }
+  function applyOverlayToCheckoutForm() {
+    var cf = document.getElementById('checkout-form');
+    if (!cf) return;
+    var coId = document.getElementById('pos-co-cust-id');
+    var coSearch = document.getElementById('pos-co-cust-search');
+    var hidCust = cf.querySelector('#pay-cust-id');
+    var hidDraft = cf.querySelector('#pay-cust-name-draft');
+    var hidMode = cf.querySelector('#pay-mode-val');
+    var hidAmt = cf.querySelector('#pay-amt');
+    var hidPn = cf.querySelector('#checkout-hid-payer-name');
+    var hidPh = cf.querySelector('#checkout-hid-payer-phone');
+    var hidSp = cf.querySelector('#checkout-use-splits');
+    var hidSj = cf.querySelector('#checkout-splits-json');
+    if (hidCust) hidCust.value = coId ? String(coId.value || '') : '';
+    if (hidDraft) hidDraft.value = coSearch ? String(coSearch.value || '').trim() : '';
+    if (hidPn) hidPn.value = document.getElementById('pos-co-payer-name') ? String(document.getElementById('pos-co-payer-name').value || '').trim() : '';
+    if (hidPh)
+      hidPh.value = document.getElementById('pos-co-payer-phone')
+        ? String(document.getElementById('pos-co-payer-phone').value || '')
+            .replace(/\D/g, '')
+            .trim()
+        : '';
+    var a = coMoneyParse(document.getElementById('pos-co-pay-amt') && document.getElementById('pos-co-pay-amt').value);
+    if (hidAmt) hidAmt.value = isNaN(a) ? '0.00' : coMoneyFmt2(a);
+    if (coSplitModeOn()) {
+      if (hidSp) hidSp.value = '1';
+      if (hidSj) hidSj.value = serializeCheckoutSplits();
+      if (hidMode) hidMode.value = '';
+    } else {
+      if (hidSp) hidSp.value = '';
+      if (hidSj) hidSj.value = '';
+    }
+  }
+  function runCheckoutFetch(checkoutAction) {
+    var cf = document.getElementById('checkout-form');
+    if (!cf) return;
+    var fd = new FormData(cf);
+    fd.set('checkout_action', checkoutAction || 'save');
+    var bodyParams = new URLSearchParams();
+    try {
+      fd.forEach(function (v, k) {
+        bodyParams.append(k, v);
       });
+    } catch (err) {
+      bodyParams = new URLSearchParams(fd);
     }
-
-    function setupPayerHints(){
-      var inp=document.getElementById('pay-payer-name');
-      var hits=document.getElementById('pay-payer-hits');
-      if(!inp||!hits||!PAYER_HINTS_URL)return;
-      var tmo;
-      inp.addEventListener('input',function(){
-        clearTimeout(tmo);
-        var q=inp.value.trim();
-        if(q.length<1){hits.style.display='none';return;}
-        tmo=setTimeout(function(){
-          fetch(PAYER_HINTS_URL+'?q='+encodeURIComponent(q))
-          .then(function(r){return r.json()})
-          .then(function(data){
-            hits.innerHTML='';
-            if(!data.results||!data.results.length){
-              hits.innerHTML='<div class="cust-ac-hit" style="color:var(--c-muted)">لا نتائج</div>';
-              hits.style.display='block';return;
+    fetch(cf.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': CSRF },
+      body: bodyParams,
+      credentials: 'same-origin',
+    })
+      .then(function (r) {
+        return r
+          .json()
+          .then(function (j) {
+            return { ok: r.ok, json: j };
+          })
+          .catch(function () {
+            return { ok: false, json: { error: 'تعذر قراءة الاستجابة من الخادم' } };
+          });
+      })
+      .then(function (res) {
+        var j = res.json || {};
+        if (!res.ok || j.ok === false) {
+          showToast(j.error || 'تعذر إتمام الدفع', 'error');
+          return;
+        }
+        if (j.receipt_embed_url) {
+          var em = j.message || 'تم إتمام البيع';
+          return refreshCart().then(function () {
+            showToast(em, 'success');
+            openPosReceiptEmbed(j.receipt_embed_url);
+          });
+        }
+        if (j.redirect) {
+          window.location.href = j.redirect;
+          return;
+        }
+        if (j.refresh_cart) {
+          var m = j.message || 'تم تسجيل الدفعة';
+          return refreshCart().then(function () {
+            showToast(m, 'success');
+          });
+        }
+        if (j.message) showToast(j.message, 'success');
+        return refreshCart();
+      })
+      .catch(function () {
+        showToast('تعذر الاتصال بالخادم', 'error');
+      });
+  }
+  function setupCoPayerHints() {
+    var ov = document.getElementById('pos-checkout-overlay');
+    if (!ov || ov.getAttribute('data-payer-h') === '1') return;
+    ov.setAttribute('data-payer-h', '1');
+    var inp = document.getElementById('pos-co-payer-name');
+    var hits = document.getElementById('pos-co-payer-hits');
+    if (!inp || !hits || !PAYER_HINTS_URL) return;
+    var tmo;
+    inp.addEventListener('input', function () {
+      clearTimeout(tmo);
+      var q = inp.value.trim();
+      if (q.length < 1) {
+        hits.style.display = 'none';
+        return;
+      }
+      tmo = setTimeout(function () {
+        fetch(PAYER_HINTS_URL + '?q=' + encodeURIComponent(q))
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            hits.innerHTML = '';
+            if (!data.results || !data.results.length) {
+              hits.innerHTML = '<div class="cust-ac-hit" style="color:var(--c-muted)">لا نتائج</div>';
+              hits.style.display = 'block';
+              return;
             }
-            data.results.forEach(function(row){
-              var btn=document.createElement('button');
-              btn.type='button';
-              btn.textContent=(row.name_ar||'')+(row.phone?' — '+row.phone:'');
-              btn.className='cust-ac-hit';
-              btn.onclick=function(){
-                inp.value=row.name_ar||'';
-                var ph=document.getElementById('pay-payer-phone');
-                if(ph)ph.value=row.phone||'';
-                hits.style.display='none';
+            data.results.forEach(function (row) {
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.textContent = (row.name_ar || '') + (row.phone ? ' — ' + row.phone : '');
+              btn.className = 'cust-ac-hit';
+              btn.onclick = function () {
+                inp.value = row.name_ar || '';
+                var ph = document.getElementById('pos-co-payer-phone');
+                if (ph) ph.value = row.phone || '';
+                hits.style.display = 'none';
               };
               hits.appendChild(btn);
             });
-            hits.style.display='block';
+            hits.style.display = 'block';
           });
-        },200);
-      });
-      inp.addEventListener('keydown',function(e){
-        if(e.key==='Tab'&&hits.style.display!=='none'){
-          var first=hits.querySelector('.cust-ac-hit');
-          if(first&&!first.textContent.includes('لا نتائج')){e.preventDefault();first.click();}
-        }
-      });
-      document.addEventListener('click',function(ev){
-        if(!inp.contains(ev.target)&&!hits.contains(ev.target))hits.style.display='none';
-      });
-    }
-    setupPayerHints();
+      }, 200);
+    });
+    document.addEventListener('click', function (ev) {
+      if (!inp.contains(ev.target) && !hits.contains(ev.target)) hits.style.display = 'none';
+    });
   }
-
-  /* ── Customer autocomplete (مشترك مع static/js/customer_search_autocomplete.js) ── */
-  function initCustomerAutocomplete(){
-    if(typeof CafeCustomerAutocomplete==='undefined')return;
-    var inp=document.getElementById('pay-cust-search');
-    var hits=document.getElementById('pay-cust-hits');
-    var hid=document.getElementById('pay-cust-id');
-    if(!inp||!hits||!hid)return;
+  function initCoCustAutocompleteOnce() {
+    var ov = document.getElementById('pos-checkout-overlay');
+    if (!ov || ov.getAttribute('data-cust-ac') === '1' || typeof CafeCustomerAutocomplete === 'undefined') return;
+    ov.setAttribute('data-cust-ac', '1');
+    var inp = document.getElementById('pos-co-cust-search');
+    var hits = document.getElementById('pos-co-cust-hits');
+    var hid = document.getElementById('pos-co-cust-id');
+    if (!inp || !hits || !hid) return;
     CafeCustomerAutocomplete.bind({
       searchUrl: SEARCH_URL,
       input: inp,
@@ -1459,10 +1686,60 @@
       quickCreateUrl: CUST_CREATE_URL,
       quickCreateCsrf: CSRF,
       arrowNav: true,
-      useDisplayNone: true
+      useDisplayNone: true,
     });
   }
-
+  (function initPosCheckoutOverlayOnce() {
+    var ov = document.getElementById('pos-checkout-overlay');
+    if (!ov || ov.getAttribute('data-bound') === '1') return;
+    ov.setAttribute('data-bound', '1');
+    var bd = document.getElementById('pos-checkout-backdrop');
+    var cl = document.getElementById('pos-checkout-close');
+    var ca = document.getElementById('pos-checkout-cancel');
+    if (bd) bd.addEventListener('click', closePosCheckoutOverlay);
+    if (cl) cl.addEventListener('click', closePosCheckoutOverlay);
+    if (ca) ca.addEventListener('click', closePosCheckoutOverlay);
+    var conf = document.getElementById('pos-checkout-confirm');
+    if (conf)
+      conf.addEventListener('click', function () {
+        if (!validateCheckoutOverlay()) return;
+        applyOverlayToCheckoutForm();
+        var act = lastCheckoutAction || 'save';
+        closePosCheckoutOverlay();
+        runCheckoutFetch(act);
+      });
+    var schk = document.getElementById('pos-co-split-chk');
+    if (schk)
+      schk.addEventListener('change', function () {
+        syncCheckoutSplitMode(!!schk.checked);
+      });
+    var sadd = document.getElementById('pos-co-split-add');
+    if (sadd)
+      sadd.addEventListener('click', function () {
+        var def = CHECKOUT_PM_ROWS && CHECKOUT_PM_ROWS[0] ? CHECKOUT_PM_ROWS[0].code : '';
+        addCheckoutSplitRow(def, '');
+        syncCheckoutSplitHint();
+        syncCheckoutPayerPanel();
+      });
+    var pmStrip = document.getElementById('pos-co-methods');
+    if (pmStrip)
+      pmStrip.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('.pos-co-pm-btn');
+        if (!b) return;
+        e.preventDefault();
+        pmStrip.querySelectorAll('.pos-co-pm-btn').forEach(function (x) {
+          x.classList.remove('on');
+        });
+        b.classList.add('on');
+        var pmVal = document.getElementById('pay-mode-val');
+        if (pmVal) pmVal.value = b.getAttribute('data-m') || '';
+        syncCheckoutPayerPanel();
+      });
+    var payAmtEl = document.getElementById('pos-co-pay-amt');
+    if (payAmtEl) payAmtEl.addEventListener('input', syncCheckoutSplitHint);
+    setupCoPayerHints();
+    initCoCustAutocompleteOnce();
+  })();
   /* ── Category tabs ── */
   var chips=document.querySelectorAll('.pos-cat-btn');
   var panels=document.querySelectorAll('.cat-panel');

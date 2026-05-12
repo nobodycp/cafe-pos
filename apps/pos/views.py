@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -107,17 +108,49 @@ def _parse_pos_discount_input(raw: str) -> tuple[Decimal, Decimal]:
 
 def _payments_from_checkout_form(request, remaining: Decimal) -> list:
     """
-    دفعة واحدة لكل إرسال (بدون «مختلط»): يمكن دفع جزئي عبر pay_amount.
+    دفعة واحدة (payment_mode + pay_amount) أو دفع مختلط (use_payment_splits + payment_splits_json).
     يُرجع قائمة عناصر (method, amount, payer_name, payer_phone).
     """
-    mode = request.POST.get("payment_mode", "").strip()
     if remaining <= 0:
         return []
-    codes = get_payment_method_codes()
-    if mode not in codes:
-        return []
+    codes = set(get_payment_method_codes())
     payer_name = (request.POST.get("payer_name") or "").strip()[:120]
     payer_phone = (request.POST.get("payer_phone") or "").strip()[:40]
+    use_splits_raw = (request.POST.get("use_payment_splits") or "").strip().lower()
+    use_splits = use_splits_raw in ("1", "true", "on", "yes")
+    raw_json = (request.POST.get("payment_splits_json") or "").strip()
+
+    if use_splits and raw_json:
+        try:
+            data = json.loads(raw_json)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(data, list) or len(data) > 24:
+            return []
+        out: list = []
+        for item in data:
+            if isinstance(item, dict):
+                method = str(item.get("method") or "").strip().lower()
+                amt_raw = item.get("amount")
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                method = str(item[0] or "").strip().lower()
+                amt_raw = item[1]
+            else:
+                continue
+            if method not in codes:
+                continue
+            try:
+                a = _money(str(amt_raw).replace(",", "."))
+            except (InvalidOperation, ValueError, TypeError):
+                continue
+            if a <= 0:
+                continue
+            out.append((method, a, payer_name, payer_phone))
+        return out
+
+    mode = request.POST.get("payment_mode", "").strip()
+    if mode not in codes:
+        return []
     raw_amt = (request.POST.get("pay_amount") or "").strip()
     try:
         pay_amt = _money(raw_amt) if raw_amt else remaining
@@ -1003,8 +1036,11 @@ def order_checkout(request, order_id):
 
     if remaining > 0 and new_sum <= 0:
         raw_mode = (request.POST.get("payment_mode") or "").strip()
-        codes = get_payment_method_codes()
-        if not raw_mode or raw_mode not in codes:
+        codes = set(get_payment_method_codes())
+        split_on = (request.POST.get("use_payment_splits") or "").strip().lower() in ("1", "true", "on", "yes")
+        if split_on:
+            msg = "أضف أسطر الدفع المختلط أو تأكد من المبالغ والطرق."
+        elif not raw_mode or raw_mode not in codes:
             msg = "اختر طريقة الدفع أولاً." if not raw_mode else "طريقة الدفع غير صالحة."
         else:
             msg = "أدخل مبلغ دفع أكبر من صفر."
