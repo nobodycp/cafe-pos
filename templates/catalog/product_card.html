@@ -91,6 +91,19 @@
     </button>
   </form>
 </div>
+{% elif product.product_type == 'manufactured' %}
+<div class="bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-5 mb-5 no-print">
+  <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 m-0 mb-2">لماذا لا يظهر «تصنيع دفعة»؟</h3>
+  <p class="text-sm text-amber-950/85 dark:text-amber-100/90 m-0 mb-3 leading-relaxed">
+    الصنف <strong>منتج مصنع</strong> لكن بدون <strong>معادلة تصنيع</strong> لا يُعرض نموذج الإنتاج.
+    عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا حقل «كمية الإنتاج»:
+    تدخل مثلاً <strong>30</strong> فيُزاد رصيد الأراجيل ويُخصم المخزون من المكوّنات تلقائياً وفق المعادلة.
+  </p>
+  <a href="{% url 'shell:recipe_list' product.pk %}"
+     class="inline-flex h-10 items-center px-4 rounded-lg bg-amber-800 text-white font-bold text-sm hover:bg-amber-900 no-underline">
+    إضافة / تعديل معادلة التصنيع
+  </a>
+</div>
 {% endif %}
 
 {# ── Sales Summary ── #}
