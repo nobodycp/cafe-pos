@@ -321,12 +321,18 @@ class TreasuryVoucherForm(forms.Form):
         if not self.data:
             self.fields["voucher_type"].initial = self.VT_RECEIPT
             self.fields["party_type"].initial = self.PARTY_CUSTOMER
-            self.fields["method"].initial = "cash"
+            from apps.core.payment_methods import load_payment_method_rows
+
+            rows = load_payment_method_rows()
+            self.fields["method"].initial = rows[0]["code"] if rows else ""
             self.fields["voucher_date"].initial = django_timezone.localdate()
 
     def clean_method(self):
         m = self.cleaned_data.get("method")
-        if m not in get_payment_method_codes():
+        codes = get_payment_method_codes()
+        if not codes:
+            raise ValidationError("فعّل طريقة دفع واحدة على الأقل من الإعدادات ← طرق الدفع.")
+        if m not in codes:
             raise ValidationError("طريقة دفع غير صالحة.")
         return m
 

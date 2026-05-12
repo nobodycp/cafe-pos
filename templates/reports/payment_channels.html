@@ -1,5 +1,5 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
+{% load humanize core_extras %}
 {% block title %}طرق الدفع والتتبع{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="طرق الدفع والتتبع" toolbar_hint="تحويلات إلكترونية وكاش" %}
@@ -73,7 +73,7 @@
           <td class="py-1.5 px-1">
             <a href="{% url 'shell:invoice_detail' p.invoice.pk %}" class="text-primary font-bold hover:underline">{{ p.invoice.invoice_number }}</a>
           </td>
-          <td class="py-1.5 px-1">{% if p.method == 'cash' %}كاش{% elif p.method == 'bank' %}شبكة عام{% elif p.method == 'bank_ps' %}بنك فلسطين{% elif p.method == 'palpay' %}بال باي{% elif p.method == 'jawwalpay' %}جوال باي{% elif p.method == 'credit' %}آجل{% else %}{{ p.method }}{% endif %}</td>
+          <td class="py-1.5 px-1">{{ p.method|payment_method_label }}</td>
           <td class="py-1.5 px-1 text-end font-bold tabular-nums">{{ p.amount|floatformat:2|intcomma }}</td>
           <td class="py-1.5 px-1">{% if p.payment_source == 'table' %}طاولة{% elif p.payment_source == 'takeaway' %}سفري{% elif p.payment_source == 'delivery' %}توصيل{% elif p.payment_source %} {{ p.payment_source }}{% else %}—{% endif %}</td>
           <td class="py-1.5 px-1">{{ p.payer_name|default:"—" }}</td>

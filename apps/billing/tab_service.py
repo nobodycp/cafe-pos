@@ -154,8 +154,10 @@ def order_payment_source(order: Order) -> str:
 def _aggregate_tab_payments(order: Order) -> Dict[str, Decimal]:
     d = {k: Decimal("0") for k in payment_bucket_keys()}
     for p in order.tab_payments.filter(sale_invoice__isnull=True):
-        if p.method in d:
-            d[p.method] += as_decimal(p.amount)
+        m = p.method
+        if m not in d:
+            d[m] = Decimal("0")
+        d[m] += as_decimal(p.amount)
     return d
 
 

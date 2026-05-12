@@ -11,16 +11,10 @@ from django.utils import timezone
 
 from apps.billing.models import InvoicePayment
 from apps.core.models import AuditLog
-from apps.core.payment_methods import get_payment_method_codes
+from apps.core.payment_methods import get_payment_method_codes, payment_method_label_map
 from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
 from apps.expenses.models import Expense
 from apps.purchasing.models import SupplierPayment
-
-
-def payment_method_label_map() -> dict[str, str]:
-    from apps.core.payment_methods import load_payment_method_rows
-
-    return {r["code"]: r["label_ar"] for r in load_payment_method_rows()}
 
 
 def _parse_voucher_date(payload: dict, fallback: datetime) -> date:

@@ -45,9 +45,12 @@ def treasury_voucher_form_initial_from_audit(*, audit_log: AuditLog) -> dict:
         raise ValueError("UNSUPPORTED_EDIT")
 
     codes = set(get_payment_method_codes())
-    method = (payload.get("method") or "cash").strip().lower()
+    method = (payload.get("method") or "").strip().lower()
     if method not in codes:
-        method = "cash" if "cash" in codes else next(iter(codes), "cash")
+        if codes:
+            method = "cash" if "cash" in codes else sorted(codes)[0]
+        else:
+            method = ""
 
     initial: dict = {
         "voucher_type": vt,

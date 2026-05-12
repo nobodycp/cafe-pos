@@ -10,14 +10,13 @@ from django.utils import timezone
 
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.core.pagination import paginate_queryset
-from apps.core.payment_methods import get_payment_method_codes
+from apps.core.payment_methods import load_payment_method_rows, payment_method_label_map
 from apps.core.models import AuditLog, WorkSession
 from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
 from apps.reports.payment_channel_ledger import (
     apply_search,
     attach_running_balance,
     collect_ledger_rows,
-    payment_method_label_map,
     summarize,
 )
 from apps.core.services import SessionService
@@ -121,18 +120,13 @@ def _session_block(ws: WorkSession):
         .values("method")
         .annotate(s=Sum("amount"))
     )
-    pay_map = {
-        "cash": Decimal("0"),
-        "bank": Decimal("0"),
-        "bank_ps": Decimal("0"),
-        "palpay": Decimal("0"),
-        "jawwalpay": Decimal("0"),
-        "credit": Decimal("0"),
-    }
+    pay_map = {r["code"]: Decimal("0") for r in load_payment_method_rows()}
+    pay_map.setdefault("bank", Decimal("0"))
     for p in pay:
         m = p["method"]
-        if m in pay_map:
-            pay_map[m] = p["s"] or Decimal("0")
+        if m not in pay_map:
+            pay_map[m] = Decimal("0")
+        pay_map[m] = p["s"] or Decimal("0")
     exp = Expense.objects.filter(work_session=ws).aggregate(s=Sum("amount"))
     return {
         "session": ws,
@@ -182,14 +176,7 @@ def daily_sales_report(request):
         pays = [p.method for p in inv.payments.all()]
         methods = set(pays)
         method_labels = []
-        label_map = {
-            "cash": "كاش",
-            "bank": "شبكة (عام)",
-            "bank_ps": "بنك فلسطين",
-            "palpay": "بال باي",
-            "jawwalpay": "جوال باي",
-            "credit": "آجل",
-        }
+        label_map = payment_method_label_map()
         for m in methods:
             method_labels.append(label_map.get(m, m))
         table_name = ""
@@ -530,9 +517,11 @@ def payment_channels_report(request):
         .order_by("-total")
     )
 
-    cash_in = (
-        inv_pay_base.filter(method="cash").aggregate(s=Sum("amount"))["s"] or Decimal("0")
-    )
+    cash_in = Decimal("0")
+    for r in load_payment_method_rows():
+        if (r.get("ledger") or "").strip().lower() != "cash":
+            continue
+        cash_in += inv_pay_base.filter(method=r["code"]).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     expense_cash_out = (
         Expense.objects.filter(
             expense_date__gte=d_from,
@@ -542,14 +531,7 @@ def payment_channels_report(request):
         or Decimal("0")
     )
 
-    method_label = {
-        "cash": "كاش",
-        "bank": "شبكة عام",
-        "bank_ps": "بنك فلسطين",
-        "palpay": "بال باي",
-        "jawwalpay": "جوال باي",
-        "credit": "آجل",
-    }
+    method_label = payment_method_label_map()
     for row in by_method:
         row["label"] = method_label.get(row["method"], row["method"])
 
@@ -571,9 +553,10 @@ def payment_channels_report(request):
 @login_required
 def payment_channel_ledger(request):
     """كشف حركة طريقة دفع واحدة: مبيعات، مصروفات، سدادات موردين، سندات خزينة (قبض/صرف/خصومات)."""
-    method = (request.GET.get("method") or "").strip()
-    codes = get_payment_method_codes()
-    if method not in codes:
+    import re as _re
+
+    method = (request.GET.get("method") or "").strip().lower()
+    if not method or not _re.match(r"^[a-z][a-z0-9_]{0,31}$", method):
         return redirect(reverse("shell:payment_channels"))
 
     today = date.today()

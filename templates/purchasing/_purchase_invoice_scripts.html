@@ -85,21 +85,23 @@
     hits.style.insetInlineStart = '';
     hits.style.insetInlineEnd = '';
     hits.style.width = '';
+    hits.style.zIndex = '';
   }
 
-  function floatHitsUnderInput(hits, input, minWidth) {
-    if (!hits || !input) return;
-    var rect = input.getBoundingClientRect();
-    var width = Math.max(rect.width, minWidth || 260);
-    var left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
-    hits.style.position = 'fixed';
-    hits.style.top = (rect.bottom + 2) + 'px';
-    hits.style.left = left + 'px';
-    hits.style.right = 'auto';
-    hits.style.insetInlineStart = 'auto';
-    hits.style.insetInlineEnd = 'auto';
-    hits.style.width = width + 'px';
-    hits.style.zIndex = '99999';
+  /* مثل سند الصندوق: لا تعويم viewport — إظهار/إخفاء فقط */
+  function hidePurchaseQuickAdd(nb) {
+    if (!nb) return;
+    nb.classList.add('hidden');
+    nb.style.position = '';
+    nb.style.top = '';
+    nb.style.left = '';
+    nb.style.right = '';
+    nb.style.width = '';
+    nb.style.zIndex = '';
+  }
+
+  function showPurchaseQuickAdd(nb) {
+    if (nb) nb.classList.remove('hidden');
   }
 
   function firstVisibleEmptyRow() {
@@ -145,7 +147,7 @@
       inp.value = label || '';
       if (unitId || unitName) setUnit(unitId || '', unitName || '');
       hideHits(hits);
-      newBox.classList.add('hidden');
+      hidePurchaseQuickAdd(newBox);
       focusEl(row.querySelector('.line-qty'));
     }
 
@@ -168,14 +170,13 @@
         hits.appendChild(b);
       });
       hits.classList.remove('hidden');
-      floatHitsUnderInput(hits, inp, 420);
       activeIdx = items.length ? 0 : -1;
     }
 
     var runSearch = debounce(function() {
       var q = inp.value.trim();
       hid.value = '';
-      newBox.classList.add('hidden');
+      hidePurchaseQuickAdd(newBox);
       if (q.length < 1) {
         hideHits(hits);
         return;
@@ -186,15 +187,15 @@
           var items = data.results || [];
           renderHits(items);
           if (!items.length && q.length >= 2) {
-            newBox.classList.remove('hidden');
             newBox.querySelectorAll('.quick-add-btn').forEach(function(btn) {
               btn.dataset.newName = q;
             });
+            showPurchaseQuickAdd(newBox);
           } else {
-            newBox.classList.add('hidden');
+            hidePurchaseQuickAdd(newBox);
           }
         })
-        .catch(function() { hideHits(hits); newBox.classList.add('hidden'); });
+        .catch(function() { hideHits(hits); hidePurchaseQuickAdd(newBox); });
     }, 280);
 
     inp.addEventListener('input', function() {
@@ -207,6 +208,11 @@
         e.preventDefault();
         activeIdx = 0;
         btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
+        return;
+      }
+      if (e.key === 'Escape') {
+        hideHits(hits);
+        hidePurchaseQuickAdd(newBox);
         return;
       }
       if (!btns.length) return;
@@ -224,9 +230,6 @@
           var idx = activeIdx >= 0 && activeIdx < btns.length ? activeIdx : 0;
           btns[idx].dispatchEvent(new MouseEvent('mousedown'));
         }
-      } else if (e.key === 'Escape') {
-        hideHits(hits);
-        newBox.classList.add('hidden');
       }
     });
 
@@ -272,13 +275,13 @@
       hid.value = id || '';
       inp.value = label || '';
       hideHits(hits);
-      newBox.classList.add('hidden');
+      hidePurchaseQuickAdd(newBox);
       focusEl(row.querySelector('.line-qty'));
     }
     var runSearch = debounce(function() {
       var q = inp.value.trim();
       hid.value = '';
-      newBox.classList.add('hidden');
+      hidePurchaseQuickAdd(newBox);
       if (q.length < 1) { hideHits(hits); return; }
       fetch(UNIT_SEARCH_URL + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
@@ -294,9 +297,18 @@
             b.addEventListener('mousedown', function(e) { e.preventDefault(); setSelected(String(u.id), u.name_ar); });
             hits.appendChild(b);
           });
-          if (rows.length) hits.classList.remove('hidden');
-          if (rows.length) floatHitsUnderInput(hits, inp, 260);
-          else { hideHits(hits); if (q.length >= 1) newBox.classList.remove('hidden'); createBtn.dataset.newName = q; }
+          if (rows.length) {
+            hidePurchaseQuickAdd(newBox);
+            hits.classList.remove('hidden');
+          } else {
+            hideHits(hits);
+            if (q.length >= 1) {
+              createBtn.dataset.newName = q;
+              showPurchaseQuickAdd(newBox);
+            } else {
+              hidePurchaseQuickAdd(newBox);
+            }
+          }
         });
     }, 220);
     inp.addEventListener('input', runSearch);
@@ -306,6 +318,11 @@
         e.preventDefault();
         activeIdx = 0;
         btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
+        return;
+      }
+      if (e.key === 'Escape') {
+        hideHits(hits);
+        hidePurchaseQuickAdd(newBox);
         return;
       }
       if (e.key === 'Enter' && btns.length) {
@@ -335,13 +352,25 @@
   }
 
   document.addEventListener('mousedown', function(ev) {
-    if (ev.target.closest('.purchase-ac-hit') || ev.target.closest('.line-product-search') || ev.target.closest('.purchase-ac-new'))
+    if (
+      ev.target.closest('.purchase-ac-hit') ||
+      ev.target.closest('.line-product-search') ||
+      ev.target.closest('.purchase-ac-new') ||
+      ev.target.closest('.line-unit-search') ||
+      ev.target.closest('.purchase-unit-new') ||
+      ev.target.closest('#purchase-supplier-search') ||
+      ev.target.closest('#purchase-supplier-new')
+    )
       return;
     document.querySelectorAll('.purchase-ac-hits').forEach(function(h) {
       h.innerHTML = '';
       h.classList.add('hidden');
     });
+    document.querySelectorAll('.purchase-line .purchase-ac-new, .purchase-line .purchase-unit-new').forEach(hidePurchaseQuickAdd);
+    var supNew = document.getElementById('purchase-supplier-new');
+    if (supNew) hidePurchaseQuickAdd(supNew);
   });
+
 
   document.querySelectorAll('.purchase-line').forEach(function(row) {
     attachProductPicker(row);
@@ -459,7 +488,9 @@
       var h = row.querySelector('.purchase-ac-hits');
       if (h) { h.innerHTML = ''; h.classList.add('hidden'); }
       var nb = row.querySelector('.purchase-ac-new');
-      if (nb) nb.classList.add('hidden');
+      if (nb) hidePurchaseQuickAdd(nb);
+      var unb = row.querySelector('.purchase-unit-new');
+      if (unb) hidePurchaseQuickAdd(unb);
       row.style.display = 'none';
       row.classList.add('is-empty');
       row.classList.remove('is-visible');
@@ -734,13 +765,13 @@
       var labelHidden = document.getElementById('purchase-supplier-label');
       if (labelHidden) labelHidden.value = label || '';
       hideHits(hits);
-      if (newBox) newBox.classList.add('hidden');
+      if (newBox) hidePurchaseQuickAdd(newBox);
       focusEl(document.querySelector('.line-product-search'));
     }
     var run = debounce(function() {
       var q = inp.value.trim();
       hid.value = '';
-      if (newBox) newBox.classList.add('hidden');
+      if (newBox) hidePurchaseQuickAdd(newBox);
       if (q.length < 1) { hideHits(hits); return; }
       fetch(SUPPLIER_SEARCH_URL + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
@@ -757,10 +788,10 @@
             hits.appendChild(b);
           });
           if (rows.length) {
+            if (newBox) hidePurchaseQuickAdd(newBox);
             hits.classList.remove('hidden');
-            floatHitsUnderInput(hits, inp, 320);
           }
-          else { hideHits(hits); if (q.length >= 2 && newBox) newBox.classList.remove('hidden'); }
+          else { hideHits(hits); if (q.length >= 2 && newBox) showPurchaseQuickAdd(newBox); }
         });
     }, 220);
     inp.addEventListener('input', run);
@@ -770,6 +801,11 @@
         e.preventDefault();
         activeIdx = 0;
         btns.forEach(function(b, j) { b.classList.toggle('ac-active', j === 0); });
+        return;
+      }
+      if (e.key === 'Escape') {
+        hideHits(hits);
+        if (newBox) hidePurchaseQuickAdd(newBox);
         return;
       }
       if (e.key === 'Enter' && btns.length) {

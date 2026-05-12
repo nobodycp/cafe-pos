@@ -1,7 +1,7 @@
 from django import template
 
 from apps.core.formatting import decimal_plain_2
-from apps.core.payment_methods import load_payment_method_rows
+from apps.core.payment_methods import payment_method_label_map
 
 register = template.Library()
 
@@ -29,14 +29,12 @@ def dict_get(mapping, key):
 
 @register.filter
 def payment_method_label(code):
-    """تسمية طريقة الدفع من جدول طرق الدفع النشطة."""
+    """تسمية طريقة الدفع من جدول طرق الدفع (نشط أو سجل قديم)."""
     if code is None or str(code).strip() == "":
         return "—"
     c = str(code).strip().lower()
-    for row in load_payment_method_rows():
-        if row.get("code") == c:
-            return row.get("label_ar") or c
-    return str(code)
+    mp = payment_method_label_map()
+    return mp.get(c, c)
 
 
 @register.filter

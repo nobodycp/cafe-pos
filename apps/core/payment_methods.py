@@ -54,21 +54,34 @@ def _rows_from_queryset(qs) -> List[Dict[str, str]]:
 
 
 def load_payment_method_rows() -> List[Dict[str, str]]:
+    """طرق الدفع النشطة فقط من الجدول — لا قيم افتراضية تُعرض في الواجهة."""
     from apps.core.models import PaymentMethod
 
     qs = PaymentMethod.objects.filter(is_active=True).order_by("sort_order", "pk")
-    rows = _rows_from_queryset(qs)
-    if rows:
-        return rows
-    return [dict(x) for x in DEFAULT_PAYMENT_METHOD_ROWS]
+    return _rows_from_queryset(qs)
+
+
+def payment_method_label_map() -> Dict[str, str]:
+    """رمز → اسم معروض: من جدول طرق الدفع + تسميات افتراضية للرموز القديمة فقط."""
+    from apps.core.models import PaymentMethod
+
+    m = {pm.code: (pm.label_ar or pm.code) for pm in PaymentMethod.objects.all()}
+    for row in DEFAULT_PAYMENT_METHOD_ROWS:
+        m.setdefault(row["code"], row["label_ar"])
+    return m
 
 
 def resolve_ledger_account_code(method_code: str) -> str:
     """رمز حساب الصندوق/البنك/الذمم لـ _get_account: CASH | BANK | AR."""
+    from apps.core.models import PaymentMethod
+
     mc = (method_code or "").strip().lower()
     for row in load_payment_method_rows():
         if row["code"] == mc:
             return _ledger_to_sys(row["ledger"])
+    pm = PaymentMethod.objects.filter(code=mc).first()
+    if pm:
+        return _ledger_to_sys(pm.ledger)
     return LEGACY_LEDGER_MAP.get(mc, "BANK")
 
 
@@ -89,14 +102,22 @@ def get_payment_method_codes() -> frozenset:
 
 
 def credit_method_codes() -> frozenset:
-    return frozenset(r["code"] for r in load_payment_method_rows() if r.get("ledger") == "ar")
+    from apps.core.models import PaymentMethod
+
+    codes = {r["code"] for r in load_payment_method_rows() if (r.get("ledger") or "").strip().lower() == "ar"}
+    for pm in PaymentMethod.objects.filter(ledger="ar"):
+        codes.add(pm.code)
+    return frozenset(codes)
 
 
 def method_codes_requiring_payer_details() -> frozenset:
     """أكواد طرق الدفع ذات الحساب «شبكة/بنك» — يُطلب اسم المحوّل والجوال عند الدفع في الكاشير."""
-    return frozenset(
-        r["code"] for r in load_payment_method_rows() if (r.get("ledger") or "").strip().lower() == "bank"
-    )
+    from apps.core.models import PaymentMethod
+
+    codes = {r["code"] for r in load_payment_method_rows() if (r.get("ledger") or "").strip().lower() == "bank"}
+    for pm in PaymentMethod.objects.filter(ledger="bank"):
+        codes.add(pm.code)
+    return frozenset(codes)
 
 
 def payment_bucket_keys() -> List[str]:
@@ -118,9 +139,10 @@ def payments_list_to_dict(payments: List[Tuple]) -> Dict[str, Decimal]:
             continue
         m = str(item[0])
         amt = item[1]
-        if m in d:
-            a = amt if isinstance(amt, Decimal) else Decimal(str(amt))
-            d[m] += a
+        if m not in d:
+            d[m] = Decimal("0")
+        a = amt if isinstance(amt, Decimal) else Decimal(str(amt))
+        d[m] += a
     return d
 
 
