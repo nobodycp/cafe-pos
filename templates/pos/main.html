@@ -110,14 +110,16 @@
 <div class="pos-start-shell flex items-center justify-center flex-1 p-2">
   <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-5 w-full max-w-md mx-2 max-h-[min(92vh,36rem)] overflow-y-auto">
     <h2 class="text-base font-bold text-center mb-1">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
-    <p class="text-[11px] text-muted text-center mb-3 leading-snug">أدخل رصيد كل طريقة دفع عند الافتتاح لمطابقة المبيعات والمصروفات في ملخص نهاية اليوم.</p>
+    <p class="text-[11px] text-muted text-center mb-3 leading-snug">أدخل رصيد كل قناة تحصيل (نقدي أو بنكي) عند الافتتاح لمطابقة المبيعات والمصروفات في ملخص نهاية اليوم. البيع الآجل لا يُدخل هنا لأنه ذمم وليس صندوقاً.</p>
     <form method="post" action="{% url 'core:session_open' %}">
       {% csrf_token %}
       {% for row in POS_SETTINGS.payment_method_rows %}
+      {% if row.ledger != 'ar' %}
       <div class="mb-2.5">
         <label class="block text-xs font-semibold text-muted mb-0.5">{{ row.label_ar }}</label>
         <input type="number" name="opening_balance_{{ row.code }}" value="0" step="0.01" min="0" class="w-full rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1.5 text-sm">
       </div>
+      {% endif %}
       {% empty %}
       <div class="mb-4">
         <label class="block text-xs font-semibold text-muted mb-1">{{ LBL.opening_cash|default:"الصندوق الافتتاحي" }}</label>
