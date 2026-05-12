@@ -1,159 +1,156 @@
-{# إيصال حراري — أصناف: بدون خطوط أفقية بين صفوف الأصناف؛ خط يمين «م»، خط بين سعر|إجمالي، وإطار U لعمود القيم حتى الملخص #}
+{% load humanize core_extras %}
+{# إيصال حراري — نفس هيكل صفحة تفاصيل الفاتورة، مضغوط لعرض 80مم وتوفير ورق #}
 <style>
-  .pm{
-    width:100%;max-width:80mm;margin:0 auto;padding:0 2.5mm 4mm;
-    font:600 8px/1.35 Tahoma,"Arial Unicode MS",Arial,sans-serif;
-    color:#000;background:#fff;
+  .trc{
+    width:100%;max-width:80mm;margin:0;padding:0 1mm 2mm;
+    font:700 9px/1.22 Tahoma,"Arial Unicode MS",Arial,sans-serif;
+    color:#111;background:#fff;
     -webkit-print-color-adjust:exact;print-color-adjust:exact;
   }
-  .pm *,.pm *::before,.pm *::after{box-sizing:border-box;}
-  .pm .pm-num{font-family:"Courier New",Courier,monospace;font-weight:600;font-size:7.5px;unicode-bidi:plaintext;}
-  .pm-logo{display:block;margin:0 auto 4px;max-height:42px;max-width:52mm;width:auto;height:auto;}
-  .pm-en{text-align:center;font-size:8.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 1px;}
-  .pm-ar{text-align:center;font-size:12px;font-weight:800;margin:0 0 6px;}
-  .pm-meta-line{
-    display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;
-    gap:6px 4px;font-size:7.5px;font-weight:700;padding:3px 0 5px;margin:0 0 5px;
-    border-bottom:1px solid #000;
+  .trc *,.trc *::before,.trc *::after{box-sizing:border-box;}
+  .trc .trc-num{font-family:"Courier New",Courier,monospace;font-weight:600;font-size:8.5px;unicode-bidi:plaintext;}
+  .trc-logo{display:block;margin:0 auto 2px;max-height:34px;max-width:100%;}
+  .trc-en{text-align:center;font-size:7.5px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 1px;}
+  .trc-brand{text-align:center;font-size:12.5px;font-weight:800;margin:0 0 1px;line-height:1.15;}
+  .trc-invno{text-align:center;font-size:8.5px;font-weight:600;color:#333;margin:0 0 1px;}
+  .trc-dt{text-align:center;font-size:8px;font-weight:600;color:#444;margin:0 0 3px;}
+  .trc-cancel{text-align:center;font-size:8px;font-weight:800;margin:0 0 2px;padding:1px 4px;border:1px dashed #000;}
+  .trc-meta{font-size:8px;font-weight:600;line-height:1.35;margin:0 0 3px;padding:0 0 3px;border-bottom:1px solid #bbb;}
+  .trc-meta div{margin:0 0 1px;}
+  .trc-tbl{width:100%;border-collapse:collapse;margin:0 0 3px;table-layout:fixed;}
+  .trc-tbl th{
+    text-align:start;padding:2px 3px;font-size:7px;font-weight:800;
+    text-transform:uppercase;color:#444;
+    background:#e8e8e8;border-bottom:1px solid #999;
   }
-  .pm-meta-pair{display:inline-flex;align-items:baseline;gap:3px;white-space:nowrap;}
-  .pm-meta-lab{font-weight:700;}
-  .pm-nm{
-    border:1px solid #000;border-radius:8px;padding:5px 8px;margin:0 0 5px;
-    font-weight:700;font-size:8.5px;text-align:right;line-height:1.25;
+  .trc-tbl th:nth-child(1){width:5%;text-align:start;}
+  .trc-tbl th:nth-child(2){width:44%;}
+  .trc-tbl th:nth-child(3){width:14%;text-align:center;}
+  .trc-tbl th:nth-child(4){width:17%;text-align:center;}
+  .trc-tbl th:nth-child(5){width:20%;text-align:start;}
+  .trc-tbl td{
+    padding:1px 3px 2px;font-size:8.5px;font-weight:600;
+    vertical-align:top;border-bottom:1px solid #ddd;
   }
-  /* جدول أصناف: بدون خطوط أفقية بين صفوف body؛ خطوط عمودية كالمرجع: يمين «م»، وبين سعر|إجمالي، وإطار عمود إجمالي */
-  .pm-it{width:100%;border-collapse:collapse;margin:0;table-layout:fixed;border:1px solid #000;border-bottom:none;}
-  .pm-it thead th{border:1px solid #000;padding:2px 3px;font-size:7.5px;font-weight:700;text-align:center;vertical-align:middle;}
-  .pm-it tbody td{border-top:none;border-bottom:none;padding:2px 3px;font-size:7.5px;font-weight:600;text-align:center;vertical-align:middle;}
-  .pm-it tbody td.c0{border-inline-start:1px solid #000;border-inline-end:1px solid #000;}
-  .pm-it tbody td.c1,.pm-it tbody td.c2,.pm-it tbody td.c3{border-inline-end:1px solid #000;}
-  .pm-it tbody td.c4{border-inline-start:1px solid #000;border-inline-end:1px solid #000;}
-  .pm-it .ta-r{text-align:right;font-weight:700;}
-  .pm-it .c0{width:6%;}
-  .pm-it .c1{width:40%;}
-  .pm-it .c2{width:14%;}
-  .pm-it .c3{width:18%;}
-  .pm-it .c4{width:22%;}
-  .pm-split-wrap{position:relative;margin:0 0 6px;}
-  /* ملخص: جدول بلا حدود — عمود قيم بعرض عمود «إجمالي» (22%) ليتصل بصرياً مع الأعلى */
-  .pm-sum-ghost{width:100%;border-collapse:collapse;border:none;margin:0;}
-  .pm-sum-ghost td,.pm-sum-ghost th{border:none;padding:2px 4px;vertical-align:middle;font-size:7.5px;font-weight:600;}
-  .pm-sum-ghost .pm-scash{width:38%;text-align:right;font-weight:700;line-height:1.45;vertical-align:top;}
-  .pm-sum-ghost .pm-scash .pm-k{display:block;margin-bottom:3px;}
-  /* تسميات الملاصقة لجهة الأرقام (يسار الخلية في RTL) — بدون فراغ كبير */
-  .pm-sum-ghost .pm-slab{text-align:left;padding-inline-start:2px;padding-inline-end:4px;}
-  /* عمود قيم الملخص: نفس عرض «إجمالي» + حدود U (يمين القيم مع التسمية، يسار القيم، أسفل آخر سطر) */
-  .pm-sum-ghost .pm-sval{
-    width:22%;text-align:center;
-    border-inline-start:1px solid #000;
-    border-inline-end:1px solid #000;
+  .trc-tbl td:nth-child(3),.trc-tbl td:nth-child(4){text-align:center;}
+  .trc-tbl td:nth-child(5),.trc-tbl td:nth-child(1){text-align:start;}
+  .trc-tbl .trc-pname{font-weight:700;line-height:1.2;word-wrap:break-word;}
+  .trc-sums{margin:2px 0 0;padding:0;}
+  .trc-srow{display:flex;justify-content:space-between;align-items:baseline;gap:4px;padding:1px 0;font-size:8.5px;font-weight:600;}
+  .trc-srow .trc-lab{flex:1;text-align:right;}
+  .trc-srow .trc-val{white-space:nowrap;font-weight:700;}
+  .trc-srow.disc{color:#a00;}
+  .trc-srow.muted{color:#555;font-weight:600;}
+  .trc-stotal{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:6px;margin-top:2px;padding-top:3px;border-top:2px solid #000;
+    font-size:10.5px;font-weight:800;
   }
-  .pm-sum-ghost tr:last-child .pm-sval{border-bottom:1px solid #000;}
-  .pm-sum-ghost .pm-sval .pm-num{display:inline-block;min-width:3.2em;text-align:center;}
-  .pm-sum-ghost .pm-policy{margin-top:5px;font-size:7px;font-weight:600;line-height:1.35;display:block;}
-  .pm-stamp{
-    position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) rotate(-14deg);z-index:2;
-    border:2px double #000;border-radius:4px;padding:4px 10px;font-size:6.5px;font-weight:800;line-height:1.25;
-    text-align:center;background:rgba(255,255,255,0.9);pointer-events:none;max-width:52%;
-  }
-  .pm-stamp span{display:block;}
-  .pm-slogan{text-align:center;font-weight:800;font-size:8px;margin:8px 0 0;padding-top:5px;line-height:1.3;}
-  .pm-blank{color:#999;}
-  .pm-cr{margin:4px 0;padding:3px;border:1px solid #000;border-radius:4px;font-size:7.5px;font-weight:700;text-align:center;}
+  .trc-pay{margin:3px 0 0;padding:3px 0 0;border-top:1px solid #bbb;}
+  .trc-payh{font-size:8.5px;font-weight:800;margin:0 0 2px;}
+  .trc-prow{display:flex;justify-content:space-between;gap:6px;padding:1px 0;font-size:8.5px;font-weight:600;}
+  .trc-prow span:first-child{max-width:58%;word-break:break-word;}
+  .trc-foot{font-size:7.5px;font-weight:600;line-height:1.3;margin:3px 0 0;padding:2px 0 0;border-top:1px dashed #ccc;text-align:center;}
+  .trc-stamp{font-size:7px;font-weight:700;line-height:1.25;margin:2px 0 0;text-align:center;}
+  .trc-thanks{text-align:center;font-size:8px;font-weight:600;color:#555;margin:3px 0 0;}
+  .trc-slogan{text-align:center;font-size:8px;font-weight:700;margin:1px 0 0;line-height:1.2;}
 </style>
-<div class="pm" dir="rtl">
+<div class="trc" dir="rtl">
   {% if POS_SETTINGS.receipt_logo_url %}
-  <img class="pm-logo" src="{{ POS_SETTINGS.receipt_logo_url }}" alt="">
+  <img class="trc-logo" src="{{ POS_SETTINGS.receipt_logo_url }}" alt="">
   {% endif %}
   {% if POS_SETTINGS.cafe_name_en %}
-  <p class="pm-en">{{ POS_SETTINGS.cafe_name_en }}</p>
+  <p class="trc-en">{{ POS_SETTINGS.cafe_name_en }}</p>
   {% endif %}
-  <p class="pm-ar">{{ POS_SETTINGS.cafe_name_ar|default:cafe_name }}</p>
+  <p class="trc-brand">{{ POS_SETTINGS.cafe_name_ar|default:cafe_name }}</p>
+  <p class="trc-invno">فاتورة بيع رقم: {{ invoice.invoice_number }}</p>
+  {% if invoice.is_cancelled %}
+  <p class="trc-cancel">ملغاة</p>
+  {% endif %}
+  <p class="trc-dt trc-num" dir="ltr">{{ invoice.created_at|date:"Y-m-d H:i" }}</p>
 
-  <div class="pm-meta-line" role="presentation">
-    <span class="pm-meta-pair"><span class="pm-meta-lab">التاريخ</span> <span class="pm-num" dir="ltr">{{ invoice.created_at|date:"d/m/Y" }}</span></span>
-    <span class="pm-meta-pair"><span class="pm-meta-lab">الوقت</span> <span class="pm-num" dir="ltr">{{ receipt_time_ar }}</span></span>
-    <span class="pm-meta-pair"><span class="pm-meta-lab">رقم</span> <span class="pm-num" dir="ltr">{{ receipt_number_short }}</span></span>
-    <span class="pm-meta-pair"><span class="pm-meta-lab">الأصل</span> <span class="pm-num" dir="ltr"></span></span>
-    <span class="pm-meta-pair"><span class="pm-meta-lab">بيع</span> <span class="pm-num" dir="ltr">{{ receipt_sale_terminal }}</span></span>
+  <div class="trc-meta">
+    {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
+    <div>الطاولة: <strong>{{ invoice.order.table_session.dining_table.name_ar }}</strong></div>
+    {% endif %}
+    {% if invoice.customer %}
+    <div>العميل: <strong>{{ invoice.customer.name_ar }}</strong></div>
+    {% endif %}
+    <div>الوردية: {{ invoice.work_session }}</div>
   </div>
 
-  <div class="pm-nm">الإسم: {% if receipt_payer_name %}{{ receipt_payer_name }}{% elif invoice.customer %}{{ invoice.customer.name_ar }}{% else %}—{% endif %}</div>
-
-  <table class="pm-it">
+  <table class="trc-tbl" role="table">
     <thead>
       <tr>
-        <th class="c0">م</th>
-        <th class="c1">إسم الصنف</th>
-        <th class="c2">كمية</th>
-        <th class="c3">سعر</th>
-        <th class="c4">إجمالي</th>
+        <th>#</th>
+        <th>الصنف</th>
+        <th>الكمية</th>
+        <th>السعر</th>
+        <th>المجموع</th>
       </tr>
     </thead>
     <tbody>
-      {% for line in invoice.lines.all %}
+      {% for line in lines %}
       <tr>
-        <td class="c0 pm-num" dir="ltr">{{ forloop.counter }}</td>
-        <td class="c1 ta-r">{{ line.product.name_ar }}</td>
-        <td class="c2 pm-num" dir="ltr">{{ line.quantity|floatformat:3 }}</td>
-        <td class="c3 pm-num" dir="ltr">{{ line.unit_price|floatformat:2 }}</td>
-        <td class="c4 pm-num" dir="ltr">{{ line.line_subtotal|floatformat:2 }}</td>
+        <td class="trc-num" dir="ltr">{{ forloop.counter }}</td>
+        <td class="trc-pname">{{ line.product.name_ar }}</td>
+        <td class="trc-num" dir="ltr">{{ line.quantity|floatformat:"0" }}</td>
+        <td class="trc-num" dir="ltr">{{ line.unit_price|floatformat:2|intcomma }}</td>
+        <td class="trc-num" dir="ltr">{{ line.line_subtotal|floatformat:2|intcomma }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="pm-split-wrap">
-    {% if receipt_stamp_lines %}
-    <div class="pm-stamp" aria-hidden="true">
-      {% for line in receipt_stamp_lines %}<span>{{ line }}</span>{% endfor %}
+  <div class="trc-sums">
+    <div class="trc-srow">
+      <span class="trc-lab">المجموع قبل الخصم</span>
+      <span class="trc-val trc-num" dir="ltr">{{ invoice.subtotal|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% if invoice.discount_total > 0 %}
+    <div class="trc-srow disc">
+      <span class="trc-lab">الخصم</span>
+      <span class="trc-val trc-num" dir="ltr">-{{ invoice.discount_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
-    <table class="pm-sum-ghost" role="presentation">
-      <tr>
-        <td class="pm-scash" rowspan="7">
-          <span class="pm-k">كاشير: {{ receipt_cashier }}</span>
-          <span class="pm-k">عدد الأصناف: {{ receipt_line_count }}</span>
-          {% if POS_SETTINGS.receipt_footer %}
-          <span class="pm-policy">{{ POS_SETTINGS.receipt_footer|truncatechars:260 }}</span>
-          {% endif %}
-        </td>
-        <td class="pm-slab">المجموع</td>
-        <td class="pm-sval pm-num" dir="ltr">{{ invoice.subtotal|floatformat:2 }}</td>
-      </tr>
-      <tr>
-        <td class="pm-slab">مبلغ الخصم</td>
-        <td class="pm-sval pm-num" dir="ltr">{% if invoice.discount_total > 0 %}{{ invoice.discount_total|floatformat:2 }}-{% else %}0.00{% endif %}</td>
-      </tr>
-      <tr>
-        <td class="pm-slab">المبلغ الإجمالي</td>
-        <td class="pm-sval pm-num" dir="ltr">{{ invoice.total|floatformat:2 }}</td>
-      </tr>
-      <tr>
-        <td class="pm-slab">المدفوع</td>
-        <td class="pm-sval pm-num" dir="ltr">{% if receipt_paid_total > 0 %}{{ receipt_paid_total|floatformat:2 }}{% else %}<span class="pm-blank">—</span>{% endif %}</td>
-      </tr>
-      <tr>
-        <td class="pm-slab">بطاقة الائتمان</td>
-        <td class="pm-sval pm-num" dir="ltr">{% if receipt_pay_electronic > 0 %}{{ receipt_pay_electronic|floatformat:2 }}{% elif receipt_pay.credit > 0 %}{{ receipt_pay.credit|floatformat:2 }}{% else %}<span class="pm-blank">—</span>{% endif %}</td>
-      </tr>
-      <tr>
-        <td class="pm-slab">المبلغ المتبقي</td>
-        <td class="pm-sval pm-num" dir="ltr"><span class="pm-blank">—</span></td>
-      </tr>
-      <tr>
-        <td class="pm-slab">نقدا ومرجع</td>
-        <td class="pm-sval pm-num" dir="ltr">{% if receipt_pay.cash > 0 %}{{ receipt_pay.cash|floatformat:2 }}{% else %}<span class="pm-blank">—</span>{% endif %}</td>
-      </tr>
-    </table>
+    {% if invoice.service_charge_total > 0 %}
+    <div class="trc-srow muted">
+      <span class="trc-lab">خدمة</span>
+      <span class="trc-val trc-num" dir="ltr">{{ invoice.service_charge_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endif %}
+    {% if invoice.tax_total > 0 %}
+    <div class="trc-srow muted">
+      <span class="trc-lab">ضريبة</span>
+      <span class="trc-val trc-num" dir="ltr">{{ invoice.tax_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endif %}
+    <div class="trc-stotal">
+      <span>الإجمالي</span>
+      <span class="trc-num" dir="ltr">{{ invoice.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
   </div>
 
-  {% if receipt_pay.credit > 0 and receipt_pay_electronic > 0 %}
-  <div class="pm-cr">آجل: {{ receipt_pay.credit|floatformat:2 }} {{ POS_SETTINGS.currency_symbol }}</div>
+  {% if payments %}
+  <div class="trc-pay">
+    <div class="trc-payh">طرق الدفع</div>
+    {% for pay in payments %}
+    <div class="trc-prow">
+      <span>{{ pay.method|payment_method_label }}</span>
+      <span class="trc-num" dir="ltr">{{ pay.amount|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+    {% endfor %}
+  </div>
   {% endif %}
 
+  {% if POS_SETTINGS.receipt_footer %}
+  <p class="trc-foot">{{ POS_SETTINGS.receipt_footer|truncatechars:220 }}</p>
+  {% endif %}
+  {% if receipt_stamp_lines %}
+  <p class="trc-stamp">{% for line in receipt_stamp_lines %}{% if not forloop.first %} · {% endif %}{{ line }}{% endfor %}</p>
+  {% endif %}
+  <p class="trc-thanks">شكراً لزيارتكم</p>
   {% if receipt_slogan_line %}
-  <p class="pm-slogan">{{ receipt_slogan_line }}</p>
+  <p class="trc-slogan">{{ receipt_slogan_line }}</p>
   {% endif %}
 </div>

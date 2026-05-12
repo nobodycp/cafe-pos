@@ -6,24 +6,40 @@
   <title>إيصال {{ invoice.invoice_number }}</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #fff; font-family: Tahoma, "Arial Unicode MS", Arial, sans-serif; }
-    .pos-embed-wrap { padding: 4px; display: flex; justify-content: center; align-items: flex-start; min-height: 100%; }
-    #receipt-printable {
-      width: 80mm; max-width: 100%; background: #fff; color: #000;
-      padding: 3mm 3mm 4mm; font-size: 8px; line-height: 1.2;
-      border: none; box-shadow: none;
+    body { margin: 0; background: #f4f4f4; font-family: Tahoma, "Arial Unicode MS", Arial, sans-serif; }
+    .pos-embed-wrap {
+      padding: 6px 4px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100%;
     }
-    .no-print { margin-top: 8px; text-align: center; }
+    #receipt-printable {
+      width: 80mm;
+      max-width: 100%;
+      background: #fff;
+      color: #000;
+      padding: 0;
+      margin: 0;
+      border: none;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .no-print { margin-top: 10px; text-align: center; }
     .no-print button {
-      padding: 6px 14px; font-size: 11px; font-weight: 800;
+      padding: 8px 16px; font-size: 12px; font-weight: 800;
       border: 1px solid #000; background: #000; color: #fff; cursor: pointer;
       font-family: Tahoma, sans-serif;
     }
     @media print {
       body { background: #fff; }
-      .pos-embed-wrap { padding: 0; }
+      .pos-embed-wrap { padding: 0; margin: 0; display: block; }
       .no-print { display: none !important; }
-      #receipt-printable { width: 80mm; box-shadow: none; border: none; }
+      #receipt-printable {
+        width: 100%;
+        max-width: none;
+        box-shadow: none;
+        border: none;
+      }
     }
   </style>
 </head>

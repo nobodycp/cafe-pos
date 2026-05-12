@@ -8,11 +8,10 @@ from django.db import models, transaction
 from django.db.models import Count, Prefetch, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone as django_tz
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.receipt_escpos import build_invoice_receipt
-from apps.billing.models import OrderPayment, SaleInvoice
+from apps.billing.models import OrderPayment, SaleInvoice, SaleInvoiceLine
 from apps.billing.tab_service import (
     apply_tab_payments_and_maybe_finalize,
     cart_line_rows_for_template,
@@ -1145,38 +1144,6 @@ def _ajax_or_redirect_error(request, msg, redirect_url="pos:main"):
     return redirect(redirect_url)
 
 
-def _receipt_payer_display_name(invoice: SaleInvoice) -> str:
-    if invoice.customer_id:
-        return invoice.customer.name_ar
-    for pay in invoice.payments.order_by("pk"):
-        if pay.method in ("bank_ps", "palpay", "jawwalpay") and (pay.payer_name or "").strip():
-            return (pay.payer_name or "").strip()
-    return ""
-
-
-def _receipt_cashier_display(invoice: SaleInvoice) -> str:
-    try:
-        u = invoice.work_session.opened_by
-        return (u.get_full_name() or getattr(u, "username", "") or "").strip() or "—"
-    except Exception:
-        return "—"
-
-
-def _receipt_order_source_label(invoice: SaleInvoice) -> str:
-    o = invoice.order
-    bits = [o.get_order_type_display()]
-    if o.table_id:
-        bits.append(o.table.name_ar)
-    return " - ".join(bits)
-
-
-def _receipt_sale_terminal_display(invoice: SaleInvoice) -> str:
-    """عمود «بيع» مثل مرجع باندا (PC - 03) عند ضبط اسم طابعة الإيصال، وإلا نص الطلب."""
-    ps = get_pos_settings()
-    label = (ps.printer_receipt_label or "").strip()
-    return label if label else _receipt_order_source_label(invoice)
-
-
 def _receipt_stamp_lines() -> list[str]:
     raw = (get_pos_settings().receipt_stamp_text or "").strip()
     if not raw:
@@ -1184,84 +1151,39 @@ def _receipt_stamp_lines() -> list[str]:
     return [p.strip() for p in raw.split(";") if p.strip()]
 
 
-def _receipt_time_ar_ampm(dt) -> str:
-    if django_tz.is_aware(dt):
-        dt = django_tz.localtime(dt)
-    h, m, s = dt.hour, dt.minute, dt.second
-    ap = "م" if h >= 12 else "ص"
-    h12 = h % 12
-    if h12 == 0:
-        h12 = 12
-    return f"{h12:02d}:{m:02d}:{s:02d} {ap}"
-
-
-def _receipt_payment_breakdown(invoice: SaleInvoice) -> dict[str, Decimal]:
-    b = {
-        "cash": Decimal("0"),
-        "bank_ps": Decimal("0"),
-        "palpay": Decimal("0"),
-        "jawwalpay": Decimal("0"),
-        "credit": Decimal("0"),
-    }
-    for pay in invoice.payments.order_by("pk"):
-        m = (pay.method or "").strip()
-        a = pay.amount or Decimal("0")
-        if m == "cash":
-            b["cash"] += a
-        elif m in ("bank_ps", "bank"):
-            b["bank_ps"] += a
-        elif m == "palpay":
-            b["palpay"] += a
-        elif m == "jawwalpay":
-            b["jawwalpay"] += a
-        elif m == "credit":
-            b["credit"] += a
-        else:
-            b["bank_ps"] += a
-    for k in list(b.keys()):
-        b[k] = b[k].quantize(Decimal("0.01"))
-    return b
-
-
 @login_required
 @require_GET
 def receipt_print(request, invoice_id):
-    from apps.billing.models import SaleInvoice
-
     inv = get_object_or_404(
         SaleInvoice.objects.select_related(
             "customer",
+            "supplier_buyer",
             "order",
             "order__table",
+            "order__table_session__dining_table",
             "work_session",
             "work_session__opened_by",
-        ).prefetch_related("lines__product", "payments"),
+        ).prefetch_related(
+            Prefetch(
+                "lines",
+                queryset=SaleInvoiceLine.objects.select_related("product").order_by("pk"),
+            ),
+            "payments",
+        ),
         pk=invoice_id,
     )
     lang = request.LANGUAGE_CODE or "ar"
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
-    line_count = inv.lines.count()
-    pay = _receipt_payment_breakdown(inv)
-    electronic = (pay["bank_ps"] + pay["palpay"] + pay["jawwalpay"]).quantize(Decimal("0.01"))
-    paid_all = sum(pay.values(), Decimal("0")).quantize(Decimal("0.01"))
     ps = get_pos_settings()
     slogan = (ps.receipt_slogan_ar or "").strip()
     if not slogan and (ps.cafe_name_ar or cafe):
         slogan = f"{ps.cafe_name_ar or cafe} جودة وعروض على طول"
     ctx = {
         "invoice": inv,
+        "lines": inv.lines.all(),
+        "payments": list(inv.payments.order_by("pk")),
         "cafe_name": cafe,
-        "receipt_payer_name": _receipt_payer_display_name(inv),
-        "receipt_pay": pay,
-        "receipt_pay_electronic": electronic,
-        "receipt_paid_total": paid_all,
-        "receipt_line_count": line_count,
-        "receipt_cashier": _receipt_cashier_display(inv),
-        "receipt_order_source": _receipt_order_source_label(inv),
-        "receipt_sale_terminal": _receipt_sale_terminal_display(inv),
-        "receipt_time_ar": _receipt_time_ar_ampm(inv.created_at),
         "receipt_slogan_line": slogan,
-        "receipt_number_short": str(inv.pk),
         "receipt_stamp_lines": _receipt_stamp_lines(),
     }
     if request.GET.get("embed") == "1":

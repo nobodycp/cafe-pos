@@ -178,42 +178,50 @@ def _purchase_payments_from_request(request, total: Decimal, errors: list) -> li
 def _purchase_lines_from_request(request, errors: list) -> list:
     lines = []
     for i in range(20):
-        prod_id = request.POST.get(f"product_{i}")
-        qty = request.POST.get(f"qty_{i}")
-        cost = request.POST.get(f"cost_{i}")
+        prod_id = (request.POST.get(f"product_{i}") or "").strip()
+        qty = (request.POST.get(f"qty_{i}") or "").strip()
+        cost = (request.POST.get(f"cost_{i}") or "").strip()
         discount = request.POST.get(f"discount_{i}", "0")
-        if prod_id and qty and cost:
-            try:
-                product = Product.objects.get(pk=int(prod_id))
-                unit_id = request.POST.get(f"unit_{i}")
-                if unit_id:
-                    try:
-                        unit = Unit.objects.get(pk=int(unit_id))
-                        if product.unit_id != unit.pk:
-                            product.unit = unit
-                            product.save(update_fields=["unit", "updated_at"])
-                    except (Unit.DoesNotExist, ValueError):
-                        errors.append(f"سطر {i + 1}: وحدة غير صالحة")
-                        continue
-                q = Decimal(qty)
-                c = Decimal(cost)
-                d = Decimal(str(discount or "0"))
-                if q <= 0 or c <= 0:
-                    errors.append(f"سطر {i + 1}: الكمية وسعر الوحدة يجب أن يكونا أكبر من صفر")
+        if not prod_id:
+            continue
+        if not qty:
+            errors.append(f"سطر {i + 1}: أدخل الكمية للصنف المختار")
+            continue
+        if not cost:
+            errors.append(f"سطر {i + 1}: أدخل تكلفة الوحدة للصنف المختار")
+            continue
+        try:
+            product = Product.objects.get(pk=int(prod_id))
+            unit_id = request.POST.get(f"unit_{i}")
+            if unit_id:
+                try:
+                    unit = Unit.objects.get(pk=int(unit_id))
+                    if product.unit_id != unit.pk:
+                        product.unit = unit
+                        product.save(update_fields=["unit", "updated_at"])
+                except (Unit.DoesNotExist, ValueError):
+                    errors.append(f"سطر {i + 1}: وحدة غير صالحة")
                     continue
-                if d < 0:
-                    errors.append(f"سطر {i + 1}: الخصم لا يمكن أن يكون سالباً")
-                    continue
-                line_total = (q * c).quantize(Decimal("0.01"))
-                if d > line_total:
-                    errors.append(f"سطر {i + 1}: الخصم أكبر من إجمالي السطر")
-                    continue
-                effective_cost = ((line_total - d) / q).quantize(Decimal("0.000001"))
-                lines.append((product, q, effective_cost))
-            except (Product.DoesNotExist, InvalidOperation, ValueError):
-                errors.append(f"سطر {i + 1}: بيانات غير صالحة")
+            q = Decimal(qty)
+            c = Decimal(cost)
+            d = Decimal(str(discount or "0"))
+            if q <= 0 or c <= 0:
+                errors.append(f"سطر {i + 1}: الكمية وسعر الوحدة يجب أن يكونا أكبر من صفر")
+                continue
+            if d < 0:
+                errors.append(f"سطر {i + 1}: الخصم لا يمكن أن يكون سالباً")
+                continue
+            line_total = (q * c).quantize(Decimal("0.01"))
+            if d > line_total:
+                errors.append(f"سطر {i + 1}: الخصم أكبر من إجمالي السطر")
+                continue
+            effective_cost = ((line_total - d) / q).quantize(Decimal("0.000001"))
+            lines.append((product, q, effective_cost))
+        except (Product.DoesNotExist, InvalidOperation, ValueError):
+            errors.append(f"سطر {i + 1}: بيانات غير صالحة")
     if not lines:
-        errors.append("يرجى إدخال صنف واحد على الأقل")
+        if not any((e.startswith("سطر ") for e in errors)):
+            errors.append("يرجى إدخال صنف واحد على الأقل")
     return lines
 
 

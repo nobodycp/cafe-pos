@@ -24,7 +24,7 @@ from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
 from apps.inventory.services import get_unit_cost, record_manufacturing_batch
 from apps.billing.models import SaleInvoiceLine
 from apps.core.pagination import paginate_queryset
-from apps.pos.models import OrderLine
+from apps.pos.models import Order, OrderLine
 from apps.purchasing.models import PurchaseLine
 
 
@@ -329,8 +329,15 @@ def product_toggle_active(request, pk):
 @transaction.atomic
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
-    if OrderLine.objects.filter(product=product).exists():
-        messages.error(request, "لا يمكن الحذف: المنتج مستخدم في طلبات. عطّله من «تعطيل» إن رغبت.")
+    if OrderLine.objects.filter(
+        product=product,
+        order__status=Order.Status.OPEN,
+        order__is_cancelled=False,
+    ).exists():
+        messages.error(
+            request,
+            "لا يمكن الحذف: المنتج في طلب نقطة بيع لم يُغلق بعد. أزل السطر أو أكمل الطلب، أو عطّل المنتج من «تعطيل».",
+        )
         return _catalog_redirect(request, "product_list")
     if SaleInvoiceLine.objects.filter(product=product).exists():
         messages.error(request, "لا يمكن الحذف: المنتج مسجّل في فواتير بيع.")
@@ -341,6 +348,7 @@ def product_delete(request, pk):
     if StockTakeLine.objects.filter(product=product).exists():
         messages.error(request, "لا يمكن الحذف: المنتج مستخدم في جرد.")
         return _catalog_redirect(request, "product_list")
+    OrderLine.objects.filter(product=product).delete()
     RecipeLine.objects.filter(Q(manufactured_product=product) | Q(component=product)).delete()
     StockMovement.objects.filter(product=product).delete()
     name = product.name_ar

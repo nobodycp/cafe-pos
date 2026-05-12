@@ -3,27 +3,27 @@
 {% block title %}إيصال {{ invoice.invoice_number }}{% endblock %}
 {% block cashier_body %}
 
-<div class="flex items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
-  <div class="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-6" id="receipt-printable">
+<div class="flex items-start justify-center min-h-screen p-2 sm:p-3 bg-gray-50 dark:bg-gray-900">
+  <div class="w-full max-w-[80mm] bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 p-0 overflow-hidden" id="receipt-printable">
 
     {% include "pos/_receipt_thermal_core.html" %}
 
-    <div class="flex gap-2 mt-5 no-print">
+    <div class="flex flex-wrap gap-2 p-2 no-print border-t border-gray-100 dark:border-gray-700">
       <button onclick="window.print()"
-        class="flex-1 py-2.5 rounded-lg bg-primary text-white text-sm font-bold
+        class="flex-1 min-w-[6rem] py-2 rounded-lg bg-primary text-white text-xs font-bold
                hover:bg-primary-dk transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-1.5">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         طباعة الإيصال
       </button>
       <a href="{% url 'pos:receipt_raw' invoice.pk %}"
-         class="flex-1 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
-                text-sm font-bold text-center hover:border-primary hover:text-primary
+         class="flex-1 min-w-[6rem] py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
+                text-xs font-bold text-center hover:border-primary hover:text-primary
                 transition-all duration-200 no-underline flex items-center justify-center">
         طباعة ESC/POS
       </a>
       <a href="{% url 'pos:main' %}"
-         class="flex-1 py-2.5 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
-                text-sm font-bold text-center hover:border-primary hover:text-primary
+         class="flex-1 min-w-[6rem] py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300
+                text-xs font-bold text-center hover:border-primary hover:text-primary
                 transition-all duration-200 no-underline flex items-center justify-center">
         عودة
       </a>
@@ -38,9 +38,20 @@
 @media print {
   body * { visibility: hidden !important; }
   #receipt-printable, #receipt-printable * { visibility: visible !important; }
-  #receipt-printable { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; font-size: 12px; }
+  #receipt-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
   .no-print { display: none !important; }
-  #receipt-printable { box-shadow: none !important; border: none !important; border-radius: 0 !important; }
 }
 </style>
 {% endblock %}

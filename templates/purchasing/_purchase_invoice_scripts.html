@@ -145,6 +145,7 @@
     function setSelected(id, label, unitId, unitName) {
       hid.value = id || '';
       inp.value = label || '';
+      inp.dataset.purchaseLockedLabel = (label || '').trim();
       if (unitId || unitName) setUnit(unitId || '', unitName || '');
       hideHits(hits);
       hidePurchaseQuickAdd(newBox);
@@ -175,7 +176,14 @@
 
     var runSearch = debounce(function() {
       var q = inp.value.trim();
+      var locked = (inp.dataset.purchaseLockedLabel || '').trim();
+      if (hid.value && locked && q === locked) {
+        hidePurchaseQuickAdd(newBox);
+        hideHits(hits);
+        return;
+      }
       hid.value = '';
+      delete inp.dataset.purchaseLockedLabel;
       hidePurchaseQuickAdd(newBox);
       if (q.length < 1) {
         hideHits(hits);
@@ -274,13 +282,21 @@
     function setSelected(id, label) {
       hid.value = id || '';
       inp.value = label || '';
+      inp.dataset.purchaseLockedUnitLabel = (label || '').trim();
       hideHits(hits);
       hidePurchaseQuickAdd(newBox);
       focusEl(row.querySelector('.line-qty'));
     }
     var runSearch = debounce(function() {
       var q = inp.value.trim();
+      var locked = (inp.dataset.purchaseLockedUnitLabel || '').trim();
+      if (hid.value && locked && q === locked) {
+        hidePurchaseQuickAdd(newBox);
+        hideHits(hits);
+        return;
+      }
       hid.value = '';
+      delete inp.dataset.purchaseLockedUnitLabel;
       hidePurchaseQuickAdd(newBox);
       if (q.length < 1) { hideHits(hits); return; }
       fetch(UNIT_SEARCH_URL + '?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
@@ -415,9 +431,23 @@
       var cost = row.querySelector('.line-cost');
       var discount = row.querySelector('.line-discount');
       if (productId) productId.value = rowState.product_id || '';
-      if (productInput) productInput.value = rowState.product_label || '';
+      if (productInput) {
+        productInput.value = rowState.product_label || '';
+        if (rowState.product_id && rowState.product_label) {
+          productInput.dataset.purchaseLockedLabel = String(rowState.product_label).trim();
+        } else {
+          delete productInput.dataset.purchaseLockedLabel;
+        }
+      }
       if (unitId) unitId.value = rowState.unit_id || '';
-      if (unitInput) unitInput.value = rowState.unit_label || '';
+      if (unitInput) {
+        unitInput.value = rowState.unit_label || '';
+        if (rowState.unit_id && rowState.unit_label) {
+          unitInput.dataset.purchaseLockedUnitLabel = String(rowState.unit_label).trim();
+        } else {
+          delete unitInput.dataset.purchaseLockedUnitLabel;
+        }
+      }
       if (qty) qty.value = rowState.qty || '';
       if (cost) cost.value = rowState.cost || '';
       if (discount) discount.value = rowState.discount || '';
@@ -482,9 +512,15 @@
       var unitHid = row.querySelector('.line-unit-id');
       var unitInp = row.querySelector('.line-unit-search');
       if (hid) hid.value = '';
-      if (sinp) sinp.value = '';
+      if (sinp) {
+        sinp.value = '';
+        delete sinp.dataset.purchaseLockedLabel;
+      }
       if (unitHid) unitHid.value = '';
-      if (unitInp) unitInp.value = '';
+      if (unitInp) {
+        unitInp.value = '';
+        delete unitInp.dataset.purchaseLockedUnitLabel;
+      }
       var h = row.querySelector('.purchase-ac-hits');
       if (h) { h.innerHTML = ''; h.classList.add('hidden'); }
       var nb = row.querySelector('.purchase-ac-new');
