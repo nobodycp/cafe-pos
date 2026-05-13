@@ -260,7 +260,9 @@
   <p class="m-0 max-w-[15rem] text-[10px] leading-snug text-muted">ابدأ سفري أو توصيل من الأزرار أدناه، أو افتح طاولة من الشبكة، أو استأنف طلباً من «طلبات مفتوحة».</p>
 </div>
 {% else %}
-<div class="pos-cart-inner" dir="rtl">
+<div class="pos-cart-inner" dir="rtl" data-pos-order-pk="{{ current_order.pk }}"
+     data-order-add-url="{% url 'pos:order_add' current_order.pk %}"
+     data-customize-url-raw="{% url 'pos:customize_product' current_order.pk 0 %}">
 
   <div class="pos-cart-header-zone">
   <div class="pos-cart-order-strip shrink-0 flex flex-wrap items-center gap-x-2 gap-y-0 border-b border-gray-200 dark:border-gray-700 text-[10px] bg-white dark:bg-gray-900">

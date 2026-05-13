@@ -373,13 +373,25 @@
   var PAYER_HINTS_URL='{% url "pos:payer_hints" %}';
   {% if current_order %}var ORDER_ADD_URL='{% url "pos:order_add" current_order.pk %}';
   var CUSTOMIZE_BASE='{% url "pos:customize_product" current_order.pk 0 %}'.replace('/0/','/{pid}/');{% else %}var ORDER_ADD_URL='';var CUSTOMIZE_BASE='';{% endif %}
+  function syncPosOrderUrlsFromCartDom(){
+    var root=document.querySelector('#pos-cart .pos-cart-inner[data-pos-order-pk]');
+    if(!root){
+      ORDER_ADD_URL='';
+      CUSTOMIZE_BASE='';
+      return;
+    }
+    var add=root.getAttribute('data-order-add-url');
+    var raw=root.getAttribute('data-customize-url-raw');
+    ORDER_ADD_URL=add||'';
+    CUSTOMIZE_BASE=(raw||'').replace('/0/','/{pid}/');
+  }
   var CUST_CREATE_URL='{% url "pos:customer_quick_create" %}';
   var TABLE_CREATE_URL='{% url "pos:table_quick_create" %}';
   var TABLE_OPEN_URL='{% url "pos:table_open" %}';
   var CUR='{{ POS_SETTINGS.currency_symbol }}';
   var POS_MAIN_URL='{% url "pos:main" %}';
   {% if work_session and POS_SETTINGS.allow_sale_invoice_edit %}var RESUME_LAST_INVOICE_URL='{% url "pos:last_invoice_resume" %}';{% else %}var RESUME_LAST_INVOICE_URL='';{% endif %}
-  {% if current_order %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
+  {% if work_session %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
   var selectedLineId=null;
   var POS_PRODUCT_NAME_ID='{{ pos_product_name_input_id|default:""|escapejs }}';
   var POS_CUSTOMER_NAME_ID='{{ pos_customer_first_field_id|default:""|escapejs }}';
@@ -393,6 +405,7 @@
       .then(function(r){return r.text()})
       .then(function(html){
         cart.innerHTML=html;
+        syncPosOrderUrlsFromCartDom();
         initCartInteractions();
         if(opts.clearSelection){
           selectedLineId=null;
@@ -1141,6 +1154,7 @@
     })();
     bindPosCoOpenInCart();
   }
+  syncPosOrderUrlsFromCartDom();
   initCartInteractions();
 
   document.addEventListener('keydown',function(e){
