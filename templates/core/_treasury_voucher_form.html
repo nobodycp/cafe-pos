@@ -309,12 +309,17 @@
     {% endfor %}
   ];
 
-  /** تقسيم الدفع: فقط سند قبض + موظف + مفعّل من المستخدم (مثل فاتورة الشراء) */
-  function employeeReceiptSplitEligible() {
-    return !!(partyHidden && typeHidden && partyHidden.value === P_E && typeHidden.value === VT_R);
+  /** قبض عميل/موظف أو صرف مورد: يمكن تقسيم الدفع كما في فاتورة الشراء (اختياري بالمربّع) */
+  function treasurySplitPayEligible() {
+    if (!partyHidden || !typeHidden) return false;
+    var p = partyHidden.value;
+    var t = typeHidden.value;
+    if (t === VT_R && (p === P_C || p === P_E)) return true;
+    if (t === VT_D && p === P_S) return true;
+    return false;
   }
   function useSplitRows() {
-    return employeeReceiptSplitEligible() && splitToggle && splitToggle.checked;
+    return treasurySplitPayEligible() && splitToggle && splitToggle.checked;
   }
 
   function methodCodeNeedsPayer(code) {
@@ -326,7 +331,7 @@
   }
 
   function syncSplitPaymentMode() {
-    var eligible = employeeReceiptSplitEligible();
+    var eligible = treasurySplitPayEligible();
     var on = useSplitRows();
     form.classList.toggle("tv-treasury-split-mode", on);
     if (splitToggleWrap) splitToggleWrap.classList.toggle("hidden", !eligible);
@@ -662,7 +667,9 @@
   }
   /* استعادة وضع التقسيم من الحقل المخفي قبل أول مزامنة (تعديل سند) */
   if (splitToggle && splitsJson && splitsJson.value.trim() && partyHidden && typeHidden) {
-    if (partyHidden.value === P_E && typeHidden.value === VT_R) splitToggle.checked = true;
+    var p0 = partyHidden.value;
+    var t0 = typeHidden.value;
+    if ((t0 === VT_R && (p0 === P_C || p0 === P_E)) || (t0 === VT_D && p0 === P_S)) splitToggle.checked = true;
   }
 
   syncTypeUi();
