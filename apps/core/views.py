@@ -256,6 +256,37 @@ def treasury_void_voucher(request, audit_pk):
 
 
 @login_required
+@require_POST
+def treasury_purge_cancelled_voucher(request, audit_pk):
+    """حذف سجل التدقيق لسند ملغى فقط (الأثر المحاسبي مُعكوس مسبقاً عند الإلغاء)."""
+    log = get_object_or_404(AuditLog, pk=audit_pk, action=TREASURY_VOUCHER_AUDIT_ACTION)
+    payload = dict(log.payload or {})
+    if not payload.get("cancelled"):
+        messages.error(
+            request,
+            "يمكن «حذف السجل» للسندات الملغاة فقط. للسند النشط استخدم «حذف» لإلغاء السند وعكس الأثر.",
+        )
+    else:
+        pk_copy = int(log.pk)
+        party_l = str(payload.get("party_label") or "")
+        log_audit(
+            request.user,
+            "treasury.voucher_log_purged",
+            "treasury.UnifiedVoucher",
+            str(pk_copy),
+            {"purged_from_audit_pk": pk_copy, "party_label": party_l[:120]},
+        )
+        log.delete()
+        messages.success(request, "تم حذف سجل السند الملغى من القائمة.")
+    if request.session.get("treasury_edit_audit_pk") == audit_pk:
+        request.session.pop("treasury_edit_audit_pk", None)
+    next_url = _safe_action_redirect_next(request)
+    if next_url:
+        return redirect(next_url)
+    return redirect("shell:accounting_treasury")
+
+
+@login_required
 @require_GET
 def treasury_start_edit_voucher(request, audit_pk):
     """يبدأ تعديل سند موحّد: يحفظ معرف السجل في الجلسة ويعيد إلى نموذج السند."""

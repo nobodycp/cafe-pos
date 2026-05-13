@@ -20,6 +20,11 @@ urlpatterns_accounting = [
         name="treasury_void_voucher",
     ),
     path(
+        "accounting/treasury/purge-cancelled/<int:audit_pk>/",
+        core_views.treasury_purge_cancelled_voucher,
+        name="treasury_purge_cancelled_voucher",
+    ),
+    path(
         "accounting/treasury/edit/<int:audit_pk>/",
         core_views.treasury_start_edit_voucher,
         name="treasury_start_edit_voucher",

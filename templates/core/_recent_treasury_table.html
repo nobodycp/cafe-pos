@@ -3,7 +3,7 @@
 <div class="ds-panel mt-2 shrink-0">
   <div class="ds-panel-header">آخر السندات</div>
   <div class="ds-panel-body p-0">
-    <p class="text-[10px] text-muted px-2 py-1 mb-0 border-b border-gray-200 dark:border-gray-700">«تعديل السند» يفتح النموذج مع تعبئة مسبقة؛ عند الحفظ يُستبدل السند بعد إلغاء القديم. لسندات المصروف يمكن أيضاً «تعديل مصروف».</p>
+    <p class="text-[10px] text-muted px-2 py-1 mb-0 border-b border-gray-200 dark:border-gray-700">«تعديل السند» يفتح النموذج مع تعبئة مسبقة؛ «حذف» يلغي السند النشط ويعكس الأثر. للسند الملغى: «تعديل السند» غير متاح؛ «حذف السجل» يزيل السطر من القائمة فقط (بعد الإلغاء المحاسبي).</p>
     <div class="ds-table-wrap border-0 rounded-none">
       <table class="ds-table text-[11px]">
         <thead>
@@ -42,6 +42,15 @@
                 <input type="hidden" name="next" value="{{ treasury_void_next }}">
                 {% endif %}
                 <button type="submit" class="ds-btn py-0.5 px-1 min-h-0 h-7 text-[10px] text-danger border-danger/40 hover:bg-danger/10">حذف</button>
+              </form>
+              {% else %}
+              <span class="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-muted cursor-not-allowed dark:border-gray-600 dark:bg-gray-800" title="لا يمكن تعديل سند ملغى">تعديل السند</span>
+              <form method="post" action="{% url 'shell:treasury_purge_cancelled_voucher' row.pk %}" class="inline m-0" onsubmit="return confirm('حذف سجل هذا السند من القائمة نهائياً؟ (السند ملغى والأثر محاسبياً مُعكوس مسبقاً.)');">
+                {% csrf_token %}
+                {% if treasury_void_next %}
+                <input type="hidden" name="next" value="{{ treasury_void_next }}">
+                {% endif %}
+                <button type="submit" class="ds-btn py-0.5 px-1 min-h-0 h-7 text-[10px] text-danger border-danger/40 hover:bg-danger/10">حذف السجل</button>
               </form>
               {% endif %}
               {% if p.party_type == 'customer' and p.customer_pk %}
