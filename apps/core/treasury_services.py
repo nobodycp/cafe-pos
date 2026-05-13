@@ -79,9 +79,7 @@ def treasury_voucher_form_initial_from_audit(*, audit_log: AuditLog) -> dict:
                 continue
             if m and m in codes:
                 pairs.append([m, str(a) if a is not None else ""])
-        use_splits = (vt == "receipt" and pt in ("customer", "employee")) or (
-            vt == "disbursement" and pt == "supplier"
-        )
+        use_splits = vt == "receipt" and pt == "employee"
         if use_splits and pairs:
             initial["payment_splits_json"] = json.dumps(pairs, ensure_ascii=False)
             initial["method"] = pairs[0][0]

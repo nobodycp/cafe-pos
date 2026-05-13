@@ -410,10 +410,8 @@ class TreasuryVoucherForm(forms.Form):
         """قبض (عميل أو موظف) وصرف مورد: أسطر دفع متعددة من JSON؛ وإلا None لاستخدام طريقة واحدة."""
         t = cd.get("voucher_type")
         party_type = cd.get("party_type")
-        use_splits = (
-            t == self.VT_RECEIPT
-            and party_type in (self.PARTY_CUSTOMER, self.PARTY_EMPLOYEE)
-        ) or (t == self.VT_DISBURSEMENT and party_type == self.PARTY_SUPPLIER)
+        # تقسيم الدفع في الواجهة فقط لسند قبض + موظف (مثل فاتورة الشراء بخيار اختياري)
+        use_splits = t == self.VT_RECEIPT and party_type == self.PARTY_EMPLOYEE
         if not use_splits:
             return None
 

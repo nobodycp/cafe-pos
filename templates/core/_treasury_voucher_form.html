@@ -89,10 +89,18 @@
     <div class="tv-method-cell {% if not treasury_form_compact %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %}lg:col-span-1{% endif %}{% endif %}" id="tv-method-cell">
       <span class="block {% if treasury_form_compact %}text-xs{% elif voucher_layout == 'wide' %}text-[11px]{% else %}text-sm{% endif %} font-bold text-gray-600 dark:text-gray-400 {% if treasury_form_compact or voucher_layout == 'wide' %}mb-0.5{% else %}mb-1{% endif %}">طريقة الدفع / التحصيل</span>
       {{ voucher_form.method }}
-      <div class="{% if treasury_form_compact %}flex flex-wrap gap-1 mt-1{% else %}flex flex-row flex-nowrap gap-0.5{% if voucher_layout == 'wide' %} mt-0.5{% else %} mt-1{% endif %}{% endif %} min-w-0 tv-pay-strip" id="tv-pay-methods" dir="rtl">
+      <div id="tv-split-toggle-wrap" class="hidden mt-1">
+        <label class="flex cursor-pointer items-center gap-2 {% if treasury_form_compact %}text-[10px]{% elif voucher_layout == 'wide' %}text-[10px]{% else %}text-xs{% endif %} text-gray-700 dark:text-gray-300">
+          <input type="checkbox" id="tv-split-pay-toggle" value="1" autocomplete="off" class="rounded border-gray-400">
+          <span class="font-bold">تقسيم الدفع على أكثر من طريقة (مثال: جزء كاش وجزء بنك)</span>
+        </label>
+      </div>
+      <div id="tv-pay-single-wrap" class="min-w-0">
+        <div class="flex flex-wrap gap-1 mt-1 min-w-0 tv-pay-strip" id="tv-pay-methods" dir="rtl">
         {% for row in POS_SETTINGS.payment_method_rows %}
-        <button type="button" class="tv-pm-btn {% if treasury_form_compact %}inline-flex shrink-0 min-w-0 h-7 px-2 text-[10px] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 leading-tight transition hover:border-[#1e3a5f] dark:hover:border-sky-500 items-center justify-center text-center{% else %}flex-1 min-w-0 basis-0 {% if voucher_layout == 'wide' %}h-7 text-[10px]{% else %}h-9 text-[9px]{% endif %} rounded-md border border-gray-200 dark:border-gray-600 font-semibold transition hover:border-[#1e3a5f] dark:hover:border-sky-500 flex items-center justify-center text-center leading-tight px-0.5 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100{% endif %}" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
+        <button type="button" class="tv-pm-btn inline-flex shrink-0 min-w-0 {% if treasury_form_compact %}h-7 px-2 text-[10px]{% elif voucher_layout == 'wide' %}h-7 px-2 text-[10px]{% else %}h-8 px-2.5 text-[11px] sm:text-xs{% endif %} rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold text-gray-800 dark:text-gray-100 leading-tight transition hover:border-[#1e3a5f] dark:hover:border-sky-500 items-center justify-center text-center" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
         {% endfor %}
+        </div>
       </div>
       <div id="tv-pay-splits-wrap" class="hidden mt-1.5 min-w-0 w-full">
         {{ voucher_form.payment_splits_json }}
@@ -101,7 +109,7 @@
           <table class="w-full {% if treasury_form_compact %}text-[10px]{% else %}text-xs{% endif %} border-collapse" id="tv-pay-splits-table">
             <thead>
               <tr class="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-600">
-                <th class="p-1 text-right font-bold">طريقة</th>
+                <th class="p-1 text-right font-bold">طريقة الدفع</th>
                 <th class="p-1 text-right font-bold w-24">مبلغ</th>
                 <th class="p-1 w-8"></th>
               </tr>
@@ -284,6 +292,9 @@
   var splitSumEl = document.getElementById("tv-pay-split-sum");
   var splitAddBtn = document.getElementById("tv-pay-split-add");
   var payStrip = document.getElementById("tv-pay-methods");
+  var paySingleWrap = document.getElementById("tv-pay-single-wrap");
+  var splitToggleWrap = document.getElementById("tv-split-toggle-wrap");
+  var splitToggle = document.getElementById("tv-split-pay-toggle");
   var amountInput = document.getElementById("{{ voucher_form.amount.id_for_label }}");
   var customerCreateUrl = form.dataset.customerCreateUrl || "";
   var supplierCreateUrl = form.dataset.supplierCreateUrl || "";
@@ -298,9 +309,12 @@
     {% endfor %}
   ];
 
-  function splitPaymentMode() {
-    if (!partyHidden) return false;
-    return (receiptMode() && (partyHidden.value === P_C || partyHidden.value === P_E)) || (!receiptMode() && partyHidden.value === P_S);
+  /** تقسيم الدفع: فقط سند قبض + موظف + مفعّل من المستخدم (مثل فاتورة الشراء) */
+  function employeeReceiptSplitEligible() {
+    return !!(partyHidden && typeHidden && partyHidden.value === P_E && typeHidden.value === VT_R);
+  }
+  function useSplitRows() {
+    return employeeReceiptSplitEligible() && splitToggle && splitToggle.checked;
   }
 
   function methodCodeNeedsPayer(code) {
@@ -312,15 +326,26 @@
   }
 
   function syncSplitPaymentMode() {
-    var on = splitPaymentMode();
+    var eligible = employeeReceiptSplitEligible();
+    var on = useSplitRows();
     form.classList.toggle("tv-treasury-split-mode", on);
-    if (payStrip) payStrip.classList.toggle("hidden", on);
-    if (splitsWrap) splitsWrap.classList.toggle("hidden", !on);
-    if (on) {
+    if (splitToggleWrap) splitToggleWrap.classList.toggle("hidden", !eligible);
+    if (!eligible) {
+      if (splitToggle) splitToggle.checked = false;
+      if (paySingleWrap) paySingleWrap.classList.remove("hidden");
+      if (splitsWrap) splitsWrap.classList.add("hidden");
+      if (splitsTbody) splitsTbody.innerHTML = "";
+      if (splitsJson) splitsJson.value = "";
+    } else if (!on) {
+      if (paySingleWrap) paySingleWrap.classList.remove("hidden");
+      if (splitsWrap) splitsWrap.classList.add("hidden");
+      if (splitsTbody) splitsTbody.innerHTML = "";
+      if (splitsJson) splitsJson.value = "";
+    } else {
+      if (paySingleWrap) paySingleWrap.classList.add("hidden");
+      if (splitsWrap) splitsWrap.classList.remove("hidden");
       if (splitsTbody && !splitsTbody.children.length) initSplitRowsFromState();
       serializeSplitsToHidden();
-    } else if (splitsJson) {
-      splitsJson.value = "";
     }
     syncTvMethodUi();
   }
@@ -434,7 +459,7 @@
   }
 
   function serializeSplitsToHidden() {
-    if (!splitPaymentMode() || !splitsJson) return;
+    if (!useSplitRows() || !splitsJson) return;
     var pairs = readSplitPairsFromDom();
     splitsJson.value = pairs.length ? JSON.stringify(pairs) : "";
     if (pairs.length && methodHidden) methodHidden.value = pairs[0][0];
@@ -468,7 +493,7 @@
     if (!payerPanel) return;
     var need = false;
     if (receiptMode()) {
-      if (splitPaymentMode() && splitsTbody) {
+      if (useSplitRows() && splitsTbody) {
         var rows = splitsTbody.querySelectorAll("tr");
         rows.forEach(function(tr) {
           var sel = tr.querySelector("select.tv-split-m");
@@ -628,6 +653,18 @@
       syncTypeUi();
     });
   });
+
+  if (splitToggle) {
+    splitToggle.addEventListener("change", function() {
+      syncSplitPaymentMode();
+      updateSplitSumHint();
+    });
+  }
+  /* استعادة وضع التقسيم من الحقل المخفي قبل أول مزامنة (تعديل سند) */
+  if (splitToggle && splitsJson && splitsJson.value.trim() && partyHidden && typeHidden) {
+    if (partyHidden.value === P_E && typeHidden.value === VT_R) splitToggle.checked = true;
+  }
+
   syncTypeUi();
   var initPartyLbl = form.getAttribute("data-initial-party-label");
   if (initPartyLbl && searchIn) {
@@ -635,7 +672,7 @@
   }
 
   function syncTvMethodUi() {
-    if (splitPaymentMode()) {
+    if (useSplitRows()) {
       var pairs = readSplitPairsFromDom();
       var v = pairs.length ? pairs[0][0] : (methodHidden ? methodHidden.value : "");
       if (methodHidden && v) methodHidden.value = v;
@@ -649,7 +686,7 @@
   if (methodHidden && tvPmBtns.length) {
     tvPmBtns.forEach(function(b) {
       b.addEventListener("click", function() {
-        if (splitPaymentMode()) {
+        if (useSplitRows()) {
           if (splitsTbody && splitsTbody.rows.length === 1) {
             var sel = splitsTbody.querySelector("select.tv-split-m");
             if (sel) sel.value = b.getAttribute("data-code") || "";
@@ -666,6 +703,7 @@
   }
   if (splitAddBtn) {
     splitAddBtn.addEventListener("click", function() {
+      if (!useSplitRows()) return;
       addSplitRow("cash", "");
       serializeSplitsToHidden();
       updateSplitSumHint();
@@ -674,7 +712,7 @@
   }
   if (amountInput) {
     amountInput.addEventListener("input", function() {
-      if (splitPaymentMode() && splitsTbody && splitsTbody.rows.length === 1) {
+      if (useSplitRows() && splitsTbody && splitsTbody.rows.length === 1) {
         var inp = splitsTbody.querySelector("input.tv-split-a");
         if (inp) inp.value = amountInput.value || "";
       }
@@ -683,7 +721,7 @@
     });
   }
   form.addEventListener("submit", function() {
-    if (splitPaymentMode()) serializeSplitsToHidden();
+    if (useSplitRows()) serializeSplitsToHidden();
     else if (splitsJson) splitsJson.value = "";
   });
 

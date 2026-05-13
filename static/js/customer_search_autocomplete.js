@@ -76,19 +76,19 @@
             var list = data.results || [];
             if (!list.length) {
               if (quickCreateUrl && q.length >= 2) {
-                hits.innerHTML = '';
-                var wrap = document.createElement('div');
-                wrap.className = 'px-2 py-2';
+                /* قائمة اقتراحات POS — صفوف مثل نتائج البحث، وليس زر السندات (خارج اللوحة / أخضر) */
                 var emptyMsg = document.createElement('div');
-                emptyMsg.className =
-                  'text-center text-[11px] font-semibold text-gray-500 dark:text-gray-400';
+                emptyMsg.setAttribute('aria-hidden', 'true');
+                emptyMsg.style.cssText =
+                  'display:block;width:100%;padding:8px 12px;text-align:right;font-size:.85rem;border:none;color:var(--c-muted,#64748b);cursor:default;font-family:inherit';
                 emptyMsg.textContent = 'لا توجد نتائج';
-                wrap.appendChild(emptyMsg);
+                hits.appendChild(emptyMsg);
                 var qBtn = document.createElement('button');
                 qBtn.type = 'button';
                 qBtn.setAttribute('data-cust-quick-create', '1');
-                qBtn.className =
-                  'mt-2 flex h-8 w-full items-center justify-center rounded-sm bg-success px-3 text-xs font-bold text-white hover:opacity-95';
+                qBtn.className = hitClass;
+                qBtn.style.cssText =
+                  'font-weight:700;color:var(--c-primary,#1e3a5f);border-top:1px solid rgba(148,163,184,.35)';
                 qBtn.textContent = '+ إضافة عميل جديد';
                 qBtn.addEventListener('mousedown', function (ev) {
                   ev.preventDefault();
@@ -128,8 +128,7 @@
                       window.alert('تعذّر الاتصال بالخادم');
                     });
                 };
-                wrap.appendChild(qBtn);
-                hits.appendChild(wrap);
+                hits.appendChild(qBtn);
                 if (useDisplay) hits.style.display = 'block';
                 return;
               }
@@ -168,7 +167,7 @@
       if (e.key === 'Tab') {
         var first = hits.querySelector('[data-cust-hit]');
         if (!first) first = hits.querySelector('[data-cust-quick-create]');
-        if (first && !String(first.textContent || '').includes('لا توجد')) {
+        if (first) {
           e.preventDefault();
           first.click();
         }
