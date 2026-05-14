@@ -3,7 +3,7 @@
 {% block title %}إيصال {{ invoice.invoice_number }}{% endblock %}
 {% block cashier_body %}
 
-<div class="flex items-start justify-center min-h-screen p-2 sm:p-3 bg-gray-50 dark:bg-gray-900">
+<div class="receipt-screen-wrap flex items-start justify-center min-h-screen p-2 sm:p-3 bg-gray-50 dark:bg-gray-900">
   <div class="w-full max-w-[80mm] bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 p-0 overflow-hidden" id="receipt-printable">
 
     {% include "pos/_receipt_thermal_core.html" %}
@@ -36,6 +36,21 @@
 {% block cashier_scripts %}
 <style>
 @media print {
+  @page { size: 80mm auto; margin: 0; }
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .receipt-screen-wrap {
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    background: #fff !important;
+  }
   body * { visibility: hidden !important; }
   #receipt-printable, #receipt-printable * { visibility: visible !important; }
   #receipt-printable {
@@ -43,7 +58,7 @@
     left: 0;
     top: 0;
     width: 80mm;
-    max-width: 100%;
+    max-width: none;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;

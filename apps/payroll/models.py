@@ -2,6 +2,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.contacts.models import Customer
 from apps.core.models import TimeStampedModel, WorkSession
 
 
@@ -23,11 +24,29 @@ class Employee(TimeStampedModel):
     store_purchases_balance = models.DecimalField(_("مشتريات من المقهى"), max_digits=14, decimal_places=2, default=0)
     net_balance = models.DecimalField(_("صافي الرصيد للموظف"), max_digits=14, decimal_places=2, default=0)
     is_active = models.BooleanField(_("نشط"), default=True)
+    linked_customer = models.ForeignKey(
+        Customer,
+        verbose_name=_("عميل مرتبط (آجل / طاولة)"),
+        related_name="linked_employee",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        help_text=_(
+            "إن وُجد: أي بيع بالآجل على هذا العميل يُسجَّل تلقائياً في «مشتريات المقهى» وذمة الموظف."
+        ),
+    )
 
     class Meta:
         verbose_name = _("موظف")
         verbose_name_plural = _("الموظفون")
         ordering = ("name_ar",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("linked_customer",),
+                condition=models.Q(linked_customer__isnull=False),
+                name="payroll_employee_linked_customer_uniq",
+            ),
+        ]
 
     def __str__(self):
         return self.name_ar

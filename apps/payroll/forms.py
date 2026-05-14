@@ -3,6 +3,7 @@ from decimal import Decimal
 from django import forms
 from django.core.exceptions import ValidationError
 
+from apps.contacts.models import Customer
 from apps.payroll.models import Employee
 
 
@@ -15,18 +16,37 @@ class EmployeeForm(forms.ModelForm):
 
     class Meta:
         model = Employee
-        fields = ["name_ar", "name_en", "pay_type", "salary_amount", "is_active"]
+        fields = ["name_ar", "name_en", "pay_type", "salary_amount", "is_active", "linked_customer"]
         widgets = {
             "name_ar": forms.TextInput(attrs={"class": "form-input", "placeholder": "الاسم بالعربي"}),
             "name_en": forms.TextInput(attrs={"class": "form-input", "placeholder": "Name in English"}),
             "pay_type": forms.Select(attrs={"class": "form-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check"}),
+            "linked_customer": forms.Select(attrs={"class": "form-input"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk and not self.is_bound:
             self.fields["salary_amount"].initial = self.instance.pay_amount
+        self.fields["linked_customer"].queryset = Customer.objects.filter(is_active=True).order_by("name_ar")
+        self.fields["linked_customer"].required = False
+        self.fields["linked_customer"].empty_label = "— بدون ربط —"
+        self.fields["linked_customer"].label = "عميل مرتبط (آجل / طاولة)"
+        self.fields["linked_customer"].help_text = (
+            "عند اختيار عميل: أي فاتورة بيع بالآجل على هذا العميل تُسجَّل في «مشتريات المقهى» للموظف."
+        )
+
+    def clean_linked_customer(self):
+        c = self.cleaned_data.get("linked_customer")
+        if not c:
+            return c
+        qs = Employee.objects.filter(linked_customer=c)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError("هذا العميل مرتبط بموظف آخر.")
+        return c
 
     def save(self, commit=True):
         obj = super().save(commit=False)
@@ -51,7 +71,7 @@ class EmployeeForm(forms.ModelForm):
 
 class EmployeeCreateForm(EmployeeForm):
     class Meta(EmployeeForm.Meta):
-        fields = ["name_ar", "name_en", "pay_type", "salary_amount"]
+        fields = ["name_ar", "name_en", "pay_type", "salary_amount", "linked_customer"]
 
 
 class EmployeeAdvanceForm(forms.Form):

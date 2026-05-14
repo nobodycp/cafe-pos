@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>إيصال {{ invoice.invoice_number }}</title>
+  <title>{% if kitchen_receipt %}مطبخ — طلب #{{ order.pk }}{% else %}إيصال {{ invoice.invoice_number }}{% endif %}</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #f4f4f4; font-family: Tahoma, "Arial Unicode MS", Arial, sans-serif; }
+    html, body { margin: 0; }
+    body { background: #f4f4f4; font-family: Tahoma, "Arial Unicode MS", Arial, sans-serif; }
     .pos-embed-wrap {
-      padding: 6px 4px;
+      padding: 6px 2px;
       display: flex;
       justify-content: center;
       align-items: flex-start;
-      min-height: 100%;
+      min-height: auto;
     }
     #receipt-printable {
       width: 80mm;
@@ -31,14 +32,30 @@
       font-family: Tahoma, sans-serif;
     }
     @media print {
-      body { background: #fff; }
-      .pos-embed-wrap { padding: 0; margin: 0; display: block; }
+      @page { size: 80mm auto; margin: 0; }
+      html, body {
+        background: #fff !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 80mm;
+      }
+      .pos-embed-wrap {
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        min-height: 0 !important;
+        width: 80mm;
+      }
       .no-print { display: none !important; }
       #receipt-printable {
-        width: 100%;
-        max-width: none;
-        box-shadow: none;
-        border: none;
+        width: 80mm !important;
+        max-width: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
     }
   </style>

@@ -7,7 +7,7 @@
   body {
     font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
     font-size: 16px;
-    padding: 10mm;
+    padding: 8px 4px;
     direction: rtl;
     margin: 0;
     color: #1e293b;
@@ -89,15 +89,26 @@
     text-decoration: underline;
   }
   @media print {
-    .no-print { display: none; }
-    body { padding: 2mm; font-size: 14px; }
+    @page { size: 80mm auto; margin: 0; }
+    .no-print { display: none !important; }
+    html, body {
+      height: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 1mm 1mm 0 !important;
+      font-size: 13px;
+      width: 100%;
+      max-width: 80mm;
+    }
     th { border-bottom-color: #000; }
-    td { border-bottom-color: #ccc; }
+    td { border-bottom-color: #ccc; padding: 6px 4px; }
+    h1 { font-size: 1.1rem; }
+    .meta { margin-bottom: 8px; padding-bottom: 8px; }
   }
 </style>
 </head>
 <body>
-<h1>مطبخ / بار — دفعة {{ batch_no }}</h1>
+<h1>مطبخ / بار — {% if full_order %}الطلب كاملاً{% else %}دفعة {{ batch_no }}{% endif %}</h1>
 <div class="meta">
   طلب #{{ order.pk }}
   {% if order.table %} — طاولة: {{ order.table.name_ar }}{% endif %}
@@ -132,6 +143,13 @@
   <a href="{% url 'pos:main' %}">عودة للكاشير</a>
 </div>
 
-<script>window.onload=function(){window.print()}</script>
+<script>
+(function(){
+  var ap={{ autoprint|yesno:"true,false" }};
+  window.addEventListener('load',function(){
+    if(ap)window.print();
+  });
+})();
+</script>
 </body>
 </html>

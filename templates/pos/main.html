@@ -44,8 +44,8 @@
 .pos-products-scroll::-webkit-scrollbar-track{background:#f1f5f9}
 .pos-product-xl thead th{position:sticky;top:0;z-index:2}
 .pos-product-xl{border-collapse:collapse;width:100%;table-layout:fixed}
-.pos-product-xl thead th{background:#e2e8f0;color:#334155;font-weight:800;padding:4px 6px;border:1px solid #cbd5e1;font-size:10px;line-height:1.2}
-.pos-product-xl tbody td{border:1px solid #cbd5e1;padding:2px 5px;vertical-align:middle;font-size:11px;line-height:1.2}
+.pos-product-xl thead th{background:#e2e8f0;color:#334155;font-weight:800;padding:4px 6px;border:1px solid #cbd5e1;font-size:10px;line-height:1.2;text-align:center}
+.pos-product-xl tbody td{border:1px solid #cbd5e1;padding:2px 5px;vertical-align:middle;font-size:11px;line-height:1.2;text-align:center}
 .pos-pxl-row--quick,.pos-pxl-row--mod{cursor:pointer}
 .pos-pxl-row--quick:active,.pos-pxl-row--mod:active{background:rgba(30,58,95,.08)!important}
 .pos-pxl-plus{display:inline-flex;align-items:center;justify-content:center;height:1.35rem;min-height:1.35rem;padding:0 6px;font-size:10px;font-weight:800;line-height:1;border-radius:4px;border:0;cursor:pointer;background:#1e3a5f;color:#fff}
@@ -53,9 +53,10 @@
 .pos-pxl-modhint{display:block;padding:1px 0;font-size:9px;color:#94a3b8;pointer-events:none}
 .pos-product-xl tbody tr:nth-child(even){background:#f8fafc}
 .pos-product-xl tbody tr:hover{background:#eef2ff}
-.pos-pxl-num{width:1.75rem;text-align:center}
-.pos-pxl-name-cell{overflow:hidden;width:38%}
+.pos-pxl-num{width:1.75rem}
+.pos-pxl-name-cell{overflow:hidden;width:38%;font-size:10px;font-weight:600;line-height:1.25}
 .pos-pxl-price{width:4.5rem}
+.pos-pxl-qty{width:3.75rem}
 .pos-pxl-act{width:3.25rem}
 .pos-pxl-empty{text-align:center;padding:12px;color:#64748b;font-size:11px}
 #product-search-hits::-webkit-scrollbar{width:4px}
@@ -311,7 +312,7 @@
       <span id="pos-purchase-overlay-title" class="text-sm font-bold text-gray-800 dark:text-gray-100">فاتورة شراء</span>
       <button type="button" id="pos-purchase-close" class="rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-bold text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600">إغلاق</button>
     </div>
-    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white dark:bg-gray-900 px-2 py-2">
+    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-white dark:bg-gray-900 px-2 py-2">
       <div class="rounded-md border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800">
         {% include "shell/_purchase_invoice_form_body.html" with errors=pi_errors suppliers=pi_suppliers payment_method_rows=pi_payment_rows purchase_form_state=pi_form_state purchase_next=pi_next purchase_form_action=pi_form_action range10=range10 range20=range20 purchase_form_compact=1 %}
       </div>
@@ -484,15 +485,19 @@
   function closePosReceiptEmbed(){
     var ov=document.getElementById('pos-receipt-embed-overlay');
     var fr=document.getElementById('pos-receipt-embed-iframe');
+    var titleEl=document.getElementById('pos-receipt-embed-title');
+    if(titleEl)titleEl.textContent='معاينة الإيصال';
     if(fr)fr.src='about:blank';
     if(ov){ov.classList.add('hidden');ov.setAttribute('aria-hidden','true');}
   }
-  function openPosReceiptEmbed(url){
+  function openPosReceiptEmbed(url, title){
     if(!url)return;
     closePosCheckoutOverlay();
     var ov=document.getElementById('pos-receipt-embed-overlay');
     var fr=document.getElementById('pos-receipt-embed-iframe');
     if(!ov||!fr)return;
+    var titleEl=document.getElementById('pos-receipt-embed-title');
+    if(titleEl)titleEl.textContent=title||'معاينة الإيصال';
     fr.src=url;
     ov.classList.remove('hidden');
     ov.setAttribute('aria-hidden','false');
@@ -1113,6 +1118,13 @@
         focusQtyPlusButton(pick);
       });
     }
+    var kitchenBtn=document.getElementById('tb-kitchen-print');
+    if(kitchenBtn)kitchenBtn.addEventListener('click',function(e){
+      e.preventDefault();
+      var u=kitchenBtn.getAttribute('data-kitchen-receipt-url');
+      if(!u){showToast('لا أصناف في السلة للطباعة','info');return;}
+      openPosReceiptEmbed(u,'معاينة مطبخ');
+    });
     var lastInvBtn=document.getElementById('tb-last-sale-invoice');
     if(lastInvBtn)lastInvBtn.addEventListener('click',function(e){
       e.preventDefault();

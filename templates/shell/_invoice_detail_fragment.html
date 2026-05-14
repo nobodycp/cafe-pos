@@ -31,10 +31,10 @@
           {% if invoice_embedded %}
           <button type="button" class="pos-invoice-load-edit inline-flex items-center justify-center h-9 px-3 rounded-lg border border-primary/50 bg-primary/10 text-primary font-bold text-xs hover:bg-primary hover:text-white cursor-pointer"
             data-edit-panel-url="{% url 'pos:sale_invoice_edit_panel' invoice.pk %}"
-            title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الكميات والأسعار{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</button>
+            title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الأصناف والكميات والدفعات{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</button>
           {% else %}
           <a href="{% url 'shell:sale_invoice_edit' invoice.pk %}" class="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-primary/50 bg-primary/10 text-primary font-bold text-xs hover:bg-primary hover:text-white no-underline"
-            title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الكميات والأسعار{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</a>
+            title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الأصناف والكميات والدفعات{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</a>
           {% endif %}
         {% endif %}
         <button type="button" onclick="window.print()" class="inline-flex items-center justify-center h-9 px-3 rounded-lg bg-primary text-white font-bold text-xs hover:bg-primary-dk cursor-pointer">طباعة</button>

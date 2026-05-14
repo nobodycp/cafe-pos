@@ -80,7 +80,7 @@ def employee_list(request):
 
 @login_required
 def employee_detail(request, pk):
-    emp = get_object_or_404(Employee, pk=pk)
+    emp = get_object_or_404(Employee.objects.select_related("linked_customer"), pk=pk)
     return render(
         request,
         "payroll/employee_detail.html",
@@ -88,7 +88,7 @@ def employee_detail(request, pk):
             "employee": emp,
             "advances": emp.advances.select_related("linked_expense").order_by("-created_at")[:50],
             "payouts": emp.salary_payouts.select_related("linked_expense").order_by("-created_at")[:50],
-            "purchases": emp.cafe_purchases.order_by("-created_at")[:50],
+            "purchases": emp.cafe_purchases.select_related("sale_invoice").order_by("-created_at")[:50],
             "debt_repayments": emp.debt_repayments.order_by("-created_at")[:50],
         },
     )
@@ -347,6 +347,12 @@ def employee_cafe_purchase(request, pk):
 def employee_cafe_purchase_delete(request, pk, purchase_id):
     emp = get_object_or_404(Employee, pk=pk)
     cp = get_object_or_404(EmployeeCafePurchase, pk=purchase_id, employee=emp)
+    if cp.sale_invoice_id:
+        messages.error(
+            request,
+            "لا يمكن حذف سجل مرتبط بفاتورة بيع — ألغِ الفاتورة من المحاسبة لعكس الذمة، أو سجّل سداداً من الصندوق.",
+        )
+        return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     emp.store_purchases_balance = (as_decimal(emp.store_purchases_balance) - as_decimal(cp.amount)).quantize(Decimal("0.01"))
     if emp.store_purchases_balance < 0 and emp.store_purchases_balance > Decimal("-0.01"):
         emp.store_purchases_balance = Decimal("0")

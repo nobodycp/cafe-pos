@@ -13,7 +13,14 @@
     </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-3">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-3">
+      {% if employee.linked_customer_id %}
+      <p class="text-sm m-0">
+        <span class="text-muted font-bold">عميل مرتبط:</span>
+        <a href="{% url 'shell:customer_detail' employee.linked_customer_id %}" class="font-extrabold text-primary hover:underline">{{ employee.linked_customer.name_ar }}</a>
+        <span class="text-xs text-muted"> — فواتير الآجل على هذا العميل تُسجَّل في مشتريات المقهى للموظف.</span>
+      </p>
+      {% endif %}
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-4 text-sm">
           <div>
@@ -167,8 +174,9 @@
             <tr>
               <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">التاريخ</th>
               <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">المبلغ</th>
+              <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">فاتورة</th>
               <th class="text-start p-2 bg-gray-50 dark:bg-gray-700 text-xs font-bold text-muted">ملاحظة</th>
-              <th class="p-2 bg-gray-50 dark:bg-gray-700 w-24"></th>
+              <th class="p-2 bg-gray-50 dark:bg-gray-700 w-28"></th>
             </tr>
           </thead>
           <tbody>
@@ -176,16 +184,25 @@
             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-xs">{{ x.created_at }}</td>
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ x.amount|floatformat:2|intcomma }}</td>
+              <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-xs">
+                {% if x.sale_invoice %}
+                <a href="{% url 'shell:invoice_detail' x.sale_invoice.pk %}" class="font-bold text-primary hover:underline">{{ x.sale_invoice.invoice_number }}</a>
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ x.note }}</td>
               <td class="p-3 border-b border-gray-100 dark:border-gray-700">
+                {% if x.sale_invoice_id %}
+                <span class="text-[10px] text-muted">من فاتورة</span>
+                {% else %}
                 <form method="post" action="{% url 'shell:employee_cafe_purchase_delete' employee.pk x.pk %}" class="inline m-0">
                   {% csrf_token %}
                   <button type="submit">حذف</button>
                 </form>
+                {% endif %}
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="p-6 text-center text-muted">لا يوجد</td></tr>
+            <tr><td colspan="5" class="p-6 text-center text-muted">لا يوجد</td></tr>
             {% endfor %}
           </tbody>
         </table>

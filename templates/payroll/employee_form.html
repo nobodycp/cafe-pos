@@ -42,6 +42,14 @@
             {% if form.salary_amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.salary_amount.errors.0 }}</p>{% endif %}
           </div>
         </div>
+        <div class="grid grid-cols-1 gap-4 mb-4">
+          <div>
+            <label>عميل مرتبط (آجل / طاولة)</label>
+            {{ form.linked_customer }}
+            <p class="text-[11px] text-muted mt-1 leading-snug">اختياري: يربط فواتير البيع بالآجل على هذا العميل بذمة «مشتريات المقهى» للموظف.</p>
+            {% if form.linked_customer.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.linked_customer.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
         {% if form.is_active %}
         <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer mb-4">{{ form.is_active }}<span>نشط</span></label>
         {% endif %}

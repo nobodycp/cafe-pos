@@ -31,6 +31,7 @@ urlpatterns = [
     path("order/<int:order_id>/cancel/", views.order_cancel, name="order_cancel"),
     path("order/<int:order_id>/hold/", views.order_hold, name="order_hold"),
     path("order/<int:order_id>/checkout/", views.order_checkout, name="order_checkout"),
+    path("order/<int:order_id>/kitchen-receipt/", views.kitchen_receipt_embed, name="kitchen_receipt_embed"),
     path("kitchen/<int:order_id>/batch/<int:batch_no>/", views.kitchen_ticket, name="kitchen_ticket"),
     path("cart-fragment/", views.cart_fragment, name="cart_fragment"),
     path("last-invoice/", views.last_sale_invoice_panel, name="last_invoice"),

@@ -408,6 +408,9 @@
 
     <div class="pos-cart-toolbar" aria-label="أدوات السطر">
       <button type="button" class="tb-btn" id="tb-last-sale-invoice" title="تحميل آخر فاتورة في السلة للتعديل — Shift+نقرة لمعاينة سريعة">آخر فاتورة</button>
+      {% if cart_line_rows %}
+      <button type="button" class="tb-btn" id="tb-kitchen-print" data-kitchen-receipt-url="{% url 'pos:kitchen_receipt_embed' current_order.pk %}?embed=1&amp;full=1" title="معاينة مطبخ وطباعة (نفس شكل إيصال الدفع، بدون طرق الدفع)">طباعة مطبخ</button>
+      {% endif %}
       <span class="text-[8px] text-muted font-semibold ms-auto max-w-[15rem] leading-tight hidden xl:inline" title="اختصارات">/ بحث · مرّر المؤشر على جدول الأصناف لتفعيل ↑↓ و+/− · Tab بين أسعار الأسطر · Enter · F9</span>
     </div>
 

@@ -43,6 +43,28 @@ def _apply_purchase_to_balance(product: Product, quantity: Decimal, unit_cost: D
     sb.save(update_fields=["quantity_on_hand", "average_cost", "updated_at"])
 
 
+def _reverse_purchase_layer_from_balance(product: Product, quantity: Decimal, unit_cost: Decimal) -> None:
+    """عكس طبقة إضافة مخزون بنمط الشراء (مثل إنتاج مصنع) من الرصيد ومتوسط التكلفة."""
+    qty = as_decimal(quantity)
+    cost = as_decimal(unit_cost or 0)
+    if qty <= 0:
+        raise ValueError("INVALID_QTY")
+    sb = _locked_balance(product)
+    cur_q = as_decimal(sb.quantity_on_hand)
+    cur_avg = as_decimal(sb.average_cost)
+    if cur_q + Decimal("0.0000001") < qty and not get_pos_settings().allow_negative_stock:
+        raise ValueError("INSUFFICIENT_STOCK_TO_VOID_BATCH")
+    new_q = cur_q - qty
+    if new_q > 0:
+        total_val = cur_q * cur_avg - qty * cost
+        new_avg = total_val / new_q
+    else:
+        new_avg = Decimal("0")
+    sb.quantity_on_hand = new_q
+    sb.average_cost = new_avg
+    sb.save(update_fields=["quantity_on_hand", "average_cost", "updated_at"])
+
+
 def _apply_quantity_delta_to_balance(product: Product, quantity_delta: Decimal) -> None:
     sb = _locked_balance(product)
     new_q = as_decimal(sb.quantity_on_hand) + as_decimal(quantity_delta)
@@ -179,6 +201,45 @@ def record_manufacturing_batch(
         note=note or f"إنتاج دفعة {ref_pk}",
     )
     return batch
+
+
+@transaction.atomic
+def void_manufacturing_batch(*, batch: ManufacturingBatch) -> None:
+    """إلغاء دفعة تصنيع: إرجاع المواد، خصم المنتج المصنع، وحذف حركات الدفعة وسجلها."""
+    product = Product.objects.select_for_update().get(pk=batch.product_id)
+    if product.product_type != Product.ProductType.MANUFACTURED:
+        raise ValueError("NOT_MANUFACTURED")
+    ref_pk = str(batch.pk)
+    movements = list(
+        StockMovement.objects.select_for_update()
+        .filter(reference_model="inventory.ManufacturingBatch", reference_pk=ref_pk)
+        .select_related("product")
+    )
+    if not movements:
+        batch.delete()
+        return
+    prod_mv = None
+    comp_moves: list[StockMovement] = []
+    for mv in movements:
+        if mv.movement_type == StockMovement.MovementType.PRODUCTION:
+            prod_mv = mv
+        elif mv.movement_type == StockMovement.MovementType.MANUFACTURING:
+            comp_moves.append(mv)
+    if not prod_mv:
+        raise ValueError("MISSING_PRODUCTION_MOVEMENT")
+    qty = as_decimal(prod_mv.quantity_delta)
+    unit_cost = as_decimal(prod_mv.unit_cost or 0)
+    _reverse_purchase_layer_from_balance(product, qty, unit_cost)
+    for mv in comp_moves:
+        add_back = -as_decimal(mv.quantity_delta)
+        if add_back <= 0:
+            continue
+        comp = mv.product
+        if comp.is_stock_tracked:
+            ensure_stock_balance(comp)
+            _apply_quantity_delta_to_balance(comp, add_back)
+    StockMovement.objects.filter(pk__in=[m.pk for m in movements]).delete()
+    batch.delete()
 
 
 @transaction.atomic

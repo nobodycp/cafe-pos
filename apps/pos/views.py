@@ -6,9 +6,11 @@ from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
-from django.db.models import Count, Prefetch, Q, Sum
+from django.db.models import Count, DecimalField, OuterRef, Prefetch, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone as django_timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.receipt_escpos import build_invoice_receipt
@@ -26,6 +28,7 @@ from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.forms import CustomerForm
 from apps.contacts.services import resolve_or_create_active_customer_by_name
 from apps.contacts.models import Customer, CustomerLedgerEntry
+from apps.inventory.models import StockBalance
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
 from apps.core.treasury_services import recent_treasury_voucher_logs
@@ -73,6 +76,14 @@ def _post_redirect_after_cancel(request):
     if (request.POST.get("next") or "").strip() == "session_summary":
         return redirect("core:session_summary")
     return redirect("pos:main")
+
+
+def _annotate_pos_product_stock(qs):
+    """كمية الرصيد الحالية لعرضها في جدول الكاشير (من StockBalance)."""
+    bal = StockBalance.objects.filter(product_id=OuterRef("pk")).values("quantity_on_hand")[:1]
+    sub = Subquery(bal, output_field=DecimalField(max_digits=18, decimal_places=4))
+    zero = Value(Decimal("0"), output_field=DecimalField(max_digits=18, decimal_places=4))
+    return qs.annotate(pos_stock_qty=Coalesce(sub, zero))
 
 
 def _money(s: str) -> Decimal:
@@ -181,7 +192,7 @@ def pos_main(request):
     if ok:
         messages.success(request, ok)
 
-    products_qs = (
+    products_qs = _annotate_pos_product_stock(
         Product.objects.filter(is_active=True)
         .exclude(product_type=Product.ProductType.RAW)
         .select_related("category", "unit")
@@ -214,20 +225,23 @@ def pos_main(request):
     )
     if top_product_ids:
         featured_rows = list(
-            Product.objects.filter(pk__in=top_product_ids, is_active=True)
-            .exclude(product_type=Product.ProductType.RAW)
-            .select_related("category", "unit")
-            .annotate(modifier_group_count=Count("modifier_groups"))
-            .prefetch_related(mod_pref)
+            _annotate_pos_product_stock(
+                Product.objects.filter(pk__in=top_product_ids, is_active=True)
+                .exclude(product_type=Product.ProductType.RAW)
+                .select_related("category", "unit")
+                .annotate(modifier_group_count=Count("modifier_groups"))
+            ).prefetch_related(mod_pref)
         )
         id_order = {pid: i for i, pid in enumerate(top_product_ids)}
         featured_rows.sort(key=lambda p: id_order.get(p.pk, 999))
     else:
         featured_rows = list(
-            Product.objects.filter(is_active=True)
-            .exclude(product_type=Product.ProductType.RAW)
-            .select_related("category", "unit")
-            .annotate(modifier_group_count=Count("modifier_groups"))
+            _annotate_pos_product_stock(
+                Product.objects.filter(is_active=True)
+                .exclude(product_type=Product.ProductType.RAW)
+                .select_related("category", "unit")
+                .annotate(modifier_group_count=Count("modifier_groups"))
+            )
             .prefetch_related(mod_pref)
             .order_by("name_ar")[:12]
         )
@@ -675,13 +689,116 @@ def customize_product(request, order_id, product_id):
 @login_required
 @require_GET
 def kitchen_ticket(request, order_id, batch_no):
-    order = get_object_or_404(Order, pk=order_id)
-    lines = list(order.lines.filter(kitchen_batch_no=int(batch_no)).select_related("product"))
-    return render(request, "pos/kitchen_ticket.html", {
+    session = SessionService.get_open_session()
+    if not session:
+        messages.error(request, "افتح وردية عمل أولاً.")
+        return redirect("pos:main")
+    order = get_object_or_404(
+        Order.objects.select_related("table", "work_session"),
+        pk=order_id,
+        work_session=session,
+    )
+    full = (request.GET.get("full") or "").strip() == "1"
+    autoprint = (request.GET.get("autoprint") or "1").strip() != "0"
+    if full:
+        lines = list(order.lines.select_related("product").order_by("pk"))
+    else:
+        lines = list(
+            order.lines.filter(kitchen_batch_no=int(batch_no)).select_related("product").order_by("pk")
+        )
+    return render(
+        request,
+        "pos/kitchen_ticket.html",
+        {
+            "order": order,
+            "batch_no": batch_no,
+            "lines": lines,
+            "full_order": full,
+            "autoprint": autoprint,
+        },
+    )
+
+
+@login_required
+@require_GET
+def kitchen_receipt_embed(request, order_id):
+    """إيصال حراري للمطبخ بنفس قالب الدفع والطباعة (iframe داخل الكاشير)، بدون قسم طرق الدفع."""
+    session = SessionService.get_open_session()
+    if not session:
+        return HttpResponse(
+            '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8">'
+            "<body style=\"font:12px Tahoma;padding:12px;text-align:center\">افتح وردية عمل أولاً.</body></html>",
+            status=403,
+            content_type="text/html; charset=utf-8",
+        )
+    order = get_object_or_404(
+        Order.objects.select_related(
+            "table",
+            "customer",
+            "work_session",
+            "table_session",
+            "table_session__dining_table",
+        ).prefetch_related(
+            Prefetch("lines", queryset=OrderLine.objects.select_related("product").order_by("pk")),
+        ),
+        pk=order_id,
+        work_session=session,
+        status=Order.Status.OPEN,
+    )
+    full = (request.GET.get("full") or "").strip() == "1"
+    batch_no = order.kitchen_batch_no
+    if full:
+        lines = list(order.lines.all())
+        batch_label = "طلب كامل"
+    else:
+        lines = list(
+            order.lines.filter(kitchen_batch_no=int(batch_no)).select_related("product").order_by("pk")
+        )
+        batch_label = f"دفعة {batch_no}"
+    if not lines:
+        return HttpResponse(
+            '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8">'
+            "<body style=\"font:12px Tahoma;padding:12px;text-align:center\">لا أصناف للطباعة.</body></html>",
+            content_type="text/html; charset=utf-8",
+        )
+    totals = compute_order_totals(order)
+    kitchen_totals = {
+        "subtotal": totals["gross"],
+        "discount": totals["discount"],
+        "service": totals["service"],
+        "tax": totals["tax"],
+        "grand": totals["grand"],
+    }
+    kitchen_line_rows = []
+    for ln in lines:
+        unit = (ln.unit_price + ln.extra_unit_price).quantize(Decimal("0.01"))
+        kitchen_line_rows.append(
+            {
+                "name_ar": ln.product.name_ar,
+                "quantity": ln.quantity,
+                "unit_price": unit,
+                "line_subtotal": ln.line_total,
+            }
+        )
+    lang = request.LANGUAGE_CODE or "ar"
+    cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
+    ps = get_pos_settings()
+    slogan = (ps.receipt_slogan_ar or "").strip()
+    if not slogan and (ps.cafe_name_ar or cafe):
+        slogan = f"{ps.cafe_name_ar or cafe} جودة وعروض على طول"
+    ctx = {
+        "kitchen_receipt": True,
         "order": order,
-        "batch_no": batch_no,
-        "lines": lines,
-    })
+        "kitchen_batch_label": batch_label,
+        "kitchen_line_rows": kitchen_line_rows,
+        "kitchen_totals": kitchen_totals,
+        "kitchen_print_at": django_timezone.localtime(django_timezone.now()),
+        "payments": [],
+        "cafe_name": cafe,
+        "receipt_slogan_line": slogan,
+        "receipt_stamp_lines": _receipt_stamp_lines(),
+    }
+    return render(request, "pos/receipt_embed.html", ctx)
 
 
 @login_required

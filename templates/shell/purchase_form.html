@@ -8,7 +8,7 @@
       <a href="{% url 'shell:supplier_detail' supplier.pk %}" class="shell-toolbar-link">← المورد</a>
     </div>
   </div>
-  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-auto p-3">
     {% include "shell/_purchase_invoice_form_body.html" %}
     {% include "purchasing/_purchase_invoice_scripts.html" %}
   </div>

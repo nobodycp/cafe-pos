@@ -20,8 +20,8 @@ from apps.catalog.forms import (
 from apps.catalog.models import Category, Product, RecipeLine, Unit
 from apps.core.models import log_audit
 from apps.core.services import SessionService
-from apps.inventory.models import StockBalance, StockMovement, StockTakeLine
-from apps.inventory.services import get_unit_cost, record_manufacturing_batch
+from apps.inventory.models import ManufacturingBatch, StockBalance, StockMovement, StockTakeLine
+from apps.inventory.services import get_unit_cost, record_manufacturing_batch, void_manufacturing_batch
 from apps.billing.models import SaleInvoiceLine
 from apps.core.pagination import paginate_queryset
 from apps.pos.models import Order, OrderLine
@@ -695,9 +695,13 @@ def product_card(request, pk):
 
     bom_cost = None
     recipe_count = 0
+    manufacturing_batches = []
     if product.product_type == Product.ProductType.MANUFACTURED:
         bom_cost = get_unit_cost(product)
         recipe_count = RecipeLine.objects.filter(manufactured_product=product).count()
+        manufacturing_batches = list(
+            ManufacturingBatch.objects.filter(product=product).order_by("-created_at")[:50]
+        )
 
     return render(request, "catalog/product_card.html", {
         "product": product,
@@ -713,6 +717,7 @@ def product_card(request, pk):
         "recipe_count": recipe_count,
         "date_from": date_from,
         "date_to": date_to,
+        "manufacturing_batches": manufacturing_batches,
     })
 
 
@@ -749,6 +754,39 @@ def product_manufacture_batch(request, pk):
             messages.error(request, "المواد غير كافية في المخزون لتنفيذ هذه الدفعة.")
         elif code == "NO_RECIPE":
             messages.error(request, "أضف معادلة تصنيع للمنتج أولاً.")
+        else:
+            messages.error(request, code)
+    return redirect(reverse("shell:product_card", args=[pk]))
+
+
+@login_required
+@require_POST
+def product_manufacture_batch_void(request, pk):
+    product = get_object_or_404(Product, pk=pk, product_type=Product.ProductType.MANUFACTURED)
+    try:
+        batch_id = int((request.POST.get("batch_id") or "").strip())
+    except (TypeError, ValueError):
+        batch_id = 0
+    batch = get_object_or_404(ManufacturingBatch, pk=batch_id, product=product)
+    try:
+        void_manufacturing_batch(batch=batch)
+        log_audit(
+            request.user,
+            "catalog.product.manufacture_batch_void",
+            "inventory.ManufacturingBatch",
+            batch_id,
+            {"product_id": product.pk},
+        )
+        messages.success(request, "تم حذف دفعة التصنيع وإرجاع أثرها على المخزون.")
+    except ValueError as exc:
+        code = str(exc)
+        if code == "INSUFFICIENT_STOCK_TO_VOID_BATCH":
+            messages.error(
+                request,
+                "لا يمكن إلغاء الدفعة: رصيد المنتج المصنع أقل من كمية الدفعة (ربما بيع جزء منها).",
+            )
+        elif code == "MISSING_PRODUCTION_MOVEMENT":
+            messages.error(request, "بيانات الدفعة غير مكتملة — تعذر الإلغاء.")
         else:
             messages.error(request, code)
     return redirect(reverse("shell:product_card", args=[pk]))

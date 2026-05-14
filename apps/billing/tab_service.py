@@ -333,6 +333,15 @@ def create_sale_invoice_core(
         )
         _deduct_linked_supplier(cust, credit_total, inv)
 
+        from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+
+        maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=session,
+        )
+
     for sil, line in zip(created_invoice_lines, [x[0] for x in line_grosses]):
         consume_for_sale(
             product=line.product,

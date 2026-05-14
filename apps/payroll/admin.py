@@ -5,7 +5,7 @@ from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase,
 
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ("name_ar", "daily_wage", "net_balance", "is_active")
+    list_display = ("name_ar", "linked_customer", "daily_wage", "net_balance", "is_active")
 
 
 @admin.register(EmployeeAdvance)
@@ -20,4 +20,4 @@ class EmployeeSalaryPayoutAdmin(admin.ModelAdmin):
 
 @admin.register(EmployeeCafePurchase)
 class EmployeeCafePurchaseAdmin(admin.ModelAdmin):
-    list_display = ("employee", "amount", "created_at")
+    list_display = ("employee", "amount", "sale_invoice", "created_at")

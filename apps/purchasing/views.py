@@ -6,7 +6,7 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Case, DecimalField, ExpressionWrapper, F, IntegerField, Max, Sum, Value, When
+from django.db.models import Case, DecimalField, ExpressionWrapper, F, IntegerField, Max, Q, Sum, Value, When
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -668,8 +668,11 @@ def purchase_products_search(request):
     if len(q) < 1:
         return JsonResponse({"results": []})
     purchasable = [Product.ProductType.RAW, Product.ProductType.READY]
+    name_q = Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(barcode__icontains=q)
     qs = (
-        Product.objects.select_related("unit").filter(is_active=True, product_type__in=purchasable, name_ar__icontains=q)
+        Product.objects.select_related("unit")
+        .filter(is_active=True, product_type__in=purchasable)
+        .filter(name_q)
         .order_by("name_ar")[:30]
     )
     return JsonResponse(

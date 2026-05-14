@@ -89,6 +89,10 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
                 reference_pk=str(invoice.pk),
             )
 
+    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+
+    reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
+
     from apps.purchasing.models import Supplier, SupplierLedgerEntry
 
     vendor_totals: dict = {}

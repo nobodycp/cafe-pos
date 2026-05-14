@@ -12,8 +12,13 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.billing.models import SaleInvoice, SaleReturn, SaleReturnLine
 from apps.purchasing.models import PurchaseInvoice
 from apps.billing.purge_service import purge_sale_invoice, purge_sale_return
-from apps.billing.sale_invoice_edit import apply_sale_invoice_line_edits, can_edit_sale_invoice
+from apps.billing.sale_invoice_edit import (
+    apply_sale_invoice_full_edit,
+    can_edit_sale_invoice,
+    parse_sale_invoice_full_edit_post,
+)
 from apps.core.models import get_pos_settings
+from apps.core.payment_methods import load_payment_method_rows
 from apps.core.pagination import paginate_queryset
 
 
@@ -48,7 +53,40 @@ def _sale_invoice_edit_error_message(code: str) -> str:
         return "المخزون غير كافٍ لهذا التعديل."
     if code == "INVALID_TOTALS":
         return "مجاميع غير صالحة بعد التعديل."
+    if code == "NO_LINES":
+        return "أضف صنفاً واحداً على الأقل بكمية وسعر."
+    if code == "INVALID_LINE_PRODUCT":
+        return "أحد الأصناف غير صالح أو غير مفعّل."
+    if code == "ZERO_QTY_NOT_ALLOWED":
+        return "الكمية يجب أن تكون أكبر من صفر لكل سطر."
+    if code == "CREDIT_REQUIRES_CUSTOMER":
+        return "الدفع الآجل يتطلب عميلاً مرتبطاً بالفاتورة."
+    if code == "INVALID_PAYMENT_METHOD":
+        return "طريقة دفع غير معروفة — اختر من القائمة."
+    if code.startswith("PAYMENT_SUM_MISMATCH:"):
+        parts = code.split(":")
+        return f"مجموع الدفعات ({parts[1] if len(parts) > 1 else '?'}) لا يساوي الإجمالي ({parts[2] if len(parts) > 2 else '?'})."
     return code.replace("_", " ")
+
+
+def _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns):
+    slots = max(len(lines) + 8, 12)
+    line_edit_rows = [{"idx": i, "line": lines[i] if i < len(lines) else None} for i in range(slots)]
+    pay_slots = max(len(payments) + 4, 4)
+    pay_edit_rows = [{"idx": i, "pay": payments[i] if i < len(payments) else None} for i in range(pay_slots)]
+    return {
+        "invoice": invoice,
+        "lines": lines,
+        "payments": payments,
+        "can_edit_sale_invoice": can_edit,
+        "cannot_edit_reason": reason,
+        "has_sale_returns": has_returns,
+        "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
+        "payment_method_rows": load_payment_method_rows(),
+        "line_edit_rows": line_edit_rows,
+        "pay_edit_rows": pay_edit_rows,
+        "pos_products_search_url": reverse("pos:products_search"),
+    }
 
 
 def _invoice_list_kind(request) -> str:
@@ -208,15 +246,7 @@ def sale_invoice_edit_panel(request, pk):
     return render(
         request,
         "shell/_sale_invoice_edit_fragment.html",
-        {
-            "invoice": invoice,
-            "lines": lines,
-            "payments": payments,
-            "can_edit_sale_invoice": can_edit,
-            "cannot_edit_reason": reason,
-            "has_sale_returns": has_returns,
-            "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
-        },
+        _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns),
     )
 
 
@@ -242,20 +272,9 @@ def sale_invoice_edit(request, pk):
                 return JsonResponse({"ok": False, "error": msg}, status=400)
             messages.error(request, msg)
             return redirect("shell:invoice_detail", pk=invoice.pk)
-        rows = []
         try:
-            for ln in lines:
-                qkey = f"qty_{ln.pk}"
-                pkey = f"price_{ln.pk}"
-                rq = (request.POST.get(qkey) or "").strip()
-                rp = (request.POST.get(pkey) or "").strip()
-                if not rq or not rp:
-                    raise ValueError("MISSING_FIELDS")
-                try:
-                    rows.append((ln.pk, Decimal(rq.replace(",", ".")), Decimal(rp.replace(",", "."))))
-                except Exception:
-                    raise ValueError("BAD_NUMBER") from None
-            apply_sale_invoice_line_edits(invoice=invoice, user=request.user, rows=rows)
+            lr, pr = parse_sale_invoice_full_edit_post(request.POST)
+            apply_sale_invoice_full_edit(invoice=invoice, user=request.user, line_rows=lr, payment_rows=pr)
         except ValueError as e:
             code = str(e)
             err_msg = _sale_invoice_edit_error_message(code)
@@ -265,21 +284,13 @@ def sale_invoice_edit(request, pk):
             return redirect("shell:sale_invoice_edit", pk=invoice.pk)
         if is_pos_embed:
             return JsonResponse({"ok": True})
-        messages.success(request, "تم حفظ تعديلات الفاتورة.")
+        messages.success(request, "تم حفظ تعديل الفاتورة (الأصناف والدفعات والقيود).")
         return redirect("shell:invoice_detail", pk=invoice.pk)
 
     return render(
         request,
         "shell/sale_invoice_edit.html",
-        {
-            "invoice": invoice,
-            "lines": lines,
-            "payments": payments,
-            "can_edit_sale_invoice": can_edit,
-            "cannot_edit_reason": reason,
-            "has_sale_returns": has_returns,
-            "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
-        },
+        _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns),
     )
 
 

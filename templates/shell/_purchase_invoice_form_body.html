@@ -21,7 +21,7 @@
       <p class="mt-1 mb-0 text-sm font-bold text-gray-900 dark:text-gray-100">{{ supplier.name_ar }}</p>
     </div>
     {% else %}
-    <div class="{% if purchase_form_compact %}mb-2 max-w-none{% else %}mb-4 max-w-xl{% endif %} relative">
+    <div class="{% if purchase_form_compact %}mb-2 max-w-none{% else %}mb-4 max-w-xl{% endif %} relative z-[34]">
       <label class="{% if purchase_form_compact %}text-xs{% endif %} font-semibold text-gray-700 dark:text-gray-200">المورد</label>
       <input type="hidden" name="supplier_id" id="purchase-supplier-id" value="">
       <input type="hidden" name="supplier_label" id="purchase-supplier-label" value="">
@@ -33,6 +33,8 @@
     </div>
     {% endif %}
 
+    {# طبقة أعلى من الإجمالي/الدفع حتى لا تُغطى قوائم الإكمال المطلقة تحت الصناديق التالية #}
+    <div class="purchase-invoice-lines-wrap relative z-[32]">
     <h2 class="{% if purchase_form_compact %}text-sm{% else %}text-lg{% endif %} font-bold text-gray-800 dark:text-white {% if purchase_form_compact %}mb-0.5{% else %}mb-1{% endif %}">الأصناف</h2>
     <div class="overflow-x-auto overflow-y-visible -mx-0.5 {% if purchase_form_compact %}px-0.5{% endif %}">
       <table class="w-full text-sm purchase-entry-table" id="lines-table">
@@ -66,9 +68,9 @@
           {% for i in range20 %}
           <tr class="purchase-line" data-idx="{{ i }}">
             <td class="line-num purchase-col-num">{{ forloop.counter }}</td>
-            <td class="purchase-col-product min-w-0">
+            <td class="purchase-col-product min-w-0 relative">
               <input type="hidden" name="product_{{ i }}" value="" class="line-product-id">
-              <div class="relative overflow-visible z-30">
+              <div class="relative overflow-visible">
                 <input type="text" autocomplete="off" dir="rtl" class="line-product-search w-full" data-idx="{{ i }}" placeholder="ابحث عن صنف…">
                 <div class="purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden" data-idx="{{ i }}"></div>
                 <div class="purchase-ac-new hidden mt-1.5 flex flex-wrap gap-1.5" data-idx="{{ i }}">
@@ -77,9 +79,9 @@
                 </div>
               </div>
             </td>
-            <td class="purchase-col-unit">
+            <td class="purchase-col-unit relative">
               <input type="hidden" name="unit_{{ i }}" value="" class="line-unit-id">
-              <div class="relative overflow-visible z-20">
+              <div class="relative overflow-visible">
                 <input type="text" autocomplete="off" class="line-unit-search w-full" data-idx="{{ i }}" placeholder="الوحدة">
                 <div class="purchase-unit-hits purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[9999] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden" data-idx="{{ i }}"></div>
                 <div class="purchase-unit-new hidden mt-1.5 flex flex-wrap gap-1.5" data-idx="{{ i }}">
@@ -98,7 +100,9 @@
         </tbody>
       </table>
     </div>
+    </div>
 
+    <div class="purchase-invoice-form-tail relative z-10">
     <div class="grid grid-cols-1 md:grid-cols-3 {% if purchase_form_compact %}gap-2 mt-3 max-w-none{% else %}gap-3 mt-5 max-w-3xl{% endif %}">
       <div class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-sm p-2">
         <span class="block text-xs text-muted font-bold mb-1">الإجمالي</span>
@@ -162,5 +166,6 @@
     </div>
 
     <button type="submit" class="w-full {% if purchase_form_compact %}h-9 mt-3 text-sm{% else %}h-11 mt-5{% endif %} rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>
+    </div>
   </form>
 </div>

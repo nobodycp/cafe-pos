@@ -89,6 +89,42 @@
           </form>
         </div>
       </div>
+      {% if manufacturing_batches %}
+      <div class="ds-panel mt-2">
+        <div class="ds-panel-header">دفعات التصنيع المسجّلة</div>
+        <div class="ds-panel-body p-0">
+          <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+            <table class="w-full text-sm ds-table">
+              <thead>
+                <tr>
+                  <th>التاريخ</th>
+                  <th>الكمية</th>
+                  <th>ملاحظة</th>
+                  <th class="w-28"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in manufacturing_batches %}
+                <tr>
+                  <td class="whitespace-nowrap">{{ b.created_at|date:"Y-m-d H:i" }}</td>
+                  <td class="tabular-nums font-semibold">{{ b.quantity|floatformat:4 }}</td>
+                  <td class="text-muted text-xs">{{ b.note|default:"—" }}</td>
+                  <td class="text-end">
+                    <form method="post" action="{% url 'shell:product_manufacture_batch_void' product.pk %}" class="m-0 inline"
+                          onsubmit="return confirm('إلغاء هذه الدفعة؟ يُعاد المخزون للمواد ويُخصم من رصيد المنتج المصنع.');">
+                      {% csrf_token %}
+                      <input type="hidden" name="batch_id" value="{{ b.pk }}">
+                      <button type="submit" class="ds-btn shrink-0 text-xs border border-danger/40 text-danger hover:bg-danger/10">حذف الدفعة</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      {% endif %}
       {% else %}
       <div class="ds-panel border-amber-300 dark:border-amber-700/80 bg-amber-50/90 dark:bg-amber-950/25">
         <div class="ds-panel-header text-amber-950 dark:text-amber-100">لماذا لا يظهر نموذج «تصنيع دفعة»؟</div>

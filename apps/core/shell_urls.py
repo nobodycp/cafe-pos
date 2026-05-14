@@ -90,6 +90,7 @@ urlpatterns = [
     path("products/<int:pk>/edit/", catalog_views.product_edit, name="product_edit"),
     path("products/<int:pk>/toggle/", catalog_views.product_toggle_active, name="product_toggle"),
     path("products/<int:pk>/produce/", catalog_views.product_manufacture_batch, name="product_manufacture_batch"),
+    path("products/<int:pk>/produce/void/", catalog_views.product_manufacture_batch_void, name="product_manufacture_batch_void"),
     path("products/<int:pk>/card/", catalog_views.product_card, name="product_card"),
     path("products/<int:pk>/delete/", catalog_views.product_delete, name="product_delete"),
     path("products/component/<int:pk>/info/", catalog_views.component_info, name="component_info"),
