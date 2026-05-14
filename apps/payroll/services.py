@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple
 
 from django.db import transaction
 
+from apps.contacts.services import apply_customer_balance_sync_from_employee_store_repayment
 from apps.core.decimalutil import as_decimal
 from apps.core.payment_methods import resolve_ledger_account_code
 from apps.payroll.models import Employee, EmployeeDebtRepayment
@@ -110,6 +111,14 @@ def record_employee_debt_repayment(
         advance_portion=from_adv,
         note=note_clean,
     )
+
+    if from_store > 0 and employee.linked_customer_id:
+        apply_customer_balance_sync_from_employee_store_repayment(
+            customer_id=employee.linked_customer_id,
+            from_store=from_store,
+            debt_repayment_pk=rep.pk,
+            note_extras=note_clean,
+        )
 
     use_multi = len(lines) > 1 or any(
         resolve_ledger_account_code(m) == "AR" and a > 0 for m, a in lines

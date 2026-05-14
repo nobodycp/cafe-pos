@@ -81,6 +81,16 @@ def void_unified_treasury_voucher(*, audit_log_id: int, user) -> None:
         )
         emp.save(update_fields=["store_purchases_balance", "advance_balance", "updated_at"])
         recalc_employee_net_balance(emp)
+        cust_id = emp.linked_customer_id
+        if cust_id and as_decimal(rep.store_portion) > 0:
+            CustomerLedgerEntry.objects.filter(
+                customer_id=cust_id,
+                reference_model="payroll.EmployeeDebtRepayment",
+                reference_pk=str(rep_pk),
+            ).delete()
+            cust = Customer.objects.select_for_update().get(pk=cust_id)
+            cust.balance = cust.computed_balance
+            cust.save(update_fields=["balance", "updated_at"])
         _reverse_journals(
             reference_type="payroll.EmployeeDebtRepayment",
             reference_pk=str(rep_pk),

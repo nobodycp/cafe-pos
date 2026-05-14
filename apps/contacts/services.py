@@ -122,3 +122,46 @@ def record_customer_payment(
 
     log_audit(user, "customer.payment", "contacts.Customer", customer.pk, {"amount": str(pay_collected)})
     return entry
+
+
+@transaction.atomic
+def apply_customer_balance_sync_from_employee_store_repayment(
+    *,
+    customer_id: int,
+    from_store: Decimal,
+    debt_repayment_pk: int,
+    note_extras: str = "",
+) -> Decimal:
+    """
+    عند سداد ذمة موظف من مشتريات المقهى: يخفّض رصيد العميل المرتبط بنفس الذمة المزدوجة
+    (فاتورة آجل على العميل + رصيد مقهى على الموظف)، بحدّ ما يظهر على رصيد العميل حالياً.
+    يُنشئ قيد تسوية في دفتر العميل مرتبطاً بسجل سداد الذمة.
+    """
+    cap_in = as_decimal(from_store).quantize(Decimal("0.01"))
+    if cap_in <= 0:
+        return Decimal("0")
+
+    cust = Customer.objects.select_for_update().get(pk=customer_id)
+    bal = as_decimal(cust.balance).quantize(Decimal("0.01"))
+    cap = min(cap_in, bal).quantize(Decimal("0.01"))
+    if cap <= 0:
+        return Decimal("0")
+
+    cust.balance = (bal - cap).quantize(Decimal("0.01"))
+    if cust.balance < 0 and cust.balance > Decimal("-0.01"):
+        cust.balance = Decimal("0")
+    cust.save(update_fields=["balance", "updated_at"])
+
+    note = "مقابل سداد ذمة موظف — مشتريات مقهى"
+    extra = (note_extras or "").strip()
+    if extra:
+        note = f"{extra} — {note}"
+    CustomerLedgerEntry.objects.create(
+        customer=cust,
+        entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
+        amount=-cap,
+        note=note[:500],
+        reference_model="payroll.EmployeeDebtRepayment",
+        reference_pk=str(debt_repayment_pk),
+    )
+    return cap
