@@ -20,6 +20,7 @@ def create_expense(
     work_session=None,
     user=None,
     allow_salary_category: bool = False,
+    payment_splits_json: str = "",
 ) -> Expense:
     amt = as_decimal(amount)
     if amt <= 0:
@@ -27,12 +28,18 @@ def create_expense(
     if category.code == ExpenseCategory.Code.SALARIES and not allow_salary_category:
         raise ValueError("SALARIES_VIA_PAYROLL_ONLY")
 
+    pm = (payment_method or "").strip()
+    splits = (payment_splits_json or "").strip()
+    if pm == "split" and not splits:
+        raise ValueError("SPLITS_REQUIRED")
+
     exp = Expense.objects.create(
         work_session=work_session,
         category=category,
         expense_date=expense_date,
         amount=amt,
-        payment_method=payment_method,
+        payment_method=pm,
+        payment_splits_json=splits if pm == "split" else "",
         notes=notes,
     )
 

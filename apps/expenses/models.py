@@ -1,3 +1,6 @@
+import json
+from decimal import Decimal
+
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -45,6 +48,7 @@ class Expense(TimeStampedModel):
     expense_date = models.DateField(_("تاريخ المصروف"))
     amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
     payment_method = models.CharField(_("طريقة الدفع"), max_length=32)
+    payment_splits_json = models.TextField(_("تقسيم الدفع (JSON)"), blank=True, default="")
     notes = models.TextField(_("ملاحظات"), blank=True)
 
     class Meta:
@@ -58,9 +62,38 @@ class Expense(TimeStampedModel):
     @property
     def payment_method_label_ar(self) -> str:
         """عرض عربي لرمز طريقة الدفع (الحقل بدون choices في النموذج)."""
-        from apps.core.payment_methods import get_payment_method_choices
+        from apps.core.payment_methods import get_payment_method_choices, payment_method_label_map
 
         code = (self.payment_method or "").strip()
+        if code == "split":
+            raw = (self.payment_splits_json or "").strip()
+            if not raw:
+                return "دفع مختلط"
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                return "دفع مختلط"
+            if not isinstance(data, list):
+                return "دفع مختلط"
+            lbl = payment_method_label_map()
+            parts: list[str] = []
+            for item in data:
+                if isinstance(item, (list, tuple)) and len(item) >= 2:
+                    mc = str(item[0] or "").strip()
+                    amt_raw = item[1]
+                elif isinstance(item, dict):
+                    mc = str(item.get("method") or "").strip()
+                    amt_raw = item.get("amount")
+                else:
+                    continue
+                try:
+                    a = Decimal(str(amt_raw).replace(",", ".")).quantize(Decimal("0.01"))
+                except Exception:
+                    continue
+                if a <= 0 or not mc:
+                    continue
+                parts.append(f"{lbl.get(mc, mc)} {a}")
+            return " + ".join(parts) if parts else "دفع مختلط"
         for c, label in get_payment_method_choices():
             if c == code:
                 return label

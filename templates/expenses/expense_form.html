@@ -16,7 +16,8 @@
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_expenses_tabs.html" %}
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5">
-      <form method="post" class="space-y-4 max-w-3xl">
+      {{ expense_form_state|json_script:"expense-form-state" }}
+      <form method="post" id="expense-form" class="space-y-4 max-w-3xl">
         {% csrf_token %}
         <div>
           <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.category.id_for_label }}">التصنيف</label>
@@ -30,16 +31,55 @@
             {% if form.amount.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
           </div>
           <div>
-            <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.payment_method.id_for_label }}">طريقة الدفع</label>
-            {{ form.payment_method }}
-            {% if form.payment_method.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_method.errors.0 }}</p>{% endif %}
+            <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.expense_date.id_for_label }}">التاريخ</label>
+            {{ form.expense_date }}
+            {% if form.expense_date.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.expense_date.errors.0 }}</p>{% endif %}
           </div>
         </div>
+
         <div>
-          <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.expense_date.id_for_label }}">التاريخ</label>
-          {{ form.expense_date }}
-          {% if form.expense_date.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.expense_date.errors.0 }}</p>{% endif %}
+          <span class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1">طريقة الدفع</span>
+          {{ form.payment_splits_json }}
+          {% if form.payment_splits_json.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_splits_json.errors.0 }}</p>{% endif %}
+          <label class="flex cursor-pointer items-center gap-2 text-xs mb-2 text-gray-700 dark:text-gray-300">
+            {{ form.use_payment_splits }}
+            <span class="font-bold">{{ form.use_payment_splits.label }}</span>
+          </label>
+          {% if form.use_payment_splits.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.use_payment_splits.errors.0 }}</p>{% endif %}
+
+          <div id="expense-pay-single"{% if expense_split_ui_open %} class="hidden"{% endif %}>
+            {{ form.payment_method }}
+            {% if form.payment_method.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.payment_method.errors.0 }}</p>{% endif %}
+            <div class="flex flex-wrap gap-1.5" id="expense-pay-methods" dir="rtl">
+              {% for row in payment_method_rows %}
+              <button type="button" class="expense-pay-btn h-8 px-3 text-xs rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 font-bold" data-code="{{ row.code }}" data-ledger="{{ row.ledger }}">{{ row.label_ar }}</button>
+              {% empty %}
+              <p class="text-danger text-xs font-semibold">لا توجد طرق دفع مفعّلة — أضفها من الإعدادات.</p>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div id="expense-pay-splits-wrap" class="mt-3 max-w-2xl{% if not expense_split_ui_open %} hidden{% endif %}">
+            <p class="text-xs text-muted mb-1.5 leading-snug">مجموع المبالغ في الجدول يجب أن يساوي <strong>مبلغ المصروف</strong>.</p>
+            <div class="overflow-x-auto rounded-sm border border-gray-200 dark:border-gray-600">
+              <table class="w-full text-xs border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-800/80">
+                    <th class="p-1.5 text-start font-bold">طريقة الدفع</th>
+                    <th class="p-1.5 text-end font-bold w-28">المبلغ</th>
+                    <th class="p-1.5 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody id="expense-pay-splits-tbody"></tbody>
+              </table>
+            </div>
+            <div class="mt-1.5 flex flex-wrap items-center gap-2">
+              <button type="button" id="expense-pay-split-add" class="h-8 px-2 text-xs rounded-sm border border-dashed border-gray-400 font-bold text-gray-700 hover:border-[#1e3a5f] dark:border-gray-500 dark:text-gray-200">+ سطر دفع</button>
+              <span id="expense-pay-split-sum-hint" class="text-xs text-muted tabular-nums"></span>
+            </div>
+          </div>
         </div>
+
         <div>
           <label class="block text-sm font-bold text-gray-600 dark:text-gray-400 mb-1" for="{{ form.notes.id_for_label }}">ملاحظات</label>
           {{ form.notes }}
@@ -55,4 +95,5 @@
     </div>
   </div>
 </div>
+{% include "expenses/_expense_payment_scripts.html" %}
 {% endblock %}

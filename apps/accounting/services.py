@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
@@ -13,7 +14,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounting.models import Account, JournalEntry, JournalLine
-from apps.core.payment_methods import resolve_cash_bank_line_code, resolve_ledger_account_code
+from apps.core.payment_methods import (
+    get_payment_method_codes,
+    resolve_cash_bank_line_code,
+    resolve_ledger_account_code,
+)
 from apps.core.decimalutil import as_decimal
 from apps.core.sequences import next_int
 
@@ -210,13 +215,63 @@ def post_purchase_invoice_journal(
     return entry
 
 
+def _expense_credit_system_code(method_code: str) -> str:
+    """حساب الدائن لمصروف: صندوق / بنك / ذمم دائنة (مثل فاتورة الشراء للآجل)."""
+    ledger = resolve_ledger_account_code(method_code)
+    if ledger == "AR":
+        return "AP"
+    if ledger == "CASH":
+        return "CASH"
+    return "BANK"
+
+
+def _expense_credit_buckets_from_model(expense) -> Dict[str, Decimal]:
+    """يجمع مبالغ الدائن حسب رمز الحساب المحاسبي (CASH / BANK / AP)."""
+    amount = as_decimal(expense.amount)
+    pm = (expense.payment_method or "").strip().lower()
+    raw = (getattr(expense, "payment_splits_json", None) or "").strip()
+    by_sys: Dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    codes_ok = get_payment_method_codes()
+
+    if pm == "split":
+        if not raw:
+            raise ValueError("INVALID_EXPENSE_SPLITS")
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError("INVALID_EXPENSE_SPLITS_JSON") from exc
+        if not isinstance(data, list):
+            raise ValueError("INVALID_EXPENSE_SPLITS_JSON")
+        for item in data:
+            if isinstance(item, (list, tuple)) and len(item) >= 2:
+                code = str(item[0] or "").strip().lower()
+                amt_raw = item[1]
+            elif isinstance(item, dict):
+                code = str(item.get("method") or "").strip().lower()
+                amt_raw = item.get("amount")
+            else:
+                continue
+            if not code or code not in codes_ok:
+                raise ValueError("INVALID_EXPENSE_SPLIT_METHOD")
+            a = as_decimal(amt_raw)
+            if a <= 0:
+                continue
+            sy = _expense_credit_system_code(code)
+            by_sys[sy] += a.quantize(Decimal("0.01"))
+    else:
+        sy = _expense_credit_system_code(pm)
+        by_sys[sy] += amount.quantize(Decimal("0.01"))
+
+    return dict(by_sys)
+
+
 @transaction.atomic
 def post_expense_journal(
     *,
     expense,
     user=None,
 ) -> JournalEntry:
-    """قيد مصروف: مدين حساب المصروف، دائن صندوق/بنك."""
+    """قيد مصروف: مدين حساب المصروف، دائن صندوق/بنك/ذمم (دفع واحد أو مختلط)."""
     amount = as_decimal(expense.amount)
     if amount <= 0:
         raise ValueError("ZERO_EXPENSE")
@@ -240,8 +295,16 @@ def post_expense_journal(
 
     _add_line(entry, exp_account, debit=amount, desc=expense.notes[:255] if expense.notes else "")
 
-    pay_sys = resolve_cash_bank_line_code(expense.payment_method)
-    _add_line(entry, _get_account(pay_sys), credit=amount, desc="دفع مصروف")
+    buckets = _expense_credit_buckets_from_model(expense)
+    if not buckets:
+        raise ValueError("EXPENSE_PAYMENT_EMPTY")
+    total_credit = sum(as_decimal(v) for v in buckets.values()).quantize(Decimal("0.01"))
+    if total_credit != amount.quantize(Decimal("0.01")):
+        raise ValueError("EXPENSE_PAYMENT_MISMATCH")
+    for pay_sys, cred in sorted(buckets.items()):
+        if cred <= 0:
+            continue
+        _add_line(entry, _get_account(pay_sys), credit=cred, desc="دفع مصروف")
 
     return entry
 
