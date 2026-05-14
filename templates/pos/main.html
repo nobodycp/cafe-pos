@@ -78,31 +78,15 @@
 .pos-open-orders-xl .pos-oo-amt{width:4.25rem}
 .pos-open-orders-xl .pos-oo-bal{width:3.6rem}
 .pos-open-orders-xl .pos-oo-act{width:3.35rem}
-/* يمنع التمرير الأفقي للصفحة: عمود الشبكة 1fr يحتاج min-width:0؛ أعمدة العربة/الطاولات لا تتجاوز العرض */
-#pos-home-root{width:100%;max-width:100%;min-width:0;overflow-x:hidden}
-@media (max-width:1280px){
-  #pos-cart-column.pos-cart-column{
-    width:clamp(200px,26vw,420px)!important;
-    min-width:188px!important;
-    max-width:min(440px,34vw)!important;
-  }
-  #pos-tables-strip{
-    width:clamp(168px,22vw,320px)!important;
-    min-width:156px!important;
-    max-width:min(360px,30vw)!important;
-  }
-}
-@media (max-width:1024px){
-  #pos-cart-column.pos-cart-column{
-    width:clamp(188px,24vw,360px)!important;
-    min-width:176px!important;
-    max-width:min(400px,32vw)!important;
-  }
-  #pos-tables-strip{
-    width:clamp(156px,20vw,280px)!important;
-    min-width:148px!important;
-    max-width:min(320px,28vw)!important;
-  }
+/* تخطيط الكاشير: ثلاثة أعمدة متساوية (عربة | منتجات+أسفل | طاولات) — minmax(0,1fr) يمنع ضغط أسماء السلة */
+#pos-home-root{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  align-items:stretch;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow-x:hidden;
 }
 </style>
 
@@ -141,10 +125,10 @@
 {# ═══  وردية مفتوحة: دائماً تخطيط العربة | المنتجات | الطاولات (مع أو بدون طلب نشط) ═══ #}
 {# ═══════════════════════════════════════════════ #}
 {# ترتيب ثابت LTR: يسار الشاشة = العربة، الوسط = المنتجات، اليمين = الطاولات (محتوى كل عمود RTL) #}
-<div id="pos-home-root" class="flex flex-1 min-h-0 min-w-0 w-full max-w-full flex-row overflow-x-hidden dir-ltr">
+<div id="pos-home-root" class="flex-1 min-h-0 min-w-0 max-w-full overflow-x-hidden dir-ltr">
 
 {# ─── LEFT (physical): Cart / invoice — طبقة معاينة الإيصال خارج #pos-cart حتى لا تُحذف عند refreshCart(innerHTML) #}
-<div class="pos-cart-column relative w-[clamp(248px,34vw,520px)] min-w-[236px] max-w-[min(560px,44vw)] shrink-0 bg-white dark:bg-gray-900 border-e border-gray-300 dark:border-gray-700 flex flex-col min-h-0 h-full" id="pos-cart-column">
+<div class="pos-cart-column relative min-h-0 min-w-0 flex flex-col h-full border-e border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900" id="pos-cart-column">
   <div id="pos-receipt-embed-overlay" class="hidden absolute inset-0 z-[360] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="pos-receipt-embed-title" dir="rtl">
     <button type="button" id="pos-receipt-embed-backdrop" class="absolute inset-0 cursor-default border-0 bg-zinc-900/45 p-0" aria-label="إغلاق"></button>
     <div class="relative z-[1] m-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-zinc-500 bg-zinc-100 shadow-xl dark:border-zinc-600 dark:bg-zinc-900">
@@ -164,7 +148,7 @@
 </div>
 
 {# ─── CENTER: Products — 50٪ علوي (المنتجات) + 50٪ سفلي (زر سندات → نافذة عند وجود طلب ووردية) #}
-<div class="pos-products flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden gap-1.5 bg-[#e8eaed] dark:bg-gray-950 p-2 dir-rtl">
+<div class="pos-products min-h-0 min-w-0 flex flex-col overflow-hidden gap-1.5 bg-[#e8eaed] dark:bg-gray-950 p-2 dir-rtl">
   <div class="pos-split-half min-h-0">
     <div class="pos-products-main">
     <div class="pos-search-strip relative shrink-0" id="product-search-wrap">
@@ -249,7 +233,7 @@
 </div>
 
 {# ─── RIGHT (physical): Tables — 50٪ علوي (قائمة + تمرير + أزرار) + 50٪ سفلي فارغ #}
-<div id="pos-tables-strip" class="pos-tables-strip w-[clamp(200px,26vw,360px)] min-w-[180px] max-w-[min(400px,36vw)] shrink-0 bg-white dark:bg-gray-900 border-s border-gray-300 dark:border-gray-700 overflow-hidden p-1 gap-1 dir-rtl">
+<div id="pos-tables-strip" class="pos-tables-strip min-h-0 min-w-0 flex flex-col overflow-hidden p-1 gap-1 border-s border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 dir-rtl">
   <div class="pos-split-half min-h-0 gap-1">
     <div class="shrink-0 text-[10px] font-bold text-gray-500 px-0.5 py-1 text-center border-b border-gray-200 dark:border-gray-700">طاولات</div>
     <div class="pos-tables-legend shrink-0" aria-hidden="true">
