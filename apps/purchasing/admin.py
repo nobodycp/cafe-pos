@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from apps.purchasing.models import PurchaseInvoice, PurchaseLine, Supplier, SupplierLedgerEntry, SupplierPayment
+from apps.purchasing.models import (
+    PurchaseInvoice,
+    PurchaseLine,
+    Supplier,
+    SupplierCafePurchase,
+    SupplierLedgerEntry,
+    SupplierPayment,
+)
 
 
 class PurchaseLineInline(admin.TabularInline):
@@ -27,6 +34,12 @@ class PurchaseLineAdmin(admin.ModelAdmin):
 @admin.register(SupplierPayment)
 class SupplierPaymentAdmin(admin.ModelAdmin):
     list_display = ("supplier", "amount", "method", "created_at")
+
+
+@admin.register(SupplierCafePurchase)
+class SupplierCafePurchaseAdmin(admin.ModelAdmin):
+    list_display = ("supplier", "amount", "sale_invoice", "created_at")
+    raw_id_fields = ("supplier", "sale_invoice", "work_session")
 
 
 @admin.register(SupplierLedgerEntry)

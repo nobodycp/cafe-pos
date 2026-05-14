@@ -57,25 +57,6 @@ def _record_commission_vendor_payables(invoice: SaleInvoice) -> None:
         )
 
 
-def _deduct_linked_supplier(customer: Customer, credit_amount: Decimal, invoice) -> None:
-    """If customer is linked to a supplier, deduct the credit sale from supplier balance."""
-    linked = getattr(customer, "linked_supplier", None)
-    if linked is None:
-        return
-    from apps.purchasing.models import SupplierLedgerEntry
-
-    linked.balance = (linked.balance - credit_amount).quantize(Decimal("0.01"))
-    linked.save(update_fields=["balance", "updated_at"])
-    SupplierLedgerEntry.objects.create(
-        supplier=linked,
-        entry_type=SupplierLedgerEntry.EntryType.ADJUSTMENT,
-        amount=-credit_amount,
-        note=f"مشتريات العميل — فاتورة {invoice.invoice_number}",
-        reference_model="billing.SaleInvoice",
-        reference_pk=str(invoice.pk),
-    )
-
-
 def _line_gross(line: OrderLine) -> Decimal:
     return (as_decimal(line.quantity) * (as_decimal(line.unit_price) + as_decimal(line.extra_unit_price))).quantize(Decimal("0.01"))
 
@@ -331,11 +312,16 @@ def create_sale_invoice_core(
             reference_model="billing.SaleInvoice",
             reference_pk=str(inv.pk),
         )
-        _deduct_linked_supplier(cust, credit_total, inv)
-
         from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+        from apps.purchasing.invoice_link import maybe_record_supplier_cafe_from_invoice_credit
 
         maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=session,
+        )
+        maybe_record_supplier_cafe_from_invoice_credit(
             invoice=inv,
             customer=cust,
             credit_total=credit_total,

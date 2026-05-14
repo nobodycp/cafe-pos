@@ -413,11 +413,16 @@ def apply_sale_invoice_full_edit(
             reference_model="billing.SaleInvoice",
             reference_pk=str(inv.pk),
         )
-        tab_svc._deduct_linked_supplier(cust, credit_total, inv)
-
         from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+        from apps.purchasing.invoice_link import maybe_record_supplier_cafe_from_invoice_credit
 
         maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=inv.work_session,
+        )
+        maybe_record_supplier_cafe_from_invoice_credit(
             invoice=inv,
             customer=cust,
             credit_total=credit_total,

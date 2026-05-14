@@ -57,12 +57,17 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
         )
 
     from apps.core.payment_methods import credit_method_codes
+    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+    from apps.purchasing.invoice_link import reverse_supplier_cafe_for_cancelled_invoice
+    from apps.purchasing.models import Supplier, SupplierCafePurchase, SupplierLedgerEntry
 
     credit_payments = invoice.payments.filter(method__in=credit_method_codes())
     credit_total = sum(as_decimal(p.amount) for p in credit_payments)
-    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+
+    had_supplier_cafe = SupplierCafePurchase.objects.filter(sale_invoice_id=invoice.pk).exists()
 
     reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
+    reverse_supplier_cafe_for_cancelled_invoice(invoice=invoice)
 
     if credit_total > 0 and invoice.customer:
         cust = invoice.customer
@@ -79,9 +84,7 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
             reference_pk=str(invoice.pk),
         )
         linked = getattr(cust, "linked_supplier", None)
-        if linked:
-            from apps.purchasing.models import SupplierLedgerEntry
-
+        if linked and not had_supplier_cafe:
             linked.balance = (as_decimal(linked.balance) + credit_total).quantize(Decimal("0.01"))
             linked.save(update_fields=["balance", "updated_at"])
             SupplierLedgerEntry.objects.create(
@@ -92,8 +95,6 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
                 reference_model="billing.SaleInvoice",
                 reference_pk=str(invoice.pk),
             )
-
-    from apps.purchasing.models import Supplier, SupplierLedgerEntry
 
     vendor_totals: dict = {}
     for sil in invoice.lines.select_related("product"):

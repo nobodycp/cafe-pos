@@ -24,7 +24,8 @@ def maybe_record_employee_cafe_from_invoice_credit(
 ) -> None:
     """
     عند إنشاء فاتورة بيع بمبلغ آجل على عميل مرتبط بموظف:
-    يُنشئ سجل EmployeeCafePurchase ويرفع store_purchases_balance بنفس المبلغ.
+    يُنشئ سجل EmployeeCafePurchase ويرفع store_purchases_balance بنفس المبلغ،
+    ويُصفّي رصيد العميل (لا يُكرَّر مسار المورد إن وُجد موظف مرتبط بنفس العميل).
     """
     amt = as_decimal(credit_total).quantize(Decimal("0.01"))
     if amt <= 0:

@@ -24,6 +24,7 @@ from apps.purchasing.models import (
     PurchaseReturn,
     PurchaseReturnLine,
     Supplier,
+    SupplierCafePurchase,
     SupplierLedgerEntry,
     SupplierPayment,
 )
@@ -398,6 +399,9 @@ def supplier_detail(request, pk):
     inv = supplier.purchase_invoices.order_by("-created_at")[:50]
     pay = supplier.payments.order_by("-created_at")[:50]
     led = supplier.ledger_entries.order_by("-created_at")[:100]
+    cafe_purchases = supplier.cafe_purchases.select_related("sale_invoice").order_by("-created_at")[:50]
+    cafe_agg = SupplierCafePurchase.objects.filter(supplier_id=supplier.pk).aggregate(s=Sum("amount"))
+    cafe_purchases_total = (cafe_agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
     net_balance = supplier.balance
     if supplier.linked_customer:
         net_balance = (supplier.balance - supplier.linked_customer.balance).quantize(Decimal("0.01"))
@@ -412,6 +416,8 @@ def supplier_detail(request, pk):
             invoices=inv,
             payments=pay,
             ledger=led,
+            cafe_purchases=cafe_purchases,
+            cafe_purchases_total=cafe_purchases_total,
             net_balance=net_balance,
             is_commission_vendor=is_commission_vendor,
         ),

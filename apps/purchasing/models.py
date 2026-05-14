@@ -74,6 +74,40 @@ class SupplierLedgerEntry(TimeStampedModel):
         ordering = ("-created_at",)
 
 
+class SupplierCafePurchase(TimeStampedModel):
+    """شراء بالآجل من المقهى على حساب عميل مرتبط بهذا المورد — يُعرَض كذمة على المورد ويُصفّر رصيد العميل."""
+
+    supplier = models.ForeignKey(
+        Supplier,
+        verbose_name=_("المورد"),
+        related_name="cafe_purchases",
+        on_delete=models.CASCADE,
+    )
+    work_session = models.ForeignKey(
+        WorkSession,
+        verbose_name=_("الوردية"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="supplier_cafe_purchases",
+    )
+    amount = models.DecimalField(_("المبلغ"), max_digits=14, decimal_places=2, validators=[MinValueValidator(0)])
+    note = models.TextField(_("ملاحظة"), blank=True)
+    sale_invoice = models.ForeignKey(
+        "billing.SaleInvoice",
+        verbose_name=_("فاتورة مرتبطة"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="supplier_cafe_purchases",
+    )
+
+    class Meta:
+        verbose_name = _("شراء مورد من المقهى (آجل)")
+        verbose_name_plural = _("مشتريات الموردين من المقهى")
+        ordering = ("-created_at",)
+
+
 class PurchaseInvoice(SoftDeleteModel):
     class PaymentStatus(models.TextChoices):
         PAID = "paid", _("مدفوع")

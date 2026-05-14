@@ -58,8 +58,13 @@ def _reverse_commission_vendor_payables(*, invoice: SaleInvoice) -> None:
 
 def _reverse_customer_credit_for_invoice(*, invoice: SaleInvoice) -> None:
     from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+    from apps.purchasing.invoice_link import reverse_supplier_cafe_for_cancelled_invoice
+    from apps.purchasing.models import SupplierCafePurchase
+
+    had_supplier_cafe = SupplierCafePurchase.objects.filter(sale_invoice_id=invoice.pk).exists()
 
     reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
+    reverse_supplier_cafe_for_cancelled_invoice(invoice=invoice)
 
     credit_total = sum(
         as_decimal(p.amount) for p in invoice.payments.filter(method__in=credit_method_codes())
@@ -80,7 +85,7 @@ def _reverse_customer_credit_for_invoice(*, invoice: SaleInvoice) -> None:
         reference_pk=str(invoice.pk),
     )
     linked = getattr(cust, "linked_supplier", None)
-    if linked:
+    if linked and not had_supplier_cafe:
         from apps.purchasing.models import SupplierLedgerEntry
 
         linked.balance = (as_decimal(linked.balance) + credit_total).quantize(Decimal("0.01"))
@@ -375,11 +380,16 @@ def update_sale_invoice_from_order(
             reference_model="billing.SaleInvoice",
             reference_pk=str(inv.pk),
         )
-        tabs._deduct_linked_supplier(cust, credit_total, inv)
-
         from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+        from apps.purchasing.invoice_link import maybe_record_supplier_cafe_from_invoice_credit
 
         maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=inv.work_session,
+        )
+        maybe_record_supplier_cafe_from_invoice_credit(
             invoice=inv,
             customer=cust,
             credit_total=credit_total,
