@@ -737,6 +737,16 @@
     document.body.appendChild(overlay);
     var firstInput=overlay.querySelector('input,textarea');
     if(firstInput)setTimeout(function(){firstInput.focus()},50);
+    overlay.addEventListener('keydown',function(e){
+      if(e.key!=='Enter')return;
+      var t=e.target;
+      if(!t||t.tagName==='TEXTAREA'||t.tagName==='BUTTON')return;
+      if(t.tagName==='INPUT'){
+        e.preventDefault();
+        var okBtn=overlay.querySelector('.modal-ok');
+        if(okBtn)okBtn.click();
+      }
+    });
     overlay.querySelector('.modal-cancel').addEventListener('click',function(){overlay.remove()});
     overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
     overlay.querySelector('.modal-ok').addEventListener('click',function(){
@@ -1003,6 +1013,9 @@
       if(e.key==='ArrowUp'){e.preventDefault();focusSiblingRowPrice(tr,-1);return;}
       return;
     }
+    if(t.matches&&t.matches('input[name="set_quantity"]')){
+      return;
+    }
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){
       e.preventDefault();
       focusSiblingCartRow(tr,e.key==='ArrowDown'?1:-1);
@@ -1116,6 +1129,7 @@
         var fo=e.target.closest('form');
         if(fo&&!fo.classList.contains('pos-line-qty-form'))return;
         setSelectedCartLine(el);
+        if(e.target.closest&&e.target.closest('input,textarea,select'))return;
         try{el.focus({preventScroll:true});}catch(x){try{el.focus();}catch(y){}}
       });
     });
@@ -1200,7 +1214,7 @@
     if(tag==='textarea')return;
     if(ae&&ae.closest&&ae.closest('#pos-cart')){
       var nm=ae.name||'';
-      if(tag==='input'&&(nm==='unit_price'||nm==='discount_value'||nm==='discount_amount'||nm==='discount_percent')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
+      if(tag==='input'&&(nm==='unit_price'||nm==='set_quantity'||nm==='discount_value'||nm==='discount_amount'||nm==='discount_percent')&&(e.key==='+'||e.key==='-'||e.key==='='))return;
       if(tag==='input'&&ae.type==='text'&&(e.key==='+'||e.key==='-'||e.key==='='))return;
     }
     if(tag==='input'&&ae.type!=='button'&&ae.type!=='submit'){
@@ -1818,7 +1832,10 @@
 
   /* ── Auto-focus search ── */
   document.addEventListener('keypress',function(e){
-    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+    var t=e.target;
+    if(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT')return;
+    var ae=document.activeElement;
+    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'))return;
     var si=document.getElementById('pos-search-input');
     if(si&&/^[\u0600-\u06FFa-zA-Z0-9]$/.test(e.key)){si.focus()}
   });
