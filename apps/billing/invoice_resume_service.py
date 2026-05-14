@@ -57,6 +57,10 @@ def _reverse_commission_vendor_payables(*, invoice: SaleInvoice) -> None:
 
 
 def _reverse_customer_credit_for_invoice(*, invoice: SaleInvoice) -> None:
+    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+
+    reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
+
     credit_total = sum(
         as_decimal(p.amount) for p in invoice.payments.filter(method__in=credit_method_codes())
     )
@@ -372,6 +376,15 @@ def update_sale_invoice_from_order(
             reference_pk=str(inv.pk),
         )
         tabs._deduct_linked_supplier(cust, credit_total, inv)
+
+        from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+
+        maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=inv.work_session,
+        )
 
     for sil, line in zip(created_invoice_lines, [x[0] for x in line_grosses]):
         consume_for_sale(

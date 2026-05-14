@@ -60,6 +60,10 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
 
     credit_payments = invoice.payments.filter(method__in=credit_method_codes())
     credit_total = sum(as_decimal(p.amount) for p in credit_payments)
+    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
+
+    reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
+
     if credit_total > 0 and invoice.customer:
         cust = invoice.customer
         cust.balance = (as_decimal(cust.balance) - credit_total).quantize(Decimal("0.01"))
@@ -88,10 +92,6 @@ def cancel_sale_invoice(*, invoice: SaleInvoice, reason: str, user) -> None:
                 reference_model="billing.SaleInvoice",
                 reference_pk=str(invoice.pk),
             )
-
-    from apps.payroll.invoice_link import reverse_employee_cafe_for_cancelled_invoice
-
-    reverse_employee_cafe_for_cancelled_invoice(invoice=invoice)
 
     from apps.purchasing.models import Supplier, SupplierLedgerEntry
 

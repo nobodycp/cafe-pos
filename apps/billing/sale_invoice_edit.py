@@ -415,6 +415,15 @@ def apply_sale_invoice_full_edit(
         )
         tab_svc._deduct_linked_supplier(cust, credit_total, inv)
 
+        from apps.payroll.invoice_link import maybe_record_employee_cafe_from_invoice_credit
+
+        maybe_record_employee_cafe_from_invoice_credit(
+            invoice=inv,
+            customer=cust,
+            credit_total=credit_total,
+            work_session=inv.work_session,
+        )
+
     for sil, (prod, qty, _, _) in zip(created, gross_by_idx):
         consume_for_sale(
             product=prod,
