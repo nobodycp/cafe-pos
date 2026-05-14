@@ -6,13 +6,20 @@
   container-type:inline-size;container-name:poscart;
 }
 /* حقول السفلية/الرأس — لا يشمل سعر السطر داخل الجدول (يُنسَّق لاحقاً مثل عمود السعر في المنتجات) */
-#pos-cart input[type="number"]:not([name="unit_price"]),
+#pos-cart input[type="number"]:not([name="unit_price"]):not(.pos-line-qty-inp),
 #pos-cart input[type="text"],
 #pos-cart input[type="search"],
 #pos-cart input[type="tel"]{
   width:auto!important;max-width:100%;box-sizing:border-box;
   min-height:1.5rem!important;height:1.5rem!important;padding:0 6px!important;
   font-size:11px!important;line-height:1.2!important;
+}
+/* كمية السطر — يدوي بين −/+ */
+#pos-cart input.pos-line-qty-inp[name="set_quantity"]{
+  width:3.15rem!important;min-width:2.85rem!important;max-width:4.25rem!important;
+  height:1.5rem!important;min-height:1.5rem!important;padding:0 4px!important;
+  font-size:11px!important;font-weight:700!important;line-height:1.2!important;
+  text-align:center!important;box-sizing:border-box!important;
 }
 /* خصم طلب: حقل واحد (مبلغ أو 12%) */
 #pos-cart .pos-ci-disc-value{width:min(6.75rem,100%)!important;min-width:5.25rem!important;flex:0 1 auto!important;}
@@ -330,7 +337,7 @@
             data-line-idx="{{ forloop.counter0 }}"
             data-line-id="{{ line.pk }}"
             data-unit-price="{{ crow.effective_unit|dec_plain }}"
-              data-qty="{{ line.quantity }}"
+              data-qty="{{ line.quantity|floatformat:'-3' }}"
               title="{{ line.product.name_ar|escape }}{% if line.modifiers_json %} — {% for m in line.modifiers_json %}{{ m.name_ar|escape }}{% if not forloop.last %}، {% endif %}{% endfor %}{% endif %}{% if line.line_note %} — {{ line.line_note|escape }}{% endif %}{% if line.extra_unit_price %} (+{{ line.extra_unit_price }}){% endif %}">
             <td class="text-center text-muted font-mono">
             <span class="js-line-note sr-only">{{ line.line_note }}</span>{{ crow.idx }}</td>
@@ -338,12 +345,17 @@
               <span class="pos-line-name-one">{{ line.product.name_ar }}</span>
           </td>
           <td class="text-center">
-              <div class="pos-qty-btns inline-flex items-center justify-center">
+              <div class="pos-qty-btns inline-flex items-center justify-center gap-0.5">
               <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
                 <input type="hidden" name="qty_delta" value="-1">
                   <button type="submit" class="pos-qty-txt" title="نقص الكمية">−</button>
               </form>
-              <span class="min-w-[1.25rem] text-center font-bold tabular-nums">{{ line.quantity|floatformat:"-3" }}</span>
+              <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form pos-line-qty-form" title="اكتب الكمية ثم Enter، أو انقر خارج الحقل للتطبيق">{% csrf_token %}
+                <input type="number" name="set_quantity" value="{{ line.quantity|floatformat:'-3' }}"
+                  min="0" step="0.001" inputmode="decimal" lang="en" autocomplete="off"
+                  class="pos-line-qty-inp rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 tabular-nums">
+                <button type="submit" class="sr-only">تحديث الكمية</button>
+              </form>
               <form method="post" action="{% url 'pos:order_adjust_line' current_order.pk line.pk %}" style="display:contents" class="ajax-cart-form">{% csrf_token %}
                 <input type="hidden" name="qty_delta" value="1">
                   <button type="submit" class="pos-qty-txt" title="زيادة الكمية">+</button>
@@ -411,7 +423,7 @@
       {% if cart_line_rows %}
       <button type="button" class="tb-btn" id="tb-kitchen-print" data-kitchen-receipt-url="{% url 'pos:kitchen_receipt_embed' current_order.pk %}?embed=1&amp;full=1" title="معاينة مطبخ وطباعة (نفس شكل إيصال الدفع، بدون طرق الدفع)">طباعة مطبخ</button>
       {% endif %}
-      <span class="text-[8px] text-muted font-semibold ms-auto max-w-[15rem] leading-tight hidden xl:inline" title="اختصارات">/ بحث · مرّر المؤشر على جدول الأصناف لتفعيل ↑↓ و+/− · Tab بين أسعار الأسطر · Enter · F9</span>
+      <span class="text-[8px] text-muted font-semibold ms-auto max-w-[15rem] leading-tight hidden xl:inline" title="اختصارات">/ بحث · ↑↓ و+/− على الجدول · كتابة الكمية في الحقل ثم Enter أو خروج من الحقل · Tab للأسعار · F9</span>
     </div>
 
     <form method="post" action="{% url 'pos:order_hold' current_order.pk %}" id="tb-hold-form" class="hidden" aria-hidden="true">{% csrf_token %}</form>
