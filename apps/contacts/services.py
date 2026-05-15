@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from django.db import transaction
+from django.db.models import Sum
 
 from apps.contacts.models import Customer, CustomerLedgerEntry
 
@@ -23,6 +24,46 @@ def resolve_or_create_active_customer_by_name(name_ar: str) -> Tuple[Optional[Cu
 from apps.core.decimalutil import as_decimal
 from apps.core.models import log_audit
 from apps.core.payment_methods import resolve_ledger_account_code
+
+CUSTOMER_OPENING_LEDGER_NOTE = "رصيد افتتاحي"
+CUSTOMER_OPENING_REFERENCE_MODEL = "contacts.Customer"
+
+
+def get_customer_opening_balance_sum(customer: Customer) -> Decimal:
+    """مجموع قيود الرصيد الافتتاحي المعيارية لهذا العميل."""
+    agg = CustomerLedgerEntry.objects.filter(
+        customer=customer,
+        note=CUSTOMER_OPENING_LEDGER_NOTE,
+        reference_model=CUSTOMER_OPENING_REFERENCE_MODEL,
+        reference_pk=str(customer.pk),
+    ).aggregate(s=Sum("amount"))
+    return (agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
+
+
+@transaction.atomic
+def replace_customer_opening_ledger(*, customer: Customer, opening: Decimal) -> None:
+    """
+    يستبدل قيود الرصيد الافتتاحي المعيارية بقيد واحد بالمبلغ الجديد (موجب = عليه، سالب = له).
+    يُحدّث حقل balance من مجموع الدفتر.
+    """
+    opening = as_decimal(opening or Decimal("0")).quantize(Decimal("0.01"))
+    CustomerLedgerEntry.objects.filter(
+        customer=customer,
+        note=CUSTOMER_OPENING_LEDGER_NOTE,
+        reference_model=CUSTOMER_OPENING_REFERENCE_MODEL,
+        reference_pk=str(customer.pk),
+    ).delete()
+    if opening != 0:
+        CustomerLedgerEntry.objects.create(
+            customer=customer,
+            entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
+            amount=opening,
+            note=CUSTOMER_OPENING_LEDGER_NOTE,
+            reference_model=CUSTOMER_OPENING_REFERENCE_MODEL,
+            reference_pk=str(customer.pk),
+        )
+    customer.balance = customer.computed_balance
+    customer.save(update_fields=["balance", "updated_at"])
 
 
 @transaction.atomic

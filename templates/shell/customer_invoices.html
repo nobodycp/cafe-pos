@@ -14,7 +14,7 @@
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
       <div class="flex gap-6 flex-wrap text-sm">
-        <div><span class="block text-xs text-muted font-bold">الرصيد الحالي</span><span class="font-extrabold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span></div>
+        <div><span class="block text-xs text-muted font-bold">الرصيد الحالي</span><span class="font-extrabold {% if customer.balance > 0 %}text-danger{% elif customer.balance < 0 %}text-info{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span></div>
         <div><span class="block text-xs text-muted font-bold">عدد الفواتير</span><span class="font-extrabold">{{ page_obj.paginator.count }}</span></div>
       </div>
     </div>

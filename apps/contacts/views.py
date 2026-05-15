@@ -92,22 +92,15 @@ def customer_detail(request, pk):
 
 @login_required
 def customer_create(request):
+    from apps.contacts.services import replace_customer_opening_ledger
+    from apps.core.decimalutil import as_decimal
+
     if request.method == "POST":
         form = CustomerForm(request.POST)
         if form.is_valid():
             customer = form.save()
-            opening = form.cleaned_data.get("opening_balance") or Decimal("0")
-            if opening > 0:
-                customer.balance = opening
-                customer.save(update_fields=["balance"])
-                CustomerLedgerEntry.objects.create(
-                    customer=customer,
-                    entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
-                    amount=opening,
-                    note="رصيد افتتاحي",
-                    reference_model="contacts.Customer",
-                    reference_pk=str(customer.pk),
-                )
+            opening_dec = as_decimal(form.cleaned_data.get("opening_balance") or 0).quantize(Decimal("0.01"))
+            replace_customer_opening_ledger(customer=customer, opening=opening_dec)
             messages.success(request, f"تم إضافة العميل «{customer.name_ar}» بنجاح")
             return _contacts_redirect(request, "customer_detail", pk=customer.pk)
     else:
@@ -122,13 +115,18 @@ def customer_create(request):
 
 @login_required
 def customer_edit(request, pk):
+    from apps.contacts.services import replace_customer_opening_ledger
+    from apps.core.decimalutil import as_decimal
+
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == "POST":
         form = CustomerForm(request.POST, instance=customer)
         if form.is_valid():
-            form.save()
+            cust = form.save()
+            opening_dec = as_decimal(form.cleaned_data.get("opening_balance") or 0).quantize(Decimal("0.01"))
+            replace_customer_opening_ledger(customer=cust, opening=opening_dec)
             messages.success(request, "تم تعديل بيانات العميل بنجاح")
-            return _contacts_redirect(request, "customer_detail", pk=customer.pk)
+            return _contacts_redirect(request, "customer_detail", pk=cust.pk)
     else:
         form = CustomerForm(instance=customer)
     tpl = _contacts_tpl(request, "shell/customers_form.html", "contacts/customer_form.html")

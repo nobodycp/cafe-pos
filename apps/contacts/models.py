@@ -11,7 +11,12 @@ class Customer(TimeStampedModel):
     name_ar = models.CharField(_("الاسم"), max_length=200)
     name_en = models.CharField(_("الاسم (إنجليزي)"), max_length=200, blank=True)
     phone = models.CharField(_("الهاتف"), max_length=32, blank=True)
-    balance = models.DecimalField(_("الرصيد (عليه)"), max_digits=14, decimal_places=2, default=0)
+    balance = models.DecimalField(
+        _("الرصيد (+ مدين عليه / − دائن له)"),
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
     is_active = models.BooleanField(_("نشط"), default=True)
 
     class Meta:

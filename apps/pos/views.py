@@ -27,7 +27,7 @@ from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs
 from apps.contacts.forms import CustomerForm
 from apps.contacts.services import resolve_or_create_active_customer_by_name
-from apps.contacts.models import Customer, CustomerLedgerEntry
+from apps.contacts.models import Customer
 from apps.inventory.models import StockBalance
 from apps.core.forms import TreasuryVoucherForm
 from apps.core.models import get_pos_settings, log_audit
@@ -380,21 +380,12 @@ def pos_customer_create_save(request):
         return redirect("pos:main")
     form = CustomerForm(request.POST, prefix=POS_CUSTOMER_FORM_PREFIX)
     if form.is_valid():
+        from apps.contacts.services import replace_customer_opening_ledger
+        from apps.core.decimalutil import as_decimal
+
         customer = form.save()
-        opening = form.cleaned_data.get("opening_balance") or Decimal("0")
-        if opening > 0:
-            opening = opening.quantize(Decimal("0.01"))
-        if opening > 0:
-            customer.balance = opening
-            customer.save(update_fields=["balance", "updated_at"])
-            CustomerLedgerEntry.objects.create(
-                customer=customer,
-                entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
-                amount=opening,
-                note="رصيد افتتاحي",
-                reference_model="contacts.Customer",
-                reference_pk=str(customer.pk),
-            )
+        opening_dec = as_decimal(form.cleaned_data.get("opening_balance") or 0).quantize(Decimal("0.01"))
+        replace_customer_opening_ledger(customer=customer, opening=opening_dec)
         messages.success(request, f"تم إضافة العميل «{customer.name_ar}» بنجاح.")
         log_audit(request.user, "contacts.customer.create_from_pos", "contacts.Customer", customer.pk, {})
         return redirect("pos:main")

@@ -7,9 +7,14 @@
   <div class="flex items-center justify-between gap-3 flex-wrap">
     <div class="flex gap-6 flex-wrap">
     <div>
-      <span class="block text-sm font-semibold text-muted mb-1.5">الرصيد (عليه)</span>
-      <span class="text-2xl font-extrabold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }}</span>
+      <span class="block text-sm font-semibold text-muted mb-1.5">
+        {% if customer.balance > 0 %}رصيد مدين (عليه){% elif customer.balance < 0 %}رصيد دائن (له){% else %}الرصيد{% endif %}
+      </span>
+      <span class="text-2xl font-extrabold {% if customer.balance > 0 %}text-danger{% elif customer.balance < 0 %}text-info{% else %}text-success{% endif %}">{{ customer.balance|floatformat:2|intcomma }}</span>
     </div>
+    {% if not customer.is_active %}
+    <div><span class="inline-flex px-2.5 py-1 rounded text-xs font-bold bg-warning/20 text-yellow-800 dark:text-warning">غير نشط</span></div>
+    {% endif %}
     {% if customer.phone %}
     <div>
       <span class="block text-sm font-semibold text-muted mb-1.5">الهاتف</span>
