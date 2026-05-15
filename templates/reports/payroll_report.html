@@ -38,28 +38,36 @@
 </div>
 
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="w-full text-xs">
+  <div class="overflow-x-auto" dir="rtl">
+    <table class="table-fixed w-full min-w-[44rem] text-xs border-collapse">
+      <colgroup>
+        <col class="w-[30%]" />
+        <col class="w-[14%]" />
+        <col class="w-[14%]" />
+        <col class="w-[14%]" />
+        <col class="w-[14%]" />
+        <col class="w-[14%]" />
+      </colgroup>
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-600">
-          <th class="text-start py-2 px-2 font-bold text-muted">الموظف</th>
-          <th class="text-end py-2 px-2 font-bold text-muted">سلف</th>
-          <th class="text-end py-2 px-2 font-bold text-muted">صرف رواتب</th>
-          <th class="text-end py-2 px-2 font-bold text-muted">شراء مقهى</th>
-          <th class="text-end py-2 px-2 font-bold text-muted">المجموع</th>
-          <th class="py-2 px-2 font-bold text-muted"></th>
+          <th class="text-start py-2 px-2 font-bold text-muted align-bottom">الموظف</th>
+          <th class="py-2 px-2 font-bold text-muted align-bottom whitespace-nowrap text-end" dir="ltr">سلف</th>
+          <th class="py-2 px-2 font-bold text-muted align-bottom whitespace-nowrap text-end" dir="ltr">صرف رواتب</th>
+          <th class="py-2 px-2 font-bold text-muted align-bottom whitespace-nowrap text-end" dir="ltr">شراء مقهى</th>
+          <th class="py-2 px-2 font-bold text-muted align-bottom whitespace-nowrap text-end" dir="ltr">المجموع</th>
+          <th class="text-center py-2 px-2 font-bold text-muted align-bottom whitespace-nowrap"></th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
         <tr class="border-b border-gray-100 dark:border-gray-700/80">
-          <td class="py-2 px-2 font-semibold">{{ row.employee.name_ar }}</td>
-          <td class="py-2 px-2 text-end tabular-nums">{{ row.advances|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2 text-end tabular-nums">{{ row.payouts|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2 text-end tabular-nums">{{ row.cafe|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2 text-end font-bold tabular-nums">{{ row.row_total|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2">
-            <a href="{% url 'shell:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline whitespace-nowrap">البطاقة</a>
+          <td class="py-2 px-2 font-semibold text-start min-w-0 truncate" title="{{ row.employee.name_ar }}">{{ row.employee.name_ar }}</td>
+          <td class="py-2 px-2 text-end tabular-nums whitespace-nowrap align-middle" dir="ltr">{{ row.advances|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums whitespace-nowrap align-middle" dir="ltr">{{ row.payouts|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums whitespace-nowrap align-middle" dir="ltr">{{ row.cafe|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end font-bold tabular-nums whitespace-nowrap align-middle" dir="ltr">{{ row.row_total|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-center align-middle whitespace-nowrap">
+            <a href="{% url 'shell:employee_detail' row.employee.pk %}" class="text-primary font-bold text-[10px] hover:underline">البطاقة</a>
           </td>
         </tr>
         {% empty %}
