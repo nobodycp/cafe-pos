@@ -222,6 +222,12 @@ class PosSettings(models.Model):
         blank=True,
         help_text=_("أسطر تفصلها فاصلة منقوطة (;) لتظهر داخل الختم المائل."),
     )
+    receipt_label_overrides = models.JSONField(
+        _("عبارات الإيصال (تخصيص اختياري)"),
+        default=dict,
+        blank=True,
+        help_text=_("يُدار من نموذج الإيصال — مفاتيح نصية تستبدل العناوين الافتراضية."),
+    )
     receipt_show_tax_number = models.BooleanField(_("إظهار الرقم الضريبي على الإيصال"), default=True)
     allow_sale_invoice_edit = models.BooleanField(
         _("السماح بتعديل فاتورة البيع بعد الإصدار"),
@@ -239,6 +245,13 @@ class PosSettings(models.Model):
 
     def __str__(self):
         return "System Settings"
+
+    @property
+    def receipt_labels(self):
+        """نصوص الإيصال بعد دمج التخصيصات — للاستخدام في القوالب."""
+        from apps.core.receipt_labels import ReceiptLabelsView, merged_receipt_label_dict
+
+        return ReceiptLabelsView(merged_receipt_label_dict(self))
 
     @property
     def payment_method_rows(self):

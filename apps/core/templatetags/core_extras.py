@@ -49,3 +49,16 @@ def treasury_party_type_ar(value):
     if not value:
         return "—"
     return _PARTY_TYPE_AR.get(str(value).strip().lower(), str(value))
+
+
+@register.inclusion_tag("core/_receipt_label_fields.html")
+def receipt_label_fields_grid(form):
+    """حقول نصوص الإيصال القابلة للتخصيص — يمرّر نموذج الإيصال (ReceiptForm)."""
+    from apps.core.receipt_labels import RECEIPT_LABEL_FORM_META
+
+    rows = []
+    for key, _default, label, hint in RECEIPT_LABEL_FORM_META:
+        fname = f"lbl_{key}"
+        if fname in form.fields:
+            rows.append({"key": key, "label": label, "hint": hint, "field": form[fname]})
+    return {"rows": rows}

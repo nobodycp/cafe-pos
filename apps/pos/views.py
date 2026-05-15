@@ -738,14 +738,18 @@ def kitchen_receipt_embed(request, order_id):
     )
     full = (request.GET.get("full") or "").strip() == "1"
     batch_no = order.kitchen_batch_no
+    ps = get_pos_settings()
+    from apps.core.receipt_labels import merged_receipt_label_dict
+
+    _L = merged_receipt_label_dict(ps)
     if full:
         lines = list(order.lines.all())
-        batch_label = "طلب كامل"
+        batch_label = _L["kitchen_batch_full"]
     else:
         lines = list(
             order.lines.filter(kitchen_batch_no=int(batch_no)).select_related("product").order_by("pk")
         )
-        batch_label = f"دفعة {batch_no}"
+        batch_label = f'{_L["kitchen_batch_prefix"]} {batch_no}'
     if not lines:
         return HttpResponse(
             '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8">'
@@ -773,10 +777,7 @@ def kitchen_receipt_embed(request, order_id):
         )
     lang = request.LANGUAGE_CODE or "ar"
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
-    ps = get_pos_settings()
     slogan = (ps.receipt_slogan_ar or "").strip()
-    if not slogan and (ps.cafe_name_ar or cafe):
-        slogan = f"{ps.cafe_name_ar or cafe} جودة وعروض على طول"
     ctx = {
         "kitchen_receipt": True,
         "order": order,
@@ -1320,8 +1321,6 @@ def receipt_print(request, invoice_id):
     cafe = settings.CAFE_NAME_AR if lang == "ar" else getattr(settings, "CAFE_NAME_EN", settings.CAFE_NAME_AR)
     ps = get_pos_settings()
     slogan = (ps.receipt_slogan_ar or "").strip()
-    if not slogan and (ps.cafe_name_ar or cafe):
-        slogan = f"{ps.cafe_name_ar or cafe} جودة وعروض على طول"
     ctx = {
         "invoice": inv,
         "lines": inv.lines.all(),

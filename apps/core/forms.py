@@ -134,18 +134,59 @@ class ReceiptForm(forms.ModelForm):
             "allow_sale_invoice_edit",
         ]
         widgets = {
-            "receipt_header": forms.Textarea(attrs={"class": "form-input", "rows": 3, "placeholder": "نص يظهر أعلى الإيصال"}),
-            "receipt_footer": forms.Textarea(attrs={"class": "form-input", "rows": 3, "placeholder": "شكراً لزيارتكم ..."}),
-            "receipt_logo_url": forms.TextInput(
-                attrs={"class": "form-input", "dir": "ltr", "placeholder": "https://… أو /static/pos/logo.png"}
+            "receipt_header": forms.Textarea(
+                attrs={"class": "form-input text-sm", "rows": 2, "placeholder": "نص يظهر أعلى الإيصال (بعد الشعار إن وُجد)"}
             ),
-            "receipt_slogan_ar": forms.TextInput(attrs={"class": "form-input", "placeholder": "جودة وعروض على طول"}),
+            "receipt_footer": forms.Textarea(
+                attrs={"class": "form-input text-sm", "rows": 2, "placeholder": "شكراً لزيارتكم ..."}
+            ),
+            "receipt_logo_url": forms.TextInput(
+                attrs={"class": "form-input text-sm", "dir": "ltr", "placeholder": "https://… أو /static/pos/logo.png"}
+            ),
+            "receipt_slogan_ar": forms.TextInput(attrs={"class": "form-input text-sm", "placeholder": "سطر ترويجي أسفل الإيصال"}),
             "receipt_stamp_text": forms.TextInput(
-                attrs={"class": "form-input", "placeholder": "سطر1; سطر2; سطر3"}
+                attrs={"class": "form-input text-sm", "placeholder": "سطر1; سطر2; سطر3"}
             ),
             "receipt_show_tax_number": forms.CheckboxInput(attrs={"class": "form-check"}),
             "allow_sale_invoice_edit": forms.CheckboxInput(attrs={"class": "form-check"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        from apps.core.receipt_labels import RECEIPT_LABEL_FORM_META, merged_receipt_label_dict
+
+        super().__init__(*args, **kwargs)
+        merged = merged_receipt_label_dict(self.instance)
+        for key, default, flabel, hint in RECEIPT_LABEL_FORM_META:
+            self.fields[f"lbl_{key}"] = forms.CharField(
+                label=flabel,
+                required=False,
+                initial=merged.get(key, default),
+                widget=forms.TextInput(
+                    attrs={
+                        "class": "form-input text-xs py-1.5",
+                        "placeholder": default,
+                        "autocomplete": "off",
+                    }
+                ),
+                help_text=hint,
+            )
+
+    def save(self, commit=True):
+        from apps.core.receipt_labels import DEFAULTS
+
+        obj = super().save(commit=False)
+        overrides: dict = {}
+        for key in DEFAULTS:
+            fld = f"lbl_{key}"
+            if fld not in self.cleaned_data:
+                continue
+            val = (self.cleaned_data[fld] or "").strip()
+            if val != DEFAULTS[key]:
+                overrides[key] = val
+        obj.receipt_label_overrides = overrides
+        if commit:
+            obj.save()
+        return obj
 
 
 class PaymentMethodForm(forms.ModelForm):

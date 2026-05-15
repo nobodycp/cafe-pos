@@ -1,0 +1,10 @@
+{# يُستدعى عبر {% receipt_label_fields_grid receipt %} #}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5">
+  {% for row in rows %}
+  <div class="min-w-0">
+    <label class="block text-[10px] font-bold text-muted mb-0.5" for="{{ row.field.id_for_label }}">{{ row.label }}</label>
+    {{ row.field }}
+    {% if row.hint %}<p class="text-[9px] text-muted mt-0.5 m-0 leading-snug">{{ row.hint }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>

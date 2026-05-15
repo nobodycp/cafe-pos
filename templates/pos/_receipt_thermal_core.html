@@ -10,8 +10,10 @@
   .trc *,.trc *::before,.trc *::after{box-sizing:border-box;}
   .trc .trc-num{font-family:Consolas,"Courier New",Courier,monospace;font-weight:500;font-size:9px;unicode-bidi:plaintext;}
   .trc-logo{display:block;margin:0 auto 2px;max-height:34px;max-width:100%;}
+  .trc-hdr-extra{text-align:center;font-size:8.5px;font-weight:500;line-height:1.35;margin:0 0 2px;padding:0 2px;white-space:pre-line;}
   .trc-en{text-align:center;font-size:8px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;margin:0 0 1px;}
   .trc-brand{text-align:center;font-size:12px;font-weight:700;margin:0 0 1px;line-height:1.2;}
+  .trc-contact,.trc-addr,.trc-tax{text-align:center;font-size:8px;font-weight:500;line-height:1.35;margin:0 0 2px;padding:0 3px;}
   .trc-invno{text-align:center;font-size:9px;font-weight:600;color:#333;margin:0 0 1px;}
   .trc-dt{text-align:center;font-size:8.5px;font-weight:500;color:#444;margin:0 0 3px;}
   .trc-cancel{text-align:center;font-size:8.5px;font-weight:700;margin:0 0 2px;padding:1px 4px;border:1px dashed #000;}
@@ -50,7 +52,7 @@
   .trc-payh{font-size:9px;font-weight:700;margin:0 0 2px;}
   .trc-prow{display:flex;justify-content:space-between;gap:6px;padding:1px 0;font-size:9px;font-weight:500;}
   .trc-prow span:first-child{max-width:58%;word-break:break-word;}
-  .trc-foot{font-size:8px;font-weight:500;line-height:1.35;margin:2px 0 0;padding:1px 0 0;border-top:1px dashed #ccc;text-align:center;}
+  .trc-foot{font-size:8px;font-weight:500;line-height:1.35;margin:2px 0 0;padding:1px 0 0;border-top:1px dashed #ccc;text-align:center;white-space:pre-line;}
   .trc-stamp{font-size:7.5px;font-weight:600;line-height:1.3;margin:1px 0 0;text-align:center;}
   .trc-thanks{text-align:center;font-size:8.5px;font-weight:500;color:#555;margin:2px 0 0;}
   .trc-slogan{text-align:center;font-size:8.5px;font-weight:600;margin:0;line-height:1.3;}
@@ -62,38 +64,52 @@
     }
   }
 </style>
+{% with L=POS_SETTINGS.receipt_labels %}
 <div class="trc" dir="rtl">
   {% if POS_SETTINGS.receipt_logo_url %}
   <img class="trc-logo" src="{{ POS_SETTINGS.receipt_logo_url }}" alt="">
+  {% endif %}
+  {% if POS_SETTINGS.receipt_header %}
+  <div class="trc-hdr-extra">{{ POS_SETTINGS.receipt_header }}</div>
   {% endif %}
   {% if POS_SETTINGS.cafe_name_en %}
   <p class="trc-en">{{ POS_SETTINGS.cafe_name_en }}</p>
   {% endif %}
   <p class="trc-brand">{{ POS_SETTINGS.cafe_name_ar|default:cafe_name }}</p>
+  {% if POS_SETTINGS.cafe_phone %}
+  <p class="trc-contact trc-num" dir="ltr"><span>{{ L.phone_lbl }}</span> {{ POS_SETTINGS.cafe_phone }}</p>
+  {% endif %}
+  {% if POS_SETTINGS.cafe_address %}
+  <p class="trc-addr">{{ L.address_lbl }} {{ POS_SETTINGS.cafe_address|truncatechars:160 }}</p>
+  {% endif %}
+  {% if POS_SETTINGS.receipt_show_tax_number and POS_SETTINGS.cafe_tax_number %}
+  <p class="trc-tax trc-num"><span>{{ L.tax_id_lbl }}</span> {{ POS_SETTINGS.cafe_tax_number }}</p>
+  {% endif %}
+
   {% if kitchen_receipt %}
-  <p class="trc-invno">مطبخ — طلب #{{ order.pk }}{% if kitchen_batch_label %} — {{ kitchen_batch_label }}{% endif %}</p>
+  <p class="trc-invno">{{ L.kitchen_head }}{{ order.pk }}{% if kitchen_batch_label %} — {{ kitchen_batch_label }}{% endif %}</p>
   <p class="trc-dt trc-num" dir="ltr">{{ kitchen_print_at|date:"Y-m-d H:i" }}</p>
 
   <div class="trc-meta">
     {% if order.table_session and order.table_session.dining_table %}
-    <div>الطاولة: <strong>{{ order.table_session.dining_table.name_ar }}</strong></div>
+    <div>{{ L.table_lbl }} <strong>{{ order.table_session.dining_table.name_ar }}</strong></div>
     {% elif order.table %}
-    <div>الطاولة: <strong>{{ order.table.name_ar }}</strong></div>
+    <div>{{ L.table_lbl }} <strong>{{ order.table.name_ar }}</strong></div>
     {% endif %}
     {% if order.customer %}
-    <div>العميل: <strong>{{ order.customer.name_ar }}</strong></div>
+    <div>{{ L.customer_lbl }} <strong>{{ order.customer.name_ar }}</strong></div>
     {% endif %}
-    <div>الوردية: {{ order.work_session }}</div>
+    <div>{{ L.session_lbl }} {{ order.work_session }}</div>
   </div>
 
   <table class="trc-tbl" role="table">
     <thead>
       <tr>
-        <th>#</th>
-        <th>الصنف</th>
-        <th>الكمية</th>
-        <th>السعر</th>
-        <th>المجموع</th>
+        <th>{{ L.th_hash }}</th>
+        <th>{{ L.th_item }}</th>
+        <th>{{ L.th_qty }}</th>
+        <th>{{ L.th_price }}</th>
+        <th>{{ L.th_total }}</th>
       </tr>
     </thead>
     <tbody>
@@ -111,58 +127,58 @@
 
   <div class="trc-sums">
     <div class="trc-srow">
-      <span class="trc-lab">المجموع قبل الخصم</span>
+      <span class="trc-lab">{{ L.sum_subtotal }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ kitchen_totals.subtotal|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% if kitchen_totals.discount > 0 %}
     <div class="trc-srow disc">
-      <span class="trc-lab">الخصم</span>
+      <span class="trc-lab">{{ L.sum_discount }}</span>
       <span class="trc-val trc-num" dir="ltr">-{{ kitchen_totals.discount|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     {% if kitchen_totals.service > 0 %}
     <div class="trc-srow muted">
-      <span class="trc-lab">خدمة</span>
+      <span class="trc-lab">{{ L.sum_service }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ kitchen_totals.service|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     {% if kitchen_totals.tax > 0 %}
     <div class="trc-srow muted">
-      <span class="trc-lab">ضريبة</span>
+      <span class="trc-lab">{{ L.sum_tax }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ kitchen_totals.tax|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     <div class="trc-stotal">
-      <span>الإجمالي</span>
+      <span>{{ L.sum_grand }}</span>
       <span class="trc-num" dir="ltr">{{ kitchen_totals.grand|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
   </div>
 
   {% else %}
-  <p class="trc-invno">فاتورة بيع رقم: {{ invoice.invoice_number }}</p>
+  <p class="trc-invno">{{ L.inv_title }} {{ invoice.invoice_number }}</p>
   {% if invoice.is_cancelled %}
-  <p class="trc-cancel">ملغاة</p>
+  <p class="trc-cancel">{{ L.cancelled }}</p>
   {% endif %}
   <p class="trc-dt trc-num" dir="ltr">{{ invoice.created_at|date:"Y-m-d H:i" }}</p>
 
   <div class="trc-meta">
     {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
-    <div>الطاولة: <strong>{{ invoice.order.table_session.dining_table.name_ar }}</strong></div>
+    <div>{{ L.table_lbl }} <strong>{{ invoice.order.table_session.dining_table.name_ar }}</strong></div>
     {% endif %}
     {% if invoice.customer %}
-    <div>العميل: <strong>{{ invoice.customer.name_ar }}</strong></div>
+    <div>{{ L.customer_lbl }} <strong>{{ invoice.customer.name_ar }}</strong></div>
     {% endif %}
-    <div>الوردية: {{ invoice.work_session }}</div>
+    <div>{{ L.session_lbl }} {{ invoice.work_session }}</div>
   </div>
 
   <table class="trc-tbl" role="table">
     <thead>
       <tr>
-        <th>#</th>
-        <th>الصنف</th>
-        <th>الكمية</th>
-        <th>السعر</th>
-        <th>المجموع</th>
+        <th>{{ L.th_hash }}</th>
+        <th>{{ L.th_item }}</th>
+        <th>{{ L.th_qty }}</th>
+        <th>{{ L.th_price }}</th>
+        <th>{{ L.th_total }}</th>
       </tr>
     </thead>
     <tbody>
@@ -180,36 +196,36 @@
 
   <div class="trc-sums">
     <div class="trc-srow">
-      <span class="trc-lab">المجموع قبل الخصم</span>
+      <span class="trc-lab">{{ L.sum_subtotal }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ invoice.subtotal|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% if invoice.discount_total > 0 %}
     <div class="trc-srow disc">
-      <span class="trc-lab">الخصم</span>
+      <span class="trc-lab">{{ L.sum_discount }}</span>
       <span class="trc-val trc-num" dir="ltr">-{{ invoice.discount_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     {% if invoice.service_charge_total > 0 %}
     <div class="trc-srow muted">
-      <span class="trc-lab">خدمة</span>
+      <span class="trc-lab">{{ L.sum_service }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ invoice.service_charge_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     {% if invoice.tax_total > 0 %}
     <div class="trc-srow muted">
-      <span class="trc-lab">ضريبة</span>
+      <span class="trc-lab">{{ L.sum_tax }}</span>
       <span class="trc-val trc-num" dir="ltr">{{ invoice.tax_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
     {% endif %}
     <div class="trc-stotal">
-      <span>الإجمالي</span>
+      <span>{{ L.sum_grand }}</span>
       <span class="trc-num" dir="ltr">{{ invoice.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
     </div>
   </div>
 
   {% if payments %}
   <div class="trc-pay">
-    <div class="trc-payh">طرق الدفع</div>
+    <div class="trc-payh">{{ L.pay_title }}</div>
     {% for pay in payments %}
     <div class="trc-prow">
       <span>{{ pay.method|payment_method_label }}</span>
@@ -222,13 +238,16 @@
   {% endif %}
 
   {% if POS_SETTINGS.receipt_footer %}
-  <p class="trc-foot">{{ POS_SETTINGS.receipt_footer|truncatechars:220 }}</p>
+  <p class="trc-foot">{{ POS_SETTINGS.receipt_footer|truncatechars:280 }}</p>
   {% endif %}
   {% if receipt_stamp_lines %}
   <p class="trc-stamp">{% for line in receipt_stamp_lines %}{% if not forloop.first %} · {% endif %}{{ line }}{% endfor %}</p>
   {% endif %}
-  <p class="trc-thanks">شكراً لزيارتكم</p>
+  {% if L.thanks %}
+  <p class="trc-thanks">{{ L.thanks }}</p>
+  {% endif %}
   {% if receipt_slogan_line %}
   <p class="trc-slogan">{{ receipt_slogan_line }}</p>
   {% endif %}
 </div>
+{% endwith %}

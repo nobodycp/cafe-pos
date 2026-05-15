@@ -1,4 +1,5 @@
 {# عنوان الصفحة في شريط الغلاف — التبويبات بنفس نمط المصروفات/المحاسبة #}
+{% load core_extras %}
 <nav class="ds-shell-subtabs settings-nav-tabs" id="settingsTabs" role="tablist" aria-label="أقسام الإعدادات">
   <a href="#cafe" data-tab="cafe" class="ds-shell-subtab{% if active_tab == 'cafe' %} is-active{% endif %}">معلومات المقهى</a>
   <a href="#currency" data-tab="currency" class="ds-shell-subtab{% if active_tab == 'currency' %} is-active{% endif %}">العملة</a>
@@ -162,46 +163,66 @@
 {# ── الإيصال ── #}
 <div class="settings-section {% if active_tab == 'receipt' %}active{% endif %}" id="tab-receipt">
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-5">تخصيص الإيصال</h2>
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-3">تخصيص الإيصال</h2>
+    <p class="text-xs text-muted mb-4 max-w-3xl leading-relaxed">
+      اسم المقهى والهاتف والعنوان والرقم الضريبي تُعدّ من تبويب <strong>معلومات المقهى</strong>؛ هنا تظهر على الإيصال تلقائياً مع إمكانية تغيير <strong>العبارات</strong> فقط.
+      افتح «عبارات الإيصال» لتعديل عناوين الأعمدة والمجاميع ونص الطلب المطبخ.
+    </p>
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="section" value="receipt">
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_header.label }}</label>
-        {{ receipt.receipt_header }}
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
+        <div class="space-y-3 min-w-0">
+          <div>
+            <label class="block text-sm font-semibold text-muted mb-1">{{ receipt.receipt_header.label }}</label>
+            {{ receipt.receipt_header }}
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-muted mb-1">{{ receipt.receipt_footer.label }}</label>
+            {{ receipt.receipt_footer }}
+          </div>
+        </div>
+        <div class="space-y-3 min-w-0">
+          <div>
+            <label class="block text-sm font-semibold text-muted mb-1">{{ receipt.receipt_logo_url.label }}</label>
+            {{ receipt.receipt_logo_url }}
+            <p class="text-xs text-muted mt-1 m-0">{{ receipt.receipt_logo_url.help_text }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-muted mb-1">{{ receipt.receipt_slogan_ar.label }}</label>
+            {{ receipt.receipt_slogan_ar }}
+            <p class="text-xs text-muted mt-1 m-0">{{ receipt.receipt_slogan_ar.help_text }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-muted mb-1">{{ receipt.receipt_stamp_text.label }}</label>
+            {{ receipt.receipt_stamp_text }}
+            <p class="text-xs text-muted mt-1 m-0">{{ receipt.receipt_stamp_text.help_text }}</p>
+          </div>
+        </div>
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_footer.label }}</label>
-        {{ receipt.receipt_footer }}
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_logo_url.label }}</label>
-        {{ receipt.receipt_logo_url }}
-        <p class="text-xs text-muted mt-1">{{ receipt.receipt_logo_url.help_text }}</p>
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_slogan_ar.label }}</label>
-        {{ receipt.receipt_slogan_ar }}
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-semibold text-muted mb-1.5">{{ receipt.receipt_stamp_text.label }}</label>
-        {{ receipt.receipt_stamp_text }}
-        <p class="text-xs text-muted mt-1">{{ receipt.receipt_stamp_text.help_text }}</p>
-      </div>
-      <div class="mb-4">
-        <label class="flex items-center gap-3 cursor-pointer">
+      <div class="flex flex-wrap gap-x-6 gap-y-2 mb-5 pb-4 border-b border-gray-200 dark:border-gray-600">
+        <label class="flex items-center gap-2 cursor-pointer">
           {{ receipt.receipt_show_tax_number }}
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.receipt_show_tax_number.label }}</span>
         </label>
-      </div>
-      <div class="mb-4">
-        <label class="flex items-center gap-3 cursor-pointer">
+        <label class="flex items-center gap-2 cursor-pointer">
           {{ receipt.allow_sale_invoice_edit }}
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.allow_sale_invoice_edit.label }}</span>
         </label>
-        <p class="text-xs text-muted mt-1.5 mr-7 max-w-xl">{{ receipt.allow_sale_invoice_edit.help_text }}</p>
       </div>
-      <button type="submit" class="mt-4 ds-btn ds-btn-primary">حفظ</button>
+      <p class="text-xs text-muted mb-2 max-w-3xl">{{ receipt.allow_sale_invoice_edit.help_text }}</p>
+
+      <details class="rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/80 dark:bg-gray-900/30 mb-4 overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+        <summary class="px-3 py-2.5 text-sm font-extrabold text-gray-800 dark:text-gray-100 cursor-pointer select-none hover:bg-gray-100/80 dark:hover:bg-gray-800/50 list-none">
+          عبارات الإيصال (عناوين الأعمدة، المجاميع، المطبخ…)
+          <span class="text-[11px] font-normal text-muted mr-2">اضغط للإظهار</span>
+        </summary>
+        <div class="px-3 pb-3 pt-1 border-t border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/40">
+          {% receipt_label_fields_grid receipt %}
+        </div>
+      </details>
+
+      <button type="submit" class="ds-btn ds-btn-primary">حفظ</button>
     </form>
 
     <div class="mt-6 pt-5 border-t border-gray-200 dark:border-gray-600">
