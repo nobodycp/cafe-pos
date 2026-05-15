@@ -1,5 +1,5 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
+{% load humanize core_extras %}
 {% block title %}كشف {{ method_label }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="كشف طريقة الدفع" toolbar_hint=method_label %}
@@ -7,29 +7,68 @@
   <a href="{% url 'shell:payment_channels' %}?date_from={{ date_from }}&amp;date_to={{ date_to }}" class="text-xs font-bold text-primary hover:underline">← طرق الدفع والتتبع</a>
 </div>
 
-<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
-  <form method="get" class="flex flex-col gap-3">
-    <input type="hidden" name="method" value="{{ method }}">
-    <input type="hidden" name="per_page" value="{{ per_page }}">
-    <div class="flex flex-wrap gap-2 items-end">
-      <div>
-        <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
-        <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+<details class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-3 overflow-hidden [&_summary::-webkit-details-marker]:hidden"
+  {% if kind or q or min_amount or max_amount or flow != "all" or sort_key != "chrono" %}open{% endif %}>
+  <summary class="px-3 py-2.5 text-xs font-extrabold text-gray-700 dark:text-gray-200 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/40 flex items-center justify-between gap-2 list-none">
+    <span>فلاتر البحث والعرض</span>
+    <span class="text-[10px] font-semibold text-muted shrink-0">اضغط للإظهار / الإخفاء</span>
+  </summary>
+  <div class="px-3 pb-3 pt-0 border-t border-gray-100 dark:border-gray-700">
+    <form method="get" class="flex flex-col gap-3 pt-2">
+      <input type="hidden" name="method" value="{{ method }}">
+      <input type="hidden" name="per_page" value="{{ per_page }}">
+      <div class="flex flex-wrap gap-2 items-end">
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+          <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+          <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">نوع الحركة</label>
+          <select name="kind" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[10rem]">
+            {% for code, label in ledger_kind_choices %}
+            <option value="{{ code }}"{% if kind == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">وارد / صادر</label>
+          <select name="flow" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[7rem]">
+            <option value="all"{% if flow == "all" %} selected{% endif %}>الكل</option>
+            <option value="in"{% if flow == "in" %} selected{% endif %}>وارد فقط</option>
+            <option value="out"{% if flow == "out" %} selected{% endif %}>صادر فقط</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب العرض</label>
+          <select name="sort" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[12rem]">
+            {% for code, label in ledger_sort_choices %}
+            <option value="{{ code }}"{% if sort_key == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">من مبلغ</label>
+          <input type="text" inputmode="decimal" name="min_amount" value="{{ min_amount }}" placeholder="0" class="h-8 w-[6.5rem] rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 tabular-nums">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">إلى مبلغ</label>
+          <input type="text" inputmode="decimal" name="max_amount" value="{{ max_amount }}" placeholder="∞" class="h-8 w-[6.5rem] rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 tabular-nums">
+        </div>
+        <div class="flex-1 min-w-[12rem] max-w-xl">
+          <label class="block text-[11px] font-bold text-muted mb-0.5">بحث في السطور (النوع، الجهة، التفاصيل)</label>
+          <input type="search" name="q" value="{{ q }}" placeholder="مثال: فاتورة، مورد، مصروف…" class="ds-input w-full h-8 text-xs">
+        </div>
+        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
       </div>
-      <div>
-        <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
-        <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
-      </div>
-      <div class="flex-1 min-w-[12rem] max-w-xl">
-        <label class="block text-[11px] font-bold text-muted mb-0.5">بحث في السطور (النوع، الجهة، التفاصيل)</label>
-        <input type="search" name="q" value="{{ q }}" placeholder="مثال: فاتورة، مورد، مصروف…" class="ds-input w-full h-8 text-xs">
-      </div>
-      <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
-    </div>
-  </form>
-</div>
+    </form>
+  </div>
+</details>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
   <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
     <div class="text-[10px] text-muted font-bold">إجمالي وارد</div>
     <div class="text-sm font-extrabold text-success tabular-nums">{{ summary.total_in|floatformat:2|intcomma }}</div>
@@ -38,13 +77,18 @@
     <div class="text-[10px] text-muted font-bold">إجمالي صادر</div>
     <div class="text-sm font-extrabold text-danger tabular-nums">{{ summary.total_out|floatformat:2|intcomma }}</div>
   </div>
-  <div class="bg-white dark:bg-gray-800 rounded-lg border border-primary/20 p-2 text-center">
-    <div class="text-[10px] text-muted font-bold">الصافي (وارد − صادر)</div>
-    <div class="text-sm font-extrabold text-primary tabular-nums">{{ summary.net|floatformat:2|intcomma }}</div>
-  </div>
-  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
-    <div class="text-[10px] text-muted font-bold">عدد السطور</div>
-    <div class="text-sm font-extrabold tabular-nums">{{ row_count }}</div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-primary/20 p-2 text-start">
+    <div class="text-[10px] text-muted font-bold text-center mb-1.5">وارد حسب طريقة الدفع</div>
+    <div class="max-h-36 overflow-y-auto space-y-1 px-0.5">
+      {% for it in inflows_by_method %}
+      <div class="flex justify-between gap-2 items-baseline text-[10px] font-bold border-b border-gray-100 dark:border-gray-700/80 pb-0.5 last:border-0">
+        <span class="text-muted truncate shrink min-w-0">{{ it.label }}</span>
+        <span class="tabular-nums text-success shrink-0">{{ it.total_in|floatformat:2|intcomma }}</span>
+      </div>
+      {% empty %}
+      <p class="text-[10px] text-muted text-center m-0 py-2">لا وارد مطابق للفلتر.</p>
+      {% endfor %}
+    </div>
   </div>
 </div>
 <p class="text-[10px] text-muted mb-2">{{ ledger_note }}</p>
@@ -55,12 +99,32 @@
     <table class="w-full text-sm ds-table">
       <thead>
         <tr>
-          <th>التاريخ</th>
-          <th>الوقت</th>
-          <th>النوع</th>
-          <th>الجهة / الاسم</th>
+          <th>
+            <a href="?{{ header_sort_qs.date }}" class="text-inherit hover:text-primary hover:underline font-bold inline-flex items-center gap-0.5">
+              التاريخ
+              {% if sort_key == "chrono" %}<span class="text-[10px] text-muted" title="قديم→جديد">↑</span>{% elif sort_key == "chrono_desc" %}<span class="text-[10px] text-muted" title="جديد→قديم">↓</span>{% endif %}
+            </a>
+          </th>
+          <th>طريقة الدفع</th>
+          <th>
+            <a href="?{{ header_sort_qs.kind }}" class="text-inherit hover:text-primary hover:underline font-bold inline-flex items-center gap-0.5">
+              النوع
+              {% if sort_key == "kind" %}<span class="text-[10px] text-muted">↕</span>{% endif %}
+            </a>
+          </th>
+          <th>
+            <a href="?{{ header_sort_qs.party }}" class="text-inherit hover:text-primary hover:underline font-bold inline-flex items-center gap-0.5">
+              الجهة / الاسم
+              {% if sort_key == "party" %}<span class="text-[10px] text-muted">↕</span>{% endif %}
+            </a>
+          </th>
           <th>التفاصيل</th>
-          <th class="text-end">وارد</th>
+          <th class="text-end">
+            <a href="?{{ header_sort_qs.amount }}" class="text-inherit hover:text-primary hover:underline font-bold inline-flex items-center justify-end gap-0.5 w-full">
+              وارد
+              {% if sort_key == "amount_desc" or sort_key == "amount_asc" %}<span class="text-[10px] text-muted" title="ترتيب بالمبلغ">⇅</span>{% endif %}
+            </a>
+          </th>
           <th class="text-end">صادر</th>
           <th class="text-end">رصيد تراكمي</th>
         </tr>
@@ -69,7 +133,7 @@
         {% for row in page_obj %}
         <tr>
           <td class="whitespace-nowrap font-semibold">{{ row.row_date|date:"Y-m-d" }}</td>
-          <td class="whitespace-nowrap text-muted text-xs">{{ row.sort_at|date:"H:i" }}</td>
+          <td class="text-xs font-semibold">{{ row.method_code|payment_method_label }}</td>
           <td>{{ row.kind_ar }}</td>
           <td class="font-semibold">
             {% if row.customer_pk %}
@@ -97,6 +161,24 @@
         <tr><td colspan="8" class="p-8 text-center text-muted">لا حركات لهذه الطريقة في الفترة أو البحث.</td></tr>
         {% endfor %}
       </tbody>
+      {% if page_obj.paginator.count %}
+      <tfoot>
+        {% if show_page_totals %}
+        <tr class="bg-gray-50/90 dark:bg-gray-900/50 font-bold text-xs border-t border-gray-200 dark:border-gray-600">
+          <td colspan="5" class="text-end py-2 px-2 text-muted">مجموع معروض هذه الصفحة</td>
+          <td class="text-end text-success tabular-nums py-2 px-1">{{ page_totals.total_in|floatformat:2|intcomma }}</td>
+          <td class="text-end text-danger tabular-nums py-2 px-1">{{ page_totals.total_out|floatformat:2|intcomma }}</td>
+          <td class="text-end text-muted tabular-nums py-2 px-1">—</td>
+        </tr>
+        {% endif %}
+        <tr class="bg-primary/5 dark:bg-primary/10 font-extrabold text-xs border-t-2 border-primary/25">
+          <td colspan="5" class="text-end py-2.5 px-2">المجموع الكلي للمعروض (كل الصفحات)</td>
+          <td class="text-end text-success tabular-nums py-2.5 px-1">{{ summary.total_in|floatformat:2|intcomma }}</td>
+          <td class="text-end text-danger tabular-nums py-2.5 px-1">{{ summary.total_out|floatformat:2|intcomma }}</td>
+          <td class="text-end tabular-nums py-2.5 px-1">{{ last_running|floatformat:2|intcomma }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
     </table>
     {% include "shell/_shell_pagination.html" %}
   </div>

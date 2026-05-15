@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.billing.models import InvoicePayment
 from apps.core.models import AuditLog
-from apps.core.payment_methods import get_payment_method_codes, payment_method_label_map
+from apps.core.payment_methods import load_payment_method_rows, payment_method_label_map
 from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
 from apps.expenses.models import Expense
 from apps.purchasing.models import SupplierPayment
@@ -39,9 +39,13 @@ def _as_decimal(v: Any) -> Decimal:
 
 @dataclass
 class LedgerRow:
+    """kind_code ثابت للفلترة: sale_payment, expense, supplier_payment, treasury_customer, treasury_employee."""
+
+    method_code: str
     sort_at: datetime
     row_date: date
     flow_in: bool
+    kind_code: str
     kind_ar: str
     party: str
     detail: str
@@ -53,7 +57,7 @@ class LedgerRow:
     customer_pk: Optional[int] = None
 
     def search_blob(self) -> str:
-        parts = [self.kind_ar, self.party, self.detail]
+        parts = [self.kind_ar, self.kind_code, self.method_code, self.party, self.detail]
         return " ".join(p for p in parts if p).lower()
 
 
@@ -87,9 +91,11 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
             detail += " · " + " · ".join(extra)
         rows.append(
             LedgerRow(
+                method_code=method,
                 sort_at=inv.created_at,
                 row_date=inv.created_at.date(),
                 flow_in=True,
+                kind_code="sale_payment",
                 kind_ar="دفعة فاتورة بيع",
                 party=party,
                 detail=detail,
@@ -114,9 +120,11 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
         detail = note[:200] if note else "—"
         rows.append(
             LedgerRow(
+                method_code=method,
                 sort_at=sort_e,
                 row_date=e.expense_date,
                 flow_in=False,
+                kind_code="expense",
                 kind_ar="مصروف",
                 party=e.category.name_ar if e.category else "—",
                 detail=detail,
@@ -139,9 +147,11 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
         detail = note[:200] if note else "سداد مورد"
         rows.append(
             LedgerRow(
+                method_code=method,
                 sort_at=sp.created_at,
                 row_date=sp.created_at.date(),
                 flow_in=False,
+                kind_code="supplier_payment",
                 kind_ar="سداد مورد",
                 party=sp.supplier.name_ar if sp.supplier else "—",
                 detail=detail,
@@ -207,9 +217,11 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
                     pass
             rows.append(
                 LedgerRow(
+                    method_code=method,
                     sort_at=sort_at,
                     row_date=vd,
                     flow_in=True,
+                    kind_code="treasury_customer",
                     kind_ar="سند قبض (صندوق)",
                     party=party,
                     detail=detail if i == 0 else f"{detail} (تقسيم {i + 1})",
@@ -259,9 +271,11 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
                     pass
             rows.append(
                 LedgerRow(
+                    method_code=method,
                     sort_at=sort_at,
                     row_date=vd,
                     flow_in=True,
+                    kind_code="treasury_employee",
                     kind_ar="سند قبض موظف (ذمة)",
                     party=party,
                     detail=detail if i == 0 else f"{detail} (تقسيم {i + 1})",
@@ -269,8 +283,57 @@ def collect_ledger_rows(*, method: str, date_from: date, date_to: date) -> List[
                 )
             )
 
-    rows.sort(key=lambda r: (r.sort_at, r.invoice_pk or 0, r.expense_pk or 0, r.supplier_payment_pk or 0))
     return rows
+
+
+def collect_all_ledger_rows(*, date_from: date, date_to: date) -> List[LedgerRow]:
+    rows: List[LedgerRow] = []
+    for cfg in load_payment_method_rows():
+        code = (cfg.get("code") or "").strip()
+        if not code:
+            continue
+        rows.extend(collect_ledger_rows(method=code, date_from=date_from, date_to=date_to))
+    return rows
+
+
+def summarize_inflows_by_method(rows: List[LedgerRow]) -> List[dict[str, Any]]:
+    """إجمالي الوارد فقط لكل طريقة دفع (بعد الفلاتر على قائمة السطور)."""
+    from collections import defaultdict
+
+    sums: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for r in rows:
+        if not r.flow_in:
+            continue
+        sums[r.method_code] = sums[r.method_code] + r.amount
+    labels = payment_method_label_map()
+    out: List[dict[str, Any]] = []
+    for code, amt in sums.items():
+        amt = amt.quantize(Decimal("0.01"))
+        if amt <= 0:
+            continue
+        out.append({"method": code, "label": labels.get(code, code), "total_in": amt})
+    out.sort(key=lambda x: (-x["total_in"], x["label"]))
+    return out
+
+
+LEDGER_KIND_CHOICES: tuple[tuple[str, str], ...] = (
+    ("", "كل الأنواع"),
+    ("sale_payment", "دفعة فاتورة بيع"),
+    ("expense", "مصروف"),
+    ("supplier_payment", "سداد مورد"),
+    ("treasury_customer", "سند قبض (صندوق)"),
+    ("treasury_employee", "سند قبض موظف (ذمة)"),
+)
+
+LEDGER_SORT_CHOICES: tuple[tuple[str, str], ...] = (
+    ("chrono", "زمني (قديم → جديد)"),
+    ("chrono_desc", "زمني (جديد → قديم)"),
+    ("amount_desc", "المبلغ الأكبر أولاً"),
+    ("amount_asc", "المبلغ الأصغر أولاً"),
+    ("kind", "النوع (أ-ي)"),
+    ("party", "الجهة (أ-ي)"),
+    ("in_first", "الوارد ثم الصادر"),
+)
 
 
 def apply_search(rows: List[LedgerRow], q: str) -> List[LedgerRow]:
@@ -278,6 +341,56 @@ def apply_search(rows: List[LedgerRow], q: str) -> List[LedgerRow]:
     if not q:
         return rows
     return [r for r in rows if q in r.search_blob()]
+
+
+def apply_kind_filter(rows: List[LedgerRow], kind_code: str) -> List[LedgerRow]:
+    k = (kind_code or "").strip()
+    if not k:
+        return rows
+    return [r for r in rows if r.kind_code == k]
+
+
+def apply_flow_filter(rows: List[LedgerRow], flow: str) -> List[LedgerRow]:
+    f = (flow or "all").strip().lower()
+    if f == "in":
+        return [r for r in rows if r.flow_in]
+    if f == "out":
+        return [r for r in rows if not r.flow_in]
+    return rows
+
+
+def apply_amount_bounds(rows: List[LedgerRow], min_amt: Optional[Decimal], max_amt: Optional[Decimal]) -> List[LedgerRow]:
+    out = rows
+    if min_amt is not None:
+        out = [r for r in out if r.amount >= min_amt]
+    if max_amt is not None:
+        out = [r for r in out if r.amount <= max_amt]
+    return out
+
+
+def _row_stable_key(r: LedgerRow) -> tuple:
+    return (r.sort_at, r.method_code, r.invoice_pk or 0, r.expense_pk or 0, r.supplier_payment_pk or 0)
+
+
+def sort_ledger_rows(rows: List[LedgerRow], sort_key: str) -> List[LedgerRow]:
+    sk = (sort_key or "chrono").strip().lower()
+    if sk not in {c[0] for c in LEDGER_SORT_CHOICES}:
+        sk = "chrono"
+    if sk == "chrono":
+        return sorted(rows, key=_row_stable_key)
+    if sk == "chrono_desc":
+        return sorted(rows, key=_row_stable_key, reverse=True)
+    if sk == "amount_desc":
+        return sorted(rows, key=lambda r: (-r.amount, r.sort_at, r.invoice_pk or 0))
+    if sk == "amount_asc":
+        return sorted(rows, key=lambda r: (r.amount, r.sort_at, r.invoice_pk or 0))
+    if sk == "kind":
+        return sorted(rows, key=lambda r: (r.kind_ar, r.sort_at))
+    if sk == "party":
+        return sorted(rows, key=lambda r: (r.party, r.sort_at))
+    if sk == "in_first":
+        return sorted(rows, key=lambda r: (0 if r.flow_in else 1, r.sort_at, r.invoice_pk or 0))
+    return sorted(rows, key=_row_stable_key)
 
 
 def attach_running_balance(rows: List[LedgerRow]) -> List[dict[str, Any]]:
@@ -290,7 +403,9 @@ def attach_running_balance(rows: List[LedgerRow]) -> List[dict[str, Any]]:
             {
                 "sort_at": r.sort_at,
                 "row_date": r.row_date,
+                "method_code": r.method_code,
                 "flow_in": r.flow_in,
+                "kind_code": r.kind_code,
                 "kind_ar": r.kind_ar,
                 "party": r.party,
                 "detail": r.detail,

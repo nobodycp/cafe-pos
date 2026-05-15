@@ -14,10 +14,18 @@ from apps.core.payment_methods import load_payment_method_rows, payment_method_l
 from apps.core.models import AuditLog, WorkSession
 from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
 from apps.reports.payment_channel_ledger import (
+    LEDGER_KIND_CHOICES,
+    LEDGER_SORT_CHOICES,
+    apply_amount_bounds,
+    apply_flow_filter,
+    apply_kind_filter,
     apply_search,
     attach_running_balance,
+    collect_all_ledger_rows,
     collect_ledger_rows,
+    sort_ledger_rows,
     summarize,
+    summarize_inflows_by_method,
 )
 from apps.core.services import SessionService
 from apps.expenses.models import Expense
@@ -486,7 +494,7 @@ def cash_flow_report(request):
 
 @login_required
 def payment_channels_report(request):
-    """تقرير طرق الدفع + تتبع التحويلات الإلكترونية + ملخص كاش وارد/صادر تقريبي."""
+    """تقرير طرق الدفع والتتبع: كشف موحّد لكل الطرق مع فلاتر ومجاميع."""
     from apps.billing.models import InvoicePayment
 
     today = date.today()
@@ -501,22 +509,79 @@ def payment_channels_report(request):
     except ValueError:
         d_to = today
 
+    q = (request.GET.get("q") or "").strip()
+    min_amount_s = (request.GET.get("min_amount") or "").strip()
+    max_amount_s = (request.GET.get("max_amount") or "").strip()
+    min_amt = max_amt = None
+    try:
+        if min_amount_s:
+            min_amt = Decimal(min_amount_s).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        min_amt = None
+    try:
+        if max_amount_s:
+            max_amt = Decimal(max_amount_s).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        max_amt = None
+
+    valid_kinds = {c[0] for c in LEDGER_KIND_CHOICES}
+    kind = (request.GET.get("kind") or "").strip()
+    if kind not in valid_kinds:
+        kind = ""
+
+    flow = (request.GET.get("flow") or "all").strip().lower()
+    if flow not in ("all", "in", "out"):
+        flow = "all"
+
+    valid_sorts = {c[0] for c in LEDGER_SORT_CHOICES}
+    sort_key = (request.GET.get("sort") or "chrono").strip().lower()
+    if sort_key not in valid_sorts:
+        sort_key = "chrono"
+
+    pay_method = (request.GET.get("pay_method") or "").strip()
+    valid_pm = {r["code"] for r in load_payment_method_rows()}
+    if pay_method and pay_method not in valid_pm:
+        pay_method = ""
+
+    raw_rows = collect_all_ledger_rows(date_from=d_from, date_to=d_to)
+    if pay_method:
+        raw_rows = [r for r in raw_rows if r.method_code == pay_method]
+    filtered = apply_search(raw_rows, q)
+    filtered = apply_kind_filter(filtered, kind)
+    filtered = apply_flow_filter(filtered, flow)
+    filtered = apply_amount_bounds(filtered, min_amt, max_amt)
+    filtered = sort_ledger_rows(filtered, sort_key)
+    row_dicts = attach_running_balance(filtered)
+    summary = summarize(row_dicts)
+    inflows_by_method = summarize_inflows_by_method(filtered)
+
+    def _channels_q(**overrides):
+        qd = request.GET.copy()
+        for k, v in overrides.items():
+            qd[k] = str(v)
+        return qd.urlencode()
+
+    next_date_sort = "chrono_desc" if sort_key == "chrono" else "chrono"
+    next_amount_sort = "amount_asc" if sort_key == "amount_desc" else "amount_desc"
+    next_kind_sort = "chrono" if sort_key == "kind" else "kind"
+    next_party_sort = "chrono" if sort_key == "party" else "party"
+    header_sort_qs = {
+        "date": _channels_q(sort=next_date_sort, page=1),
+        "amount": _channels_q(sort=next_amount_sort, page=1),
+        "kind": _channels_q(sort=next_kind_sort, page=1),
+        "party": _channels_q(sort=next_party_sort, page=1),
+    }
+
+    pay_method_options = [
+        {"code": r["code"], "label": r.get("label_ar") or r.get("label") or r["code"]}
+        for r in load_payment_method_rows()
+    ]
+
     inv_pay_base = InvoicePayment.objects.filter(
         invoice__is_cancelled=False,
         invoice__created_at__date__gte=d_from,
         invoice__created_at__date__lte=d_to,
     )
-
-    payment_rows = list(
-        inv_pay_base.select_related("invoice", "invoice__order").order_by("-invoice__created_at", "pk")
-    )
-
-    by_method = (
-        inv_pay_base.values("method")
-        .annotate(total=Sum("amount"), n=Count("id"))
-        .order_by("-total")
-    )
-
     cash_in = Decimal("0")
     for r in load_payment_method_rows():
         if (r.get("ledger") or "").strip().lower() != "cash":
@@ -530,30 +595,60 @@ def payment_channels_report(request):
         ).aggregate(s=Sum("amount"))["s"]
         or Decimal("0")
     )
+    cash_net_approx = (cash_in - expense_cash_out).quantize(Decimal("0.01"))
 
-    method_label = payment_method_label_map()
-    for row in by_method:
-        row["label"] = method_label.get(row["method"], row["method"])
+    ctx = {
+        "date_from": d_from.isoformat(),
+        "date_to": d_to.isoformat(),
+        "q": q,
+        "kind": kind,
+        "flow": flow,
+        "sort_key": sort_key,
+        "min_amount": min_amount_s,
+        "max_amount": max_amount_s,
+        "pay_method": pay_method,
+        "ledger_kind_choices": LEDGER_KIND_CHOICES,
+        "ledger_sort_choices": LEDGER_SORT_CHOICES,
+        "pay_method_options": pay_method_options,
+        "summary": summary,
+        "inflows_by_method": inflows_by_method,
+        "cash_net_approx": cash_net_approx,
+        "ledger_note": (
+            "الإجماليات والجدول بعد تطبيق الفترة والفلاتر. «وارد حسب طريقة الدفع» من السطور المصفّاة حالياً."
+        ),
+        "header_sort_qs": header_sort_qs,
+    }
+    ctx.update(paginate_queryset(request, row_dicts))
+    page_obj = ctx["page_obj"]
+    if page_obj.object_list:
+        page_in = sum((r["amount"] for r in page_obj if r["flow_in"]), Decimal("0")).quantize(Decimal("0.01"))
+        page_out = sum((r["amount"] for r in page_obj if not r["flow_in"]), Decimal("0")).quantize(Decimal("0.01"))
+    else:
+        page_in = page_out = Decimal("0")
+    ctx["page_totals"] = {
+        "total_in": page_in,
+        "total_out": page_out,
+        "net": (page_in - page_out).quantize(Decimal("0.01")),
+    }
+    ctx["show_page_totals"] = page_obj.paginator.num_pages > 1 and page_obj.paginator.count > 0
+    ctx["last_running"] = row_dicts[-1]["running"] if row_dicts else Decimal("0")
 
-    return render(
-        request,
-        "reports/payment_channels.html",
-        {
-            "date_from": d_from.isoformat(),
-            "date_to": d_to.isoformat(),
-            "payment_rows": payment_rows,
-            "by_method": by_method,
-            "cash_in": cash_in,
-            "expense_cash_out": expense_cash_out,
-            "cash_net_approx": cash_in - expense_cash_out,
-        },
-    )
+    return render(request, "reports/payment_channels.html", ctx)
 
 
 @login_required
 def payment_channel_ledger(request):
     """كشف حركة طريقة دفع واحدة: مبيعات، مصروفات، سدادات موردين، سندات خزينة (قبض/صرف/خصومات)."""
     import re as _re
+
+    def _ledger_query(overrides: dict) -> str:
+        q = request.GET.copy()
+        for k, v in overrides.items():
+            if v is None:
+                q.pop(k, None)
+            else:
+                q[k] = str(v)
+        return q.urlencode()
 
     method = (request.GET.get("method") or "").strip().lower()
     if not method or not _re.match(r"^[a-z][a-z0-9_]{0,31}$", method):
@@ -572,12 +667,57 @@ def payment_channel_ledger(request):
         d_to = today
 
     q = (request.GET.get("q") or "").strip()
+    min_amount_s = (request.GET.get("min_amount") or "").strip()
+    max_amount_s = (request.GET.get("max_amount") or "").strip()
+    min_amt = max_amt = None
+    try:
+        if min_amount_s:
+            min_amt = Decimal(min_amount_s).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        min_amt = None
+    try:
+        if max_amount_s:
+            max_amt = Decimal(max_amount_s).quantize(Decimal("0.01"))
+    except (InvalidOperation, TypeError, ValueError):
+        max_amt = None
+
+    valid_kinds = {c[0] for c in LEDGER_KIND_CHOICES}
+    kind = (request.GET.get("kind") or "").strip()
+    if kind not in valid_kinds:
+        kind = ""
+
+    flow = (request.GET.get("flow") or "all").strip().lower()
+    if flow not in ("all", "in", "out"):
+        flow = "all"
+
+    valid_sorts = {c[0] for c in LEDGER_SORT_CHOICES}
+    sort_key = (request.GET.get("sort") or "chrono").strip().lower()
+    if sort_key not in valid_sorts:
+        sort_key = "chrono"
+
     raw_rows = collect_ledger_rows(method=method, date_from=d_from, date_to=d_to)
     filtered = apply_search(raw_rows, q)
+    filtered = apply_kind_filter(filtered, kind)
+    filtered = apply_flow_filter(filtered, flow)
+    filtered = apply_amount_bounds(filtered, min_amt, max_amt)
+    filtered = sort_ledger_rows(filtered, sort_key)
     row_dicts = attach_running_balance(filtered)
     summary = summarize(row_dicts)
+    inflows_by_method = summarize_inflows_by_method(filtered)
     labels = payment_method_label_map()
     method_label = labels.get(method, method)
+
+    next_date_sort = "chrono_desc" if sort_key == "chrono" else "chrono"
+    next_amount_sort = "amount_asc" if sort_key == "amount_desc" else "amount_desc"
+    next_kind_sort = "chrono" if sort_key == "kind" else "kind"
+    next_party_sort = "chrono" if sort_key == "party" else "party"
+
+    header_sort_qs = {
+        "date": _ledger_query({"sort": next_date_sort, "page": 1}),
+        "amount": _ledger_query({"sort": next_amount_sort, "page": 1}),
+        "kind": _ledger_query({"sort": next_kind_sort, "page": 1}),
+        "party": _ledger_query({"sort": next_party_sort, "page": 1}),
+    }
 
     ctx = {
         "method": method,
@@ -585,11 +725,37 @@ def payment_channel_ledger(request):
         "date_from": d_from.isoformat(),
         "date_to": d_to.isoformat(),
         "q": q,
+        "kind": kind,
+        "flow": flow,
+        "sort_key": sort_key,
+        "min_amount": min_amount_s,
+        "max_amount": max_amount_s,
+        "ledger_kind_choices": LEDGER_KIND_CHOICES,
+        "ledger_sort_choices": LEDGER_SORT_CHOICES,
         "summary": summary,
-        "row_count": len(row_dicts),
-        "ledger_note": "الرصيد التراكمي يُحسب على السطور المعروضة بعد تطبيق الفترة والبحث.",
+        "inflows_by_method": inflows_by_method,
+        "ledger_note": (
+            "الإجماليات في الأعلى وفي تذييل الجدول لجميع السطور بعد تطبيق الفترة والفلاتر والبحث. "
+            "الرصيد التراكمي يُحسب بالترتيب المعروض حالياً في الجدول."
+        ),
+        "header_sort_qs": header_sort_qs,
     }
     ctx.update(paginate_queryset(request, row_dicts))
+    page_obj = ctx["page_obj"]
+    if page_obj.object_list:
+        page_in = sum((r["amount"] for r in page_obj if r["flow_in"]), Decimal("0")).quantize(Decimal("0.01"))
+        page_out = sum((r["amount"] for r in page_obj if not r["flow_in"]), Decimal("0")).quantize(Decimal("0.01"))
+    else:
+        page_in = page_out = Decimal("0")
+    ctx["page_totals"] = {
+        "total_in": page_in,
+        "total_out": page_out,
+        "net": (page_in - page_out).quantize(Decimal("0.01")),
+    }
+    ctx["show_page_totals"] = page_obj.paginator.num_pages > 1 and page_obj.paginator.count > 0
+
+    ctx["last_running"] = row_dicts[-1]["running"] if row_dicts else Decimal("0")
+
     return render(request, "reports/payment_channel_ledger.html", ctx)
 
 
