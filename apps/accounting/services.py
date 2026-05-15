@@ -584,11 +584,17 @@ def reverse_journal_entry(*, original: JournalEntry, reason: str = "", user=None
 
 
 def trial_balance() -> List[dict]:
-    """ميزان المراجعة: رصيد كل حساب نشط."""
-    from django.db.models import Sum
+    """ميزان المراجعة: رصيد كل حساب له قيود أو حساب نشط في الدليل."""
+    from django.db.models import Q, Sum
+
+    account_ids = list(JournalLine.objects.values_list("account_id", flat=True).distinct())
+    if account_ids:
+        acc_qs = Account.objects.filter(Q(is_active=True) | Q(pk__in=account_ids)).distinct().order_by("code")
+    else:
+        acc_qs = Account.objects.filter(is_active=True).order_by("code")
 
     rows = []
-    for acc in Account.objects.filter(is_active=True).order_by("code"):
+    for acc in acc_qs:
         agg = acc.journal_lines.aggregate(d=Sum("debit"), c=Sum("credit"))
         total_d = agg["d"] or Decimal("0")
         total_c = agg["c"] or Decimal("0")
@@ -600,6 +606,16 @@ def trial_balance() -> List[dict]:
             "balance": balance,
         })
     return rows
+
+
+def trial_balance_grand_totals() -> Tuple[Decimal, Decimal]:
+    """إجمالي مدين/دائن جميع أسطر القيود (يجب أن يتطابقا في دفتر متوازن)."""
+    from django.db.models import Sum
+
+    agg = JournalLine.objects.aggregate(d=Sum("debit"), c=Sum("credit"))
+    d = agg["d"] or Decimal("0")
+    c = agg["c"] or Decimal("0")
+    return d.quantize(Decimal("0.01")), c.quantize(Decimal("0.01"))
 
 
 def profit_and_loss(date_from=None, date_to=None) -> dict:

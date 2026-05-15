@@ -22,7 +22,7 @@
           <tbody>
             {% for r in rows %}
             <tr>
-              <td>{{ r.account.code }}</td>
+              <td>{{ r.account.code }}{% if not r.account.is_active %} <span class="text-xs font-semibold text-muted">(غير نشط)</span>{% endif %}</td>
               <td>{{ r.account.name_ar }}</td>
               <td>{{ r.total_debit|floatformat:2|intcomma }}</td>
               <td>{{ r.total_credit|floatformat:2|intcomma }}</td>
@@ -32,10 +32,10 @@
           </tbody>
           <tfoot>
             <tr>
-              <th colspan="2">الإجمالي</th>
+              <th colspan="2">الإجمالي (جميع أسطر القيود)</th>
               <th>{{ total_debit|floatformat:2|intcomma }}</th>
               <th>{{ total_credit|floatformat:2|intcomma }}</th>
-              <th></th>
+              <th class="text-xs font-normal text-muted">المدين = الدائن عند التوازن</th>
             </tr>
           </tfoot>
         </table>

@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.accounting.forms import JournalEntryEditForm, make_journal_line_formset
 from apps.accounting.models import Account, JournalEntry, JournalLine
-from apps.accounting.services import account_ledger, profit_and_loss, trial_balance
+from apps.accounting.services import account_ledger, profit_and_loss, trial_balance, trial_balance_grand_totals
 from apps.core.models import log_audit
 from apps.core.pagination import paginate_queryset
 from apps.inventory.models import StockBalance
@@ -36,8 +36,7 @@ def chart_of_accounts(request):
 @login_required
 def trial_balance_view(request):
     rows = trial_balance()
-    total_d = sum(r["total_debit"] for r in rows)
-    total_c = sum(r["total_credit"] for r in rows)
+    total_d, total_c = trial_balance_grand_totals()
     return render(request, "shell/accounting_trial_balance.html", {
         "rows": rows,
         "total_debit": total_d,
