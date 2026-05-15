@@ -130,13 +130,16 @@ class ReceiptForm(forms.ModelForm):
             "receipt_logo_url",
             "receipt_slogan_ar",
             "receipt_stamp_text",
-            "receipt_show_tax_number",
             "receipt_show_work_session",
             "allow_sale_invoice_edit",
         ]
         widgets = {
             "receipt_header": forms.Textarea(
-                attrs={"class": "form-input text-sm", "rows": 2, "placeholder": "نص يظهر أعلى الإيصال (بعد الشعار إن وُجد)"}
+                attrs={
+                    "class": "form-input text-sm",
+                    "rows": 4,
+                    "placeholder": "بعد اسم المقهى: هاتف، عنوان، اسم إنجليزي، رقم ضريبي… (سطر لكل معلومة)",
+                }
             ),
             "receipt_footer": forms.Textarea(
                 attrs={"class": "form-input text-sm", "rows": 2, "placeholder": "شكراً لزيارتكم ..."}
@@ -148,7 +151,6 @@ class ReceiptForm(forms.ModelForm):
             "receipt_stamp_text": forms.TextInput(
                 attrs={"class": "form-input text-sm", "placeholder": "سطر1; سطر2; سطر3"}
             ),
-            "receipt_show_tax_number": forms.CheckboxInput(attrs={"class": "form-check"}),
             "receipt_show_work_session": forms.CheckboxInput(attrs={"class": "form-check"}),
             "allow_sale_invoice_edit": forms.CheckboxInput(attrs={"class": "form-check"}),
         }

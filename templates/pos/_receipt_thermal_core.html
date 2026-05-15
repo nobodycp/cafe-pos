@@ -11,9 +11,7 @@
   .trc .trc-num{font-family:Consolas,"Courier New",Courier,monospace;font-weight:500;font-size:9px;unicode-bidi:plaintext;}
   .trc-logo{display:block;margin:0 auto 2px;max-height:34px;max-width:100%;}
   .trc-hdr-extra{text-align:center;font-size:8.5px;font-weight:500;line-height:1.35;margin:0 0 2px;padding:0 2px;white-space:pre-line;}
-  .trc-en{text-align:center;font-size:8px;font-weight:600;letter-spacing:0.03em;text-transform:uppercase;margin:0 0 1px;}
-  .trc-brand{text-align:center;font-size:12px;font-weight:700;margin:0 0 1px;line-height:1.2;}
-  .trc-contact,.trc-addr,.trc-tax{text-align:center;font-size:8px;font-weight:500;line-height:1.35;margin:0 0 2px;padding:0 3px;}
+  .trc-brand{text-align:center;font-size:12px;font-weight:700;margin:0 0 2px;line-height:1.2;}
   .trc-invno{text-align:center;font-size:9px;font-weight:600;color:#333;margin:0 0 1px;}
   .trc-dt{text-align:center;font-size:8.5px;font-weight:500;color:#444;margin:0 0 3px;}
   .trc-cancel{text-align:center;font-size:8.5px;font-weight:700;margin:0 0 2px;padding:1px 4px;border:1px dashed #000;}
@@ -69,21 +67,10 @@
   {% if POS_SETTINGS.receipt_logo_url %}
   <img class="trc-logo" src="{{ POS_SETTINGS.receipt_logo_url }}" alt="">
   {% endif %}
+  {# الترويسة: اسم المقهى (عربي) من معلومات المقهى فقط؛ باقي النصوص من إعدادات الإيصال (رأس يدوي) #}
+  <p class="trc-brand">{{ POS_SETTINGS.cafe_name_ar|default:cafe_name }}</p>
   {% if POS_SETTINGS.receipt_header %}
   <div class="trc-hdr-extra">{{ POS_SETTINGS.receipt_header }}</div>
-  {% endif %}
-  {% if POS_SETTINGS.cafe_name_en %}
-  <p class="trc-en">{{ POS_SETTINGS.cafe_name_en }}</p>
-  {% endif %}
-  <p class="trc-brand">{{ POS_SETTINGS.cafe_name_ar|default:cafe_name }}</p>
-  {% if POS_SETTINGS.cafe_phone %}
-  <p class="trc-contact trc-num" dir="ltr"><span>{{ L.phone_lbl }}</span> {{ POS_SETTINGS.cafe_phone }}</p>
-  {% endif %}
-  {% if POS_SETTINGS.cafe_address %}
-  <p class="trc-addr">{{ L.address_lbl }} {{ POS_SETTINGS.cafe_address|truncatechars:160 }}</p>
-  {% endif %}
-  {% if POS_SETTINGS.receipt_show_tax_number and POS_SETTINGS.cafe_tax_number %}
-  <p class="trc-tax trc-num"><span>{{ L.tax_id_lbl }}</span> {{ POS_SETTINGS.cafe_tax_number }}</p>
   {% endif %}
 
   {% if kitchen_receipt %}
