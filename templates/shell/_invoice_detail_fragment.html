@@ -75,7 +75,9 @@
         {% if invoice.customer %}
         <div><span class="text-muted">العميل:</span> <strong>{{ invoice.customer.name_ar }}</strong></div>
         {% endif %}
+        {% if POS_SETTINGS.receipt_show_work_session %}
         <div><span class="text-muted">الوردية:</span> {{ invoice.work_session }}</div>
+        {% endif %}
       </div>
 
       <div class="overflow-x-auto mb-4">

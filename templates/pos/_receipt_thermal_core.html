@@ -99,7 +99,9 @@
     {% if order.customer %}
     <div>{{ L.customer_lbl }} <strong>{{ order.customer.name_ar }}</strong></div>
     {% endif %}
+    {% if POS_SETTINGS.receipt_show_work_session %}
     <div>{{ L.session_lbl }} {{ order.work_session }}</div>
+    {% endif %}
   </div>
 
   <table class="trc-tbl" role="table">
@@ -168,7 +170,9 @@
     {% if invoice.customer %}
     <div>{{ L.customer_lbl }} <strong>{{ invoice.customer.name_ar }}</strong></div>
     {% endif %}
+    {% if POS_SETTINGS.receipt_show_work_session %}
     <div>{{ L.session_lbl }} {{ invoice.work_session }}</div>
+    {% endif %}
   </div>
 
   <table class="trc-tbl" role="table">

@@ -229,6 +229,11 @@ class PosSettings(models.Model):
         help_text=_("يُدار من نموذج الإيصال — مفاتيح نصية تستبدل العناوين الافتراضية."),
     )
     receipt_show_tax_number = models.BooleanField(_("إظهار الرقم الضريبي على الإيصال"), default=True)
+    receipt_show_work_session = models.BooleanField(
+        _("إظهار الوردية على الإيصال"),
+        default=True,
+        help_text=_("عطّله لإخفاء سطر الوردية من الإيصال الحراري ومن معاينة الفاتورة في الغلاف."),
+    )
     allow_sale_invoice_edit = models.BooleanField(
         _("السماح بتعديل فاتورة البيع بعد الإصدار"),
         default=False,

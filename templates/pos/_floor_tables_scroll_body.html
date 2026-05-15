@@ -1,0 +1,5 @@
+{% if floor_rows %}
+{% include "pos/_floor_tables_table.html" %}
+{% else %}
+<div class="pos-table-list-empty text-[10px] text-muted text-center px-2 py-3 leading-snug">لا طاولات مفتوحة<br><span class="font-bold text-gray-600 dark:text-gray-300">+ طاولة</span> لتسمية طاولة وفتحها</div>
+{% endif %}

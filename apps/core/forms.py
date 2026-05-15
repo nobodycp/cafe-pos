@@ -131,6 +131,7 @@ class ReceiptForm(forms.ModelForm):
             "receipt_slogan_ar",
             "receipt_stamp_text",
             "receipt_show_tax_number",
+            "receipt_show_work_session",
             "allow_sale_invoice_edit",
         ]
         widgets = {
@@ -148,6 +149,7 @@ class ReceiptForm(forms.ModelForm):
                 attrs={"class": "form-input text-sm", "placeholder": "سطر1; سطر2; سطر3"}
             ),
             "receipt_show_tax_number": forms.CheckboxInput(attrs={"class": "form-check"}),
+            "receipt_show_work_session": forms.CheckboxInput(attrs={"class": "form-check"}),
             "allow_sale_invoice_edit": forms.CheckboxInput(attrs={"class": "form-check"}),
         }
 

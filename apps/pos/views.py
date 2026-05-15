@@ -1239,6 +1239,15 @@ def cart_fragment(request):
 
 @login_required
 @require_GET
+def floor_tables_fragment(request):
+    """HTML جزئي لقائمة الطاولات — تحديث بدون إعادة تحميل الصفحة بعد الدفع وإغلاق الجلسة."""
+    session = SessionService.get_open_session()
+    floor_rows = floor_rows_for_session(session) if session else []
+    return render(request, "pos/_floor_tables_scroll_body.html", {"floor_rows": floor_rows})
+
+
+@login_required
+@require_GET
 def payer_hints_search(request):
     """اقتراحات اسم/جوال المحوّل من دفعات سابقة (تبويب لاختيار أول نتيجة)."""
     from django.db.models import Q

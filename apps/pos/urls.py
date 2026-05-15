@@ -34,6 +34,7 @@ urlpatterns = [
     path("order/<int:order_id>/kitchen-receipt/", views.kitchen_receipt_embed, name="kitchen_receipt_embed"),
     path("kitchen/<int:order_id>/batch/<int:batch_no>/", views.kitchen_ticket, name="kitchen_ticket"),
     path("cart-fragment/", views.cart_fragment, name="cart_fragment"),
+    path("floor-tables-fragment/", views.floor_tables_fragment, name="floor_tables_fragment"),
     path("last-invoice/", views.last_sale_invoice_panel, name="last_invoice"),
     path("last-invoice/resume/", views.last_invoice_resume_into_cart, name="last_invoice_resume"),
     path("last-invoice/edit/", views.last_sale_invoice_edit_redirect, name="last_sale_invoice_edit"),

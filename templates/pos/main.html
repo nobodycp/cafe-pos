@@ -241,12 +241,8 @@
       <span><i class="bg-red-600"></i>بها طلب</span>
       <span><i class="bg-sky-600"></i>جزئي</span>
     </div>
-    <div class="pos-tables-scroll" role="region" aria-label="طاولات مفتوحة">
-      {% if floor_rows %}
-      {% include "pos/_floor_tables_table.html" %}
-      {% else %}
-      <div class="pos-table-list-empty text-[10px] text-muted text-center px-2 py-3 leading-snug">لا طاولات مفتوحة<br><span class="font-bold text-gray-600 dark:text-gray-300">+ طاولة</span> لتسمية طاولة وفتحها</div>
-      {% endif %}
+    <div class="pos-tables-scroll" id="pos-tables-scroll" role="region" aria-label="طاولات مفتوحة">
+      {% include "pos/_floor_tables_scroll_body.html" %}
     </div>
     <button type="button" class="shrink-0 h-7 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
   </div>
@@ -352,6 +348,7 @@
 <script>
 (function(){
   var CART_URL='{% url "pos:cart_fragment" %}';
+  var FLOOR_TABLES_URL='{% url "pos:floor_tables_fragment" %}';
   var CSRF='{{ csrf_token }}';
   var SEARCH_URL='{% url "pos:customers_search" %}';
   var PRODUCT_SEARCH_URL='{% url "pos:products_search" %}';
@@ -428,6 +425,15 @@
           });
         }
       });
+  }
+
+  function refreshFloorTables(){
+    var el=document.getElementById('pos-tables-scroll');
+    if(!el||!FLOOR_TABLES_URL)return Promise.resolve();
+    return fetch(FLOOR_TABLES_URL,{headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'})
+      .then(function(r){if(!r.ok)throw new Error('floor');return r.text();})
+      .then(function(html){el.innerHTML=html;})
+      .catch(function(){/* تجاهل — الطاولات ثانوية عن تدفق الدفع */});
   }
 
   /* ── AJAX form submit → refresh cart ── */
@@ -793,7 +799,7 @@
 
   /* ── جدول الطاولات: نقر أو Enter/مسافة على الصف = فتح الطاولة ── */
   (function initFloorTableRowOpen(){
-    var wrap=document.querySelector('#pos-tables-strip .pos-tables-scroll');
+    var wrap=document.getElementById('pos-tables-scroll');
     if(!wrap)return;
     function submitRow(tr){
       var f=tr&&tr.querySelector('form.pos-floor-open-form');
@@ -1655,7 +1661,7 @@
           return refreshCart().then(function () {
             showToast(em, 'success');
             openPosReceiptEmbed(j.receipt_embed_url);
-          });
+          }).then(refreshFloorTables);
         }
         if (j.redirect) {
           window.location.href = j.redirect;
@@ -1665,10 +1671,10 @@
           var m = j.message || 'تم تسجيل الدفعة';
           return refreshCart().then(function () {
             showToast(m, 'success');
-          });
+          }).then(refreshFloorTables);
         }
         if (j.message) showToast(j.message, 'success');
-        return refreshCart();
+        return refreshCart().then(refreshFloorTables);
       })
       .catch(function () {
         showToast('تعذر الاتصال بالخادم', 'error');
