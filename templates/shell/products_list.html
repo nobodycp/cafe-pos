@@ -5,19 +5,12 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   {% include "shell/_shell_toolbar.html" with toolbar_title="المنتجات" toolbar_hint="الأصناف، التصنيفات، والوحدات" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="mb-2">
-      <form method="get" class="flex gap-1.5 items-center max-w-md">
-        <input type="hidden" name="tab" value="{{ active_tab }}">
-        <input type="hidden" name="per_page" value="{{ per_page }}">
-        <input type="text" name="q" value="{{ q }}" placeholder="بحث بالاسم..." class="ds-input flex-1 min-w-0 w-full">
-        <button type="submit" class="h-8 px-3 rounded-lg bg-primary text-white font-bold text-xs">بحث</button>
-      </form>
-    </div>
+    {% include "shell/_products_list_filters.html" %}
     <div class="ds-shell-context-bar">
       <div class="ds-shell-subtabs">
-        <a href="{% url 'shell:product_list' %}?tab=products{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'products' %} is-active{% endif %}">المنتجات</a>
-        <a href="{% url 'shell:product_list' %}?tab=units{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'units' %} is-active{% endif %}">الوحدات</a>
-        <a href="{% url 'shell:product_list' %}?tab=categories{% if q %}&q={{ q|urlencode }}{% endif %}&per_page={{ per_page }}" class="ds-shell-subtab{% if active_tab == 'categories' %} is-active{% endif %}">التصنيفات</a>
+        <a href="{% url 'shell:product_list' %}?{{ tab_queries.products }}" class="ds-shell-subtab{% if active_tab == 'products' %} is-active{% endif %}">المنتجات</a>
+        <a href="{% url 'shell:product_list' %}?{{ tab_queries.units }}" class="ds-shell-subtab{% if active_tab == 'units' %} is-active{% endif %}">الوحدات</a>
+        <a href="{% url 'shell:product_list' %}?{{ tab_queries.categories }}" class="ds-shell-subtab{% if active_tab == 'categories' %} is-active{% endif %}">التصنيفات</a>
       </div>
       <div class="flex gap-1.5 flex-wrap items-center shrink-0">
       {% if active_tab == "products" %}
@@ -62,7 +55,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center text-muted p-10">لا توجد منتجات</td></tr>
+            <tr><td colspan="7" class="text-center text-muted p-10">لا توجد منتجات مطابقة للفلتر.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -86,7 +79,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="text-center text-muted p-10">لا توجد وحدات</td></tr>
+            <tr><td colspan="4" class="text-center text-muted p-10">لا توجد وحدات مطابقة للفلتر.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -111,7 +104,7 @@
               </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted p-10">لا توجد تصنيفات</td></tr>
+            <tr><td colspan="5" class="text-center text-muted p-10">لا توجد تصنيفات مطابقة للفلتر.</td></tr>
             {% endfor %}
           </tbody>
         </table>

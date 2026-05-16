@@ -18,6 +18,25 @@ from apps.catalog.forms import (
     UnitForm,
 )
 from apps.catalog.models import Category, Product, RecipeLine, Unit
+from apps.catalog.product_list_filters import (
+    CATEGORY_SORT_CHOICES,
+    ACTIVE_FILTER_CHOICES,
+    PARENT_FILTER_CHOICES,
+    PRODUCT_SORT_CHOICES,
+    STOCK_FILTER_CHOICES,
+    UNIT_SORT_CHOICES,
+    apply_category_filters,
+    apply_product_filters,
+    apply_unit_filters,
+    categories_filters_open,
+    category_filter_options,
+    parent_category_options,
+    parse_category_filters,
+    parse_product_filters,
+    parse_unit_filters,
+    products_filters_open,
+    units_filters_open,
+)
 from apps.core.models import log_audit
 from apps.core.services import SessionService
 from apps.inventory.models import ManufacturingBatch, StockBalance, StockMovement, StockTakeLine
@@ -121,12 +140,46 @@ def unit_quick_create(request):
 
 @login_required
 def product_list(request):
-    q = request.GET.get("q", "").strip()
     active_tab = request.GET.get("tab", "products")
     if active_tab not in ("products", "units", "categories"):
         active_tab = "products"
 
-    ctx = _catalog_ctx(request, q=q, active_tab=active_tab)
+    product_filters = parse_product_filters(request.GET)
+    unit_filters = parse_unit_filters(request.GET)
+    category_filters = parse_category_filters(request.GET)
+
+    q = (
+        product_filters["q"]
+        if active_tab == "products"
+        else unit_filters["q"]
+        if active_tab == "units"
+        else category_filters["q"]
+    )
+
+    ctx = _catalog_ctx(
+        request,
+        q=q,
+        active_tab=active_tab,
+        product_filters=product_filters,
+        unit_filters=unit_filters,
+        category_filters=category_filters,
+        product_sort_choices=PRODUCT_SORT_CHOICES,
+        unit_sort_choices=UNIT_SORT_CHOICES,
+        category_sort_choices=CATEGORY_SORT_CHOICES,
+        active_filter_choices=ACTIVE_FILTER_CHOICES,
+        stock_filter_choices=STOCK_FILTER_CHOICES,
+        parent_filter_choices=PARENT_FILTER_CHOICES,
+        product_type_choices=Product.ProductType.choices,
+        filter_category_options=category_filter_options(),
+        filter_parent_options=parent_category_options(),
+        filters_open=(
+            products_filters_open(product_filters)
+            if active_tab == "products"
+            else units_filters_open(unit_filters)
+            if active_tab == "units"
+            else categories_filters_open(category_filters)
+        ),
+    )
 
     if active_tab == "products":
         qs = (
@@ -134,22 +187,27 @@ def product_list(request):
             .exclude(product_type=Product.ProductType.RAW)
             .annotate(recipe_line_count=Count("recipe_lines"))
         )
-        if q:
-            qs = qs.filter(name_ar__icontains=q)
-        ctx.update(paginate_queryset(request, qs.order_by("name_ar")))
+        qs = apply_product_filters(qs, product_filters)
+        ctx.update(paginate_queryset(request, qs))
         ctx["products"] = ctx["page_obj"]
     elif active_tab == "units":
         uqs = Unit.objects.all()
-        if q:
-            uqs = uqs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(code__icontains=q))
-        ctx.update(paginate_queryset(request, uqs.order_by("name_ar")))
+        uqs = apply_unit_filters(uqs, unit_filters)
+        ctx.update(paginate_queryset(request, uqs))
         ctx["units"] = ctx["page_obj"]
     else:
         cqs = Category.objects.select_related("parent").all()
-        if q:
-            cqs = cqs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
-        ctx.update(paginate_queryset(request, cqs.order_by("sort_order", "name_ar")))
+        cqs = apply_category_filters(cqs, category_filters)
+        ctx.update(paginate_queryset(request, cqs))
         ctx["categories"] = ctx["page_obj"]
+
+    tab_queries = {}
+    for tab_name in ("products", "units", "categories"):
+        qd = request.GET.copy()
+        qd["tab"] = tab_name
+        qd.pop("page", None)
+        tab_queries[tab_name] = qd.urlencode()
+    ctx["tab_queries"] = tab_queries
 
     tpl = _catalog_tpl(request, "shell/products_list.html", "catalog/product_list.html")
     return render(request, tpl, ctx)
