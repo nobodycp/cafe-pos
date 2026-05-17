@@ -1,0 +1,13 @@
+{# أزرار عرض/تعديل سند في لوحة — audit_pk مطلوب؛ show_edit افتراضي true #}
+<button type="button"
+  class="shell-panel-open {% if btn_class %}{{ btn_class }}{% else %}ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]{% endif %}"
+  data-panel-url="{% url 'shell:treasury_voucher_view_panel' audit_pk %}"
+  data-panel-title="عرض السند"
+  data-panel-wide="1">{{ view_label|default:"عرض" }}</button>
+{% if show_edit != False %}
+<button type="button"
+  class="shell-panel-open {% if btn_class %}{{ btn_class }}{% else %}ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]{% endif %}"
+  data-panel-url="{% url 'shell:treasury_voucher_edit_panel' audit_pk %}"
+  data-panel-title="تعديل السند"
+  data-panel-wide="1">{{ edit_label|default:"تعديل" }}</button>
+{% endif %}

@@ -1,0 +1,7 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم (عربي)</label>{{ form.name_ar }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم (إنجليزي)</label>{{ form.name_en }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الترتيب</label>{{ form.sort_order }}</div>
+</div>
+<div class="hidden">{{ form.parent }}</div>
+<label class="flex items-center gap-1.5 text-[11px]">{{ form.is_active }}<span>نشط</span></label>

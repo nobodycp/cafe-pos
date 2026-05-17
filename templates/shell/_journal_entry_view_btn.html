@@ -1,0 +1,5 @@
+{# زر فتح قيد يومي في النافذة المنبثقة #}
+<button type="button"
+  class="shell-journal-load-view {% if btn_class %}{{ btn_class }}{% else %}text-primary font-semibold hover:underline bg-transparent border-0 p-0 cursor-pointer text-start{% endif %}"
+  data-journal-detail-panel-url="{% url 'shell:journal_detail_panel' entry_pk %}"
+  data-journal-detail-title="{{ label }}">{{ label }}</button>

@@ -5,9 +5,7 @@
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">{% if form.instance.pk %}تعديل: {{ form.instance.name_ar }}{% else %}إضافة منتج{% endif %}</span>
     <span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:product_list' %}" class="shell-toolbar-link">← المنتجات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-panel ds-panel-body" x-data="{ tab: 'basic' }">
@@ -49,7 +47,8 @@
         <div class="space-y-2" x-show="tab === 'recipe'" style="display: none">
           <p class="ds-text-muted m-0">معادلة التصنيع والمواد الخام تُدار من قائمة المنتجات بعد حفظ المنتج كنوع «مصنع».</p>
           {% if form.instance.pk and form.instance.product_type == 'manufactured' %}
-          <a href="{% url 'shell:recipe_list' form.instance.pk %}" class="ds-btn ds-btn-primary inline-flex">فتح معادلة التصنيع</a>
+          {% url 'shell:recipe_list_panel' form.instance.pk as recipe_panel_url %}
+          {% include "shell/_shell_panel_open_btn.html" with panel_url=recipe_panel_url label="فتح معادلة التصنيع" panel_title="معادلة التصنيع" panel_wide=1 btn_class="ds-btn ds-btn-primary inline-flex" %}
           {% elif form.instance.pk %}
           <p class="text-xs text-muted m-0">غير متاح إلا للمنتجات من نوع «مصنع».</p>
           {% else %}

@@ -3,18 +3,8 @@
 {% block title %}كشف {{ method_label }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="كشف طريقة الدفع" toolbar_hint=method_label %}
-<div class="mb-2 flex flex-wrap items-center gap-2">
-  <a href="{% url 'shell:payment_channels' %}?date_from={{ date_from }}&amp;date_to={{ date_to }}" class="text-xs font-bold text-primary hover:underline">← طرق الدفع والتتبع</a>
-</div>
-
-<details class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-3 overflow-hidden [&_summary::-webkit-details-marker]:hidden"
-  {% if kind or q or min_amount or max_amount or flow != "all" or sort_key != "chrono" %}open{% endif %}>
-  <summary class="px-3 py-2.5 text-xs font-extrabold text-gray-700 dark:text-gray-200 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/40 flex items-center justify-between gap-2 list-none">
-    <span>فلاتر البحث والعرض</span>
-    <span class="text-[10px] font-semibold text-muted shrink-0">اضغط للإظهار / الإخفاء</span>
-  </summary>
-  <div class="px-3 pb-3 pt-0 border-t border-gray-100 dark:border-gray-700">
-    <form method="get" class="flex flex-col gap-3 pt-2">
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+    <form method="get" class="shell-list-filters__form m-0">
       <input type="hidden" name="method" value="{{ method }}">
       <input type="hidden" name="per_page" value="{{ per_page }}">
       <div class="flex flex-wrap gap-2 items-end">
@@ -62,11 +52,13 @@
           <label class="block text-[11px] font-bold text-muted mb-0.5">بحث في السطور (النوع، الجهة، التفاصيل)</label>
           <input type="search" name="q" value="{{ q }}" placeholder="مثال: فاتورة، مورد، مصروف…" class="ds-input w-full h-8 text-xs">
         </div>
-        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
+        <div class="shell-list-filters__actions flex flex-wrap items-center gap-1.5 shrink-0 pb-0.5">
+          <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">تطبيق</button>
+          <a href="{% url 'shell:payment_channel_ledger' %}?method={{ method }}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+        </div>
       </div>
     </form>
-  </div>
-</details>
+</div>
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
   <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">

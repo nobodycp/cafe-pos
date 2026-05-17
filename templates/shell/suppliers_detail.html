@@ -10,10 +10,7 @@
     </span>
     <span class="pos-shell-toolbar-hint hidden lg:inline">الرصيد والفواتير والقيود</span>
     <span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← قائمة الموردين</a>
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
     <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-3">
@@ -35,6 +32,10 @@
           {% if supplier.phone %}<div><span class="block text-xs font-semibold text-muted mb-1">الهاتف</span><span class="text-base">{{ supplier.phone }}</span></div>{% endif %}
         </div>
         <div class="flex justify-end gap-2 flex-wrap">
+          {% url 'shell:supplier_edit_panel' supplier.pk as supplier_edit_panel_url %}
+          {% include "shell/_shell_panel_open_btn.html" with panel_url=supplier_edit_panel_url label="تعديل المورد" panel_title="تعديل مورد" btn_class="inline-flex items-center justify-center h-11 px-5 rounded-lg border border-gray-300 font-bold text-sm" %}
+          {% url 'shell:purchase_invoice_create_panel' supplier.pk as purchase_panel_url %}
+          {% include "shell/_shell_panel_open_btn.html" with panel_url=purchase_panel_url label="فاتورة شراء" panel_title="فاتورة شراء" panel_wide=1 btn_class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm" %}
           <a href="{% url 'shell:supplier_statement' supplier.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
           {% if supplier.linked_customer %}
           <a href="{% url 'shell:customer_detail' supplier.linked_customer.pk %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-success text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200">حساب العميل</a>

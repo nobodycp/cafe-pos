@@ -5,6 +5,8 @@ from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_GET
 
 from apps.accounting.forms import JournalEntryEditForm, make_journal_line_formset
 from apps.accounting.models import Account, JournalEntry, JournalLine
@@ -88,34 +90,169 @@ def pnl_view(request):
 
 @login_required
 def account_ledger_view(request, pk):
+    from django.db.models import Q
+
+    from apps.core.decimalutil import as_decimal
+    from apps.core.list_filters import parse_iso_date
+    from apps.core.pagination import paginate_queryset
+
     acc = get_object_or_404(Account, pk=pk)
-    date_from = request.GET.get("from")
-    date_to = request.GET.get("to")
-    rows = account_ledger(acc, date_from=date_from, date_to=date_to)
-    return render(request, "shell/accounting_ledger.html", {
+    date_from = parse_iso_date(request.GET.get("from"))
+    date_to = parse_iso_date(request.GET.get("to"))
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    line_q = Q(account=acc)
+    if date_from:
+        line_q &= Q(entry__date__gte=date_from)
+    if date_to:
+        line_q &= Q(entry__date__lte=date_to)
+
+    lines_qs = (
+        JournalLine.objects.filter(line_q)
+        .select_related("entry")
+        .order_by("entry__date", "entry__created_at", "pk")
+    )
+    is_debit_normal = acc.account_type in (Account.AccountType.ASSET, Account.AccountType.EXPENSE)
+
+    def _line_delta(line: JournalLine) -> Decimal:
+        if is_debit_normal:
+            return as_decimal(line.debit) - as_decimal(line.credit)
+        return as_decimal(line.credit) - as_decimal(line.debit)
+
+    opening_at_period = Decimal("0")
+    if date_from:
+        prior = (
+            JournalLine.objects.filter(account=acc, entry__date__lt=date_from)
+            .select_related("entry")
+            .order_by("entry__date", "entry__created_at", "pk")
+        )
+        for line in prior:
+            opening_at_period += _line_delta(line)
+        opening_at_period = opening_at_period.quantize(Decimal("0.01"))
+
+    pag = paginate_queryset(request, lines_qs)
+    page = pag["page_obj"]
+    prior_n = max(0, page.start_index - 1) if page.object_list else 0
+    running = opening_at_period
+    if prior_n:
+        for line in lines_qs[:prior_n]:
+            running += _line_delta(line)
+        running = running.quantize(Decimal("0.01"))
+
+    rows = []
+    for line in page:
+        running = (running + _line_delta(line)).quantize(Decimal("0.01"))
+        rows.append({
+            "date": line.entry.date,
+            "entry_pk": line.entry.pk,
+            "entry_number": line.entry.entry_number,
+            "description": line.description or line.entry.description,
+            "debit": line.debit,
+            "credit": line.credit,
+            "balance": running,
+        })
+
+    closing = opening_at_period
+    for line in lines_qs:
+        closing += _line_delta(line)
+    closing = closing.quantize(Decimal("0.01"))
+
+    ctx = {
         "account": acc,
         "rows": rows,
-        "date_from": date_from or "",
-        "date_to": date_to or "",
-    })
+        "date_from": date_from.isoformat() if date_from else "",
+        "date_to": date_to.isoformat() if date_to else "",
+        "opening_balance": opening_at_period,
+        "closing_balance": closing,
+        "page_opening_balance": running if page.object_list else opening_at_period,
+    }
+    ctx.update(pag)
+    return render(request, "shell/accounting_ledger.html", ctx)
+
+
+def _journal_entry_detail_queryset():
+    return JournalEntry.objects.select_related("work_session", "user")
+
+
+def _journal_detail_back_url() -> str:
+    return reverse("shell:journal_list")
+
+
+def _redirect_open_journal_entry_to(url: str, pk: int):
+    sep = "&" if "?" in url else "?"
+    return redirect(f"{url}{sep}view_journal_entry={pk}")
+
+
+def _redirect_open_journal_entry(request, pk: int):
+    from apps.core.nav_back import safe_return_path
+
+    dest = safe_return_path(request.GET.get("return", ""))
+    if not dest and request.method == "POST":
+        dest = _safe_return_path(request.POST.get("next", ""))
+    if not dest:
+        dest = _safe_return_path(request.META.get("HTTP_REFERER", ""))
+    if not dest:
+        dest = _journal_detail_back_url()
+    return _redirect_open_journal_entry_to(dest, pk)
+
+
+def _journal_entry_detail_context(entry: JournalEntry) -> dict:
+    lines = entry.lines.select_related("account").order_by("-debit", "credit")
+    totals = lines.aggregate(total_debit=Sum("debit"), total_credit=Sum("credit"))
+    return {
+        "entry": entry,
+        "lines": lines,
+        "can_edit_journal": not entry.is_reversed,
+        "lines_total_debit": totals["total_debit"] or Decimal("0"),
+        "lines_total_credit": totals["total_credit"] or Decimal("0"),
+    }
 
 
 @login_required
 def journal_list(request):
-    qs = JournalEntry.objects.select_related("work_session", "user").order_by("-date", "-created_at")
-    ctx = {}
+    from apps.accounting.journal_list_filters import (
+        apply_journal_filters,
+        journal_filters_open,
+        parse_journal_filters,
+    )
+    from apps.core.list_filters import iso_date_str
+
+    journal_filters = parse_journal_filters(request)
+    qs = JournalEntry.objects.select_related("work_session", "user").order_by("-date", "-created_at", "-pk")
+    qs = apply_journal_filters(qs, journal_filters)
+    ctx = {
+        "journal_filters": journal_filters,
+        "filters_open": journal_filters_open(journal_filters),
+        "date_from": iso_date_str(journal_filters["date_from"]),
+        "date_to": iso_date_str(journal_filters["date_to"]),
+    }
     ctx.update(paginate_queryset(request, qs))
     return render(request, "shell/accounting_journal_list.html", ctx)
 
 
 @login_required
 def journal_detail(request, pk):
-    entry = get_object_or_404(JournalEntry.objects.select_related("work_session", "user"), pk=pk)
-    lines = entry.lines.select_related("account").order_by("-debit", "credit")
+    """الرابط القديم — يعيد التوجيه لفتح النافذة المنبثقة."""
+    get_object_or_404(_journal_entry_detail_queryset(), pk=pk)
+    dest = _journal_detail_back_url()
+    from apps.core.nav_back import safe_return_path
+
+    return_path = safe_return_path(request.GET.get("return", ""))
+    if return_path:
+        dest = return_path
+    return _redirect_open_journal_entry_to(dest, pk)
+
+
+@login_required
+@require_GET
+def journal_detail_panel(request, pk):
+    """HTML جزئي لعرض القيد داخل النافذة المنبثقة."""
+    entry = get_object_or_404(_journal_entry_detail_queryset(), pk=pk)
     return render(
         request,
-        "shell/accounting_journal_detail.html",
-        {"entry": entry, "lines": lines, "can_edit_journal": not entry.is_reversed},
+        "shell/_journal_entry_detail_modal_fragment.html",
+        _journal_entry_detail_context(entry),
     )
 
 
@@ -124,7 +261,7 @@ def journal_edit(request, pk):
     entry = get_object_or_404(JournalEntry.objects.select_related("work_session", "user"), pk=pk)
     if entry.is_reversed:
         messages.error(request, "لا يمكن تعديل قيد معكوس.")
-        return redirect("shell:journal_detail", pk=entry.pk)
+        return _redirect_open_journal_entry(request, entry.pk)
 
     LineFormSet = make_journal_line_formset()
     if request.method == "POST":
@@ -151,7 +288,7 @@ def journal_edit(request, pk):
                 {"entry_number": entry.entry_number},
             )
             messages.success(request, "تم حفظ تعديلات القيد.")
-            return redirect("shell:journal_detail", pk=entry.pk)
+            return _redirect_open_journal_entry(request, entry.pk)
         messages.error(request, "راجع البيانات: القيد يجب أن يبقى متوازناً وسطرين على الأقل.")
     else:
         entry_form = JournalEntryEditForm(instance=entry)

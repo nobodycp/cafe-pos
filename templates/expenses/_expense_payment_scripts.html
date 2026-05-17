@@ -4,7 +4,9 @@
 </style>
 <script>
 (function() {
-  var form = document.getElementById('expense-form');
+  var form =
+    document.getElementById('expense-form') ||
+    document.querySelector('form[data-shell-panel-form]');
   if (!form) return;
 
   function money(v) {
@@ -242,8 +244,8 @@
   }
 
   form.addEventListener('submit', function(ev) {
+    serializeExpenseSplits();
     if (expenseSplitMode()) {
-      serializeExpenseSplits();
       var target = expenseAmount();
       var sum = expensePayRowsSum();
       if (target <= 0) {

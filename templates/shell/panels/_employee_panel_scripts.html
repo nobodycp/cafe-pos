@@ -1,0 +1,14 @@
+<script>
+(function () {
+  var payType = document.getElementById("id_pay_type");
+  var label = document.getElementById("panel-salary-amount-label");
+  if (!payType || !label) return;
+  function sync() {
+    if (payType.value === "hourly") label.textContent = "أجر الساعة";
+    else if (payType.value === "monthly") label.textContent = "راتب الشهر";
+    else label.textContent = "أجر اليوم";
+  }
+  payType.addEventListener("change", sync);
+  sync();
+})();
+</script>

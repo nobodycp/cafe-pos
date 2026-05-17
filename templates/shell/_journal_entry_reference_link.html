@@ -1,0 +1,11 @@
+{% if entry.reference_type == "billing.SaleInvoice" and entry.reference_pk %}
+<button type="button" class="shell-invoice-load-view font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-[10px]"
+  data-detail-panel-url="{% url 'shell:sale_invoice_detail_panel' entry.reference_pk %}"
+  data-detail-title="فاتورة بيع #{{ entry.reference_pk }}">فاتورة بيع #{{ entry.reference_pk }}</button>
+{% elif entry.reference_type == "purchasing.PurchaseInvoice" and entry.reference_pk %}
+<button type="button" class="shell-purchase-load-view font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-[10px]"
+  data-purchase-detail-panel-url="{% url 'shell:purchase_invoice_detail_panel' entry.reference_pk %}"
+  data-purchase-detail-title="فاتورة شراء #{{ entry.reference_pk }}">فاتورة شراء #{{ entry.reference_pk }}</button>
+{% elif entry.reference_type and entry.reference_pk %}
+<span class="text-muted">{{ entry.reference_type }} #{{ entry.reference_pk }}</span>
+{% endif %}

@@ -1,0 +1,94 @@
+<input type="hidden" name="tab" value="{{ active_tab }}">
+{% if active_tab == "products" %}
+<div class="shell-list-filters__field min-w-[9rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">التصنيف</label>
+  <select name="category" class="ds-input h-8 text-xs w-full">
+    <option value="">كل التصنيفات</option>
+    {% for cat in filter_category_options %}
+    <option value="{{ cat.pk }}"{% if product_filters.category_id == cat.pk %} selected{% endif %}>{{ cat.name_ar }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[9rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">نوع المنتج</label>
+  <select name="product_type" class="ds-input h-8 text-xs w-full">
+    <option value="">كل الأنواع</option>
+    {% for code, label in product_type_choices %}
+    <option value="{{ code }}"{% if product_filters.product_type == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[7rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">الحالة</label>
+  <select name="active" class="ds-input h-8 text-xs w-full">
+    {% for code, label in active_filter_choices %}
+    <option value="{{ code }}"{% if product_filters.active == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[8.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">المخزون</label>
+  <select name="stock" class="ds-input h-8 text-xs w-full">
+    {% for code, label in stock_filter_choices %}
+    <option value="{{ code }}"{% if product_filters.stock == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[11rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب العرض</label>
+  <select name="sort" class="ds-input h-8 text-xs w-full">
+    {% for code, label in product_sort_choices %}
+    <option value="{{ code }}"{% if product_filters.sort == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+  <input type="search" name="q" value="{{ product_filters.q }}" placeholder="الاسم، الإنجليزي، الباركود…" class="ds-input w-full h-8 text-xs">
+</div>
+{% elif active_tab == "units" %}
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب العرض</label>
+  <select name="sort" class="ds-input h-8 text-xs w-full">
+    {% for code, label in unit_sort_choices %}
+    <option value="{{ code }}"{% if unit_filters.sort == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+  <input type="search" name="q" value="{{ unit_filters.q }}" placeholder="الاسم، الرمز…" class="ds-input w-full h-8 text-xs">
+</div>
+{% else %}
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">التصنيف الرئيسي</label>
+  <select name="parent" class="ds-input h-8 text-xs w-full">
+    {% for code, label in parent_filter_choices %}
+    <option value="{{ code }}"{% if category_filters.parent == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+    {% for cat in filter_parent_options %}
+    <option value="{{ cat.pk }}"{% if category_filters.parent == cat.pk %} selected{% endif %}>تحت: {{ cat.name_ar }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[7rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">الحالة</label>
+  <select name="active" class="ds-input h-8 text-xs w-full">
+    {% for code, label in active_filter_choices %}
+    <option value="{{ code }}"{% if category_filters.active == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب العرض</label>
+  <select name="sort" class="ds-input h-8 text-xs w-full">
+    {% for code, label in category_sort_choices %}
+    <option value="{{ code }}"{% if category_filters.sort == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+  <input type="search" name="q" value="{{ category_filters.q }}" placeholder="اسم التصنيف…" class="ds-input w-full h-8 text-xs">
+</div>
+{% endif %}

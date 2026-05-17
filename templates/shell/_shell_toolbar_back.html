@@ -1,0 +1,8 @@
+{# زر رجوع واحد — يعتمد على toolbar_back_* من السياق (nav_back context processor) #}
+{% if not toolbar_no_back %}
+<div class="shell-toolbar-actions">
+  <a href="{% if toolbar_back_url %}{{ toolbar_back_url }}{% else %}{% url 'pos:main' %}{% endif %}"
+     class="shell-toolbar-link"
+     title="{% firstof toolbar_back_title 'لوحة الطلبات والبيع' %}">{{ toolbar_back_label|default:"← لوحة الطلبات" }}</a>
+</div>
+{% endif %}

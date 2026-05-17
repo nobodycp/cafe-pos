@@ -173,20 +173,29 @@ def daily_sales_report(request):
         .order_by("-created_at")
     )
 
+    from apps.core.list_filters import get_search_q
+
+    q = get_search_q(request)
+    if q:
+        invoices = invoices.filter(
+            Q(invoice_number__icontains=q)
+            | Q(customer__name_ar__icontains=q)
+            | Q(customer__name_en__icontains=q)
+        )
+
     agg = invoices.aggregate(
         total_sales=Sum("total"),
         total_profit=Sum("total_profit"),
         count=Count("id"),
     )
 
+    pag = paginate_queryset(request, invoices)
+    label_map = payment_method_label_map()
     invoice_list = []
-    for inv in invoices:
+    for inv in pag["page_obj"]:
         pays = [p.method for p in inv.payments.all()]
         methods = set(pays)
-        method_labels = []
-        label_map = payment_method_label_map()
-        for m in methods:
-            method_labels.append(label_map.get(m, m))
+        method_labels = [label_map.get(m, m) for m in methods]
         table_name = ""
         if inv.order_id and inv.order.table_session_id and inv.order.table_session.dining_table_id:
             table_name = inv.order.table_session.dining_table.name_ar
@@ -196,14 +205,18 @@ def daily_sales_report(request):
             "payment_methods": "، ".join(method_labels) if method_labels else "—",
         })
 
-    return render(request, "reports/daily_sales.html", {
+    ctx = {
         "date_from": d_from.isoformat(),
         "date_to": d_to.isoformat(),
+        "q": q,
         "invoices": invoice_list,
         "total_sales": agg["total_sales"] or Decimal("0"),
         "total_profit": agg["total_profit"] or Decimal("0"),
         "invoice_count": agg["count"] or 0,
-    })
+        "filters_open": bool(q),
+    }
+    ctx.update(pag)
+    return render(request, "reports/daily_sales.html", ctx)
 
 
 @login_required
@@ -863,7 +876,10 @@ def treasury_vouchers_report(request):
     except ValueError:
         d_to = today
 
+    from apps.core.list_filters import get_search_q
+
     kind = (request.GET.get("v") or "all").strip().lower()
+    q = get_search_q(request)
 
     rows = []
     for log in (
@@ -877,6 +893,20 @@ def treasury_vouchers_report(request):
             continue
         if not _treasury_audit_matches_kind_filter(payload, kind):
             continue
+        if q:
+            hay = " ".join(
+                str(x)
+                for x in (
+                    log.pk,
+                    payload.get("note"),
+                    payload.get("description"),
+                    payload.get("party_name"),
+                    payload.get("voucher_number"),
+                )
+                if x
+            ).lower()
+            if q.lower() not in hay:
+                continue
         rows.append({"log": log, "payload": payload, "voucher_date": vd})
 
     total_receipt = Decimal("0")
@@ -897,6 +927,8 @@ def treasury_vouchers_report(request):
         "date_from": d_from.isoformat(),
         "date_to": d_to.isoformat(),
         "kind_filter": kind,
+        "q": q,
+        "filters_open": bool(q or kind not in ("", "all")),
         "voucher_totals": {
             "receipt": total_receipt,
             "disbursement": total_disbursement,

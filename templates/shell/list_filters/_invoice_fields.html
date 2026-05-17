@@ -1,0 +1,28 @@
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="invoice-filter-q">بحث</label>
+  <input type="search" id="invoice-filter-q" name="q" value="{{ q }}" placeholder="رقم الفاتورة أو العميل / المورد…" class="ds-input w-full h-8 text-xs">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="invoice-filter-from">من تاريخ</label>
+  <input type="date" id="invoice-filter-from" name="date_from" value="{{ date_from }}" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="invoice-filter-to">إلى تاريخ</label>
+  <input type="date" id="invoice-filter-to" name="date_to" value="{{ date_to }}" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="invoice-filter-kind">النوع</label>
+  <select id="invoice-filter-kind" name="invoice_kind" class="ds-input h-8 text-xs w-full">
+    <option value="all"{% if invoice_kind == 'all' %} selected{% endif %}>الكل</option>
+    <option value="sale"{% if invoice_kind == 'sale' %} selected{% endif %}>بيع</option>
+    <option value="purchase"{% if invoice_kind == 'purchase' %} selected{% endif %}>شراء</option>
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="invoice-filter-status">الحالة</label>
+  <select id="invoice-filter-status" name="status" class="ds-input h-8 text-xs w-full">
+    <option value="">الكل</option>
+    <option value="active"{% if status == 'active' %} selected{% endif %}>نشطة</option>
+    <option value="cancelled"{% if status == 'cancelled' %} selected{% endif %}>ملغاة</option>
+  </select>
+</div>

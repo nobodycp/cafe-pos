@@ -60,8 +60,13 @@
     </div>
   </div>
 
-  <form method="post" action="{% url 'pos:product_quick_save' %}" id="pos-product-quick-form" class="rounded-md border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800/80">
+  <form method="post"
+        action="{% if product_quick_shell %}{{ form_action }}{% else %}{% url 'pos:product_quick_save' %}{% endif %}"
+        id="{% if product_quick_shell %}shell-product-quick-form{% else %}pos-product-quick-form{% endif %}"
+        class="rounded-md border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800/80{% if product_quick_shell %} shell-panel-form{% endif %}"
+        {% if product_quick_shell %}data-shell-panel-form="1"{% endif %}>
     {% csrf_token %}
+    {% if product_quick_shell %}<input type="hidden" name="panel_embed" value="1">{% endif %}
     {% if pos_product_quick_form.non_field_errors %}
     <div class="mb-2 rounded-sm border border-danger/30 bg-danger/10 p-1.5 text-[10px] text-danger font-semibold">
       {% for e in pos_product_quick_form.non_field_errors %}<p class="m-0">{{ e }}</p>{% endfor %}
@@ -128,11 +133,15 @@
         {{ pos_product_quick_form.is_active }}<span>نشط</span>
       </label>
     </div>
+    {% if not product_quick_shell %}
     <button type="submit" class="mt-2 w-full h-9 rounded-md bg-[#1e3a5f] text-[11px] font-bold text-white hover:bg-[#163051] dark:bg-sky-800 dark:hover:bg-sky-900">حفظ المنتج</button>
+    {% endif %}
   </form>
+  {% if not product_quick_shell %}
   <p class="text-center text-[10px] text-muted m-0 pt-0.5">
     <a href="{% url 'shell:product_workspace' %}" class="font-bold text-[#1e3a5f] hover:underline dark:text-sky-400">صفحة إعداد المنتج الكاملة</a>
   </p>
+  {% endif %}
 </div>
 <script>
 (function() {
@@ -155,7 +164,7 @@
   var minStock = document.getElementById("{{ pos_product_quick_form.min_stock_level.id_for_label }}");
 
   function csrf() {
-    var m = document.querySelector("#pos-product-quick-form input[name=csrfmiddlewaretoken]");
+    var m = document.querySelector("#pos-product-quick-form input[name=csrfmiddlewaretoken], #shell-product-quick-form input[name=csrfmiddlewaretoken]");
     return m ? m.value : "";
   }
   function appendOpt(sel, id, text) {

@@ -1,0 +1,16 @@
+<div class="product-panel-form-fields grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم (عربي)</label>{{ form.name_ar }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم (إنجليزي)</label>{{ form.name_en }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">التصنيف</label>{{ form.category }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الوحدة</label>{{ form.unit }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">نوع المنتج</label>{{ form.product_type }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الباركود</label>{{ form.barcode }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">سعر البيع</label>{{ form.selling_price }}</div>
+  <div id="product-panel-commission-wrap" class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2 hidden">
+    <div><label class="block text-[10px] font-bold text-muted mb-0.5">نسبة العمولة %</label>{{ form.commission_percentage }}</div>
+    <div><label class="block text-[10px] font-bold text-muted mb-0.5">بائع النسبة</label>{{ form.commission_vendor }}</div>
+  </div>
+  <div id="product-panel-min-stock-wrap"><label class="block text-[10px] font-bold text-muted mb-0.5">حد أدنى للمخزون</label>{{ form.min_stock_level }}</div>
+</div>
+<label class="flex items-center gap-1.5 text-[11px]">{{ form.is_active }}<span>نشط</span></label>
+<label class="flex items-center gap-1.5 text-[11px] product-panel-stock-track">{{ form.is_stock_tracked }}<span>تتبع المخزون</span></label>

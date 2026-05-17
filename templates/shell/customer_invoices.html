@@ -6,10 +6,7 @@
   <div class="pos-shell-toolbar shrink-0 flex items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">فواتير العميل: {{ customer.name_ar }}</span>
     <span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:customer_detail' customer.pk %}" class="shell-toolbar-link">← العميل</a>
-      <a href="{% url 'shell:invoice_list' %}" class="shell-toolbar-link">كل الفواتير</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">

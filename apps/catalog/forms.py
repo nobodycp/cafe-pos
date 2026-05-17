@@ -3,6 +3,9 @@ from decimal import Decimal
 
 from apps.catalog.models import Category, Product, RecipeLine, Unit
 
+# بادئة نموذج «منتج جديد» السريع (كاشير + لوحة المنتجات)
+PRODUCT_QUICK_FORM_PREFIX = "pq"
+
 
 class CategoryForm(forms.ModelForm):
     class Meta:

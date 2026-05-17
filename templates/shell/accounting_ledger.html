@@ -3,24 +3,15 @@
 {% block title %}كشف حساب — {{ account.name_ar }}{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
-    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
-      <span class="pos-shell-toolbar-title shrink-0 truncate max-w-[min(100%,28rem)]">{{ account.code }} — {{ account.name_ar }}</span>
-      <span class="pos-shell-toolbar-hint hidden lg:inline">كشف حساب</span>
-    </div>
-    <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:accounting_chart' %}" class="shell-toolbar-link">← دليل الحسابات</a>
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
-  </div>
+  {% include "shell/_shell_toolbar.html" with toolbar_title=account.code|add:" — "|add:account.name_ar toolbar_hint="كشف حساب" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="ledger" %}
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 mb-3">
       <form method="get" class="flex gap-2 flex-wrap items-end">
-        <div><label>من</label><input type="date" name="from" value="{{ date_from }}"></div>
-        <div><label>إلى</label><input type="date" name="to" value="{{ date_to }}"></div>
-        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
+        <input type="hidden" name="per_page" value="{{ per_page }}">
+        <div><label class="text-[11px] font-bold text-muted">من</label><input type="date" name="from" value="{{ date_from }}" class="ds-input h-8 text-xs"></div>
+        <div><label class="text-[11px] font-bold text-muted">إلى</label><input type="date" name="to" value="{{ date_to }}" class="ds-input h-8 text-xs"></div>
+        <button type="submit" class="ds-btn ds-btn-primary h-8 shrink-0">عرض</button>
       </form>
     </div>
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -31,7 +22,7 @@
             {% for r in rows %}
             <tr>
               <td>{{ r.date }}</td>
-              <td><a href="{% url 'shell:journal_detail' r.entry_pk %}" class="text-primary font-semibold hover:underline">{{ r.entry_number }}</a></td>
+              <td>{% include "shell/_journal_entry_view_btn.html" with entry_pk=r.entry_pk label=r.entry_number %}</td>
               <td>{{ r.description }}</td>
               <td>{% if r.debit %}{{ r.debit|floatformat:2|intcomma }}{% endif %}</td>
               <td>{% if r.credit %}{{ r.credit|floatformat:2|intcomma }}{% endif %}</td>
@@ -42,6 +33,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

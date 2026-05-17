@@ -9,7 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from apps.core.ledger_pagination import paginate_amount_ledger
+from apps.core.list_filters import get_search_q
 from apps.core.pagination import paginate_queryset
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form
 from apps.contacts.forms import CustomerForm, CustomerPaymentForm
 from apps.contacts.models import Customer, CustomerLedgerEntry
 from apps.contacts.services import record_customer_payment
@@ -222,70 +225,126 @@ def customer_statement(request, pk):
     if date_to:
         entries = entries.filter(created_at__date__lte=date_to)
 
-    rows = []
-    running = opening_balance
-    for e in entries:
-        running += e.amount
-        rows.append({
+    def _statement_row(e, running):
+        return {
             "date": e.created_at,
             "type": e.get_entry_type_display(),
             "entry_type": e.entry_type,
             "amount": e.amount,
-            "running": running.quantize(Decimal("0.01")),
+            "running": running,
             "reference": e.note or e.reference_model,
             "reference_model": e.reference_model,
             "reference_pk": e.reference_pk,
-        })
+        }
 
-    closing_balance = running.quantize(Decimal("0.01"))
+    stmt_pag = paginate_amount_ledger(
+        request,
+        entries,
+        opening_balance=opening_balance,
+        build_row=_statement_row,
+    )
 
     tpl = _contacts_tpl(
         request,
         "shell/customers_statement.html",
         "contacts/customer_statement.html",
     )
-    return render(
+    ctx = _contacts_ctx(
         request,
-        tpl,
-        _contacts_ctx(
-            request,
-            customer=customer,
-            rows=rows,
-            opening_balance=opening_balance,
-            closing_balance=closing_balance,
-            date_from=date_from,
-            date_to=date_to,
-        ),
+        customer=customer,
+        rows=stmt_pag["rows"],
+        opening_balance=opening_balance,
+        closing_balance=stmt_pag["closing_balance"],
+        page_opening_balance=stmt_pag["page_opening_balance"],
+        date_from=date_from,
+        date_to=date_to,
     )
+    ctx.update(stmt_pag)
+    return render(request, tpl, ctx)
 
 
 @login_required
 def customer_balances(request):
-    customers = Customer.objects.filter(is_active=True).annotate(
-        last_txn=Max("ledger_entries__created_at"),
-    ).order_by("name_ar")
+    qs = (
+        Customer.objects.filter(is_active=True)
+        .exclude(balance=Decimal("0"))
+        .annotate(last_txn=Max("ledger_entries__created_at"))
+        .order_by("name_ar")
+    )
+    q = get_search_q(request)
+    if q:
+        qs = qs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
 
-    results = []
-    grand_total = Decimal("0.00")
-    for c in customers:
-        bal = c.computed_balance
-        if bal != Decimal("0"):
-            results.append({
-                "customer": c,
-                "balance": bal,
-                "last_txn": c.last_txn,
-            })
-            grand_total += bal
-
-    grand_total = grand_total.quantize(Decimal("0.01"))
+    grand_agg = qs.aggregate(s=Sum("balance"))
+    grand_total = (grand_agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
 
     tpl = _contacts_tpl(
         request,
         "shell/customers_balances.html",
         "contacts/customer_balances.html",
     )
-    return render(
-        request,
-        tpl,
-        _contacts_ctx(request, results=results, grand_total=grand_total),
-    )
+    ctx = _contacts_ctx(request, q=q, grand_total=grand_total)
+    pag = paginate_queryset(request, qs)
+    ctx["results"] = [
+        {"customer": c, "balance": c.balance, "last_txn": c.last_txn}
+        for c in pag["page_obj"]
+    ]
+    ctx.update(pag)
+    return render(request, tpl, ctx)
+
+
+@login_required
+def customer_create_panel(request):
+    from apps.contacts.services import replace_customer_opening_ledger
+    from apps.core.decimalutil import as_decimal
+
+    tpl = "shell/panels/customer_create_panel.html"
+
+    def build_context():
+        form = CustomerForm(request.POST or None)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:customer_create_panel"),
+            "panel_title": "إضافة عميل",
+            "is_new": True,
+        }
+
+    def on_valid():
+        form = CustomerForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        customer = form.save()
+        opening_dec = as_decimal(form.cleaned_data.get("opening_balance") or 0).quantize(Decimal("0.01"))
+        replace_customer_opening_ledger(customer=customer, opening=opening_dec)
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def customer_edit_panel(request, pk):
+    from apps.contacts.services import replace_customer_opening_ledger
+    from apps.core.decimalutil import as_decimal
+
+    customer = get_object_or_404(Customer, pk=pk)
+    tpl = "shell/panels/customer_edit_panel.html"
+
+    def build_context():
+        form = CustomerForm(request.POST or None, instance=customer)
+        panelize_form(form)
+        return {
+            "form": form,
+            "customer": customer,
+            "form_action": reverse("shell:customer_edit_panel", args=[pk]),
+            "panel_title": "تعديل عميل",
+        }
+
+    def on_valid():
+        form = CustomerForm(request.POST, instance=customer)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        cust = form.save()
+        opening_dec = as_decimal(form.cleaned_data.get("opening_balance") or 0).quantize(Decimal("0.01"))
+        replace_customer_opening_ledger(customer=cust, opening=opening_dec)
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)

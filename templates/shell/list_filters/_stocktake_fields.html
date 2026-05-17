@@ -1,0 +1,12 @@
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="st-filter-q">بحث</label>
+  <input type="search" id="st-filter-q" name="q" value="{{ filter_q }}" placeholder="رقم الجرد أو ملاحظة…" class="ds-input w-full h-8 text-xs">
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="st-filter-status">الحالة</label>
+  <select id="st-filter-status" name="status" class="ds-input h-8 text-xs w-full">
+    <option value="">الكل</option>
+    <option value="draft"{% if filter_status == "draft" %} selected{% endif %}>مسودة</option>
+    <option value="approved"{% if filter_status == "approved" %} selected{% endif %}>معتمد</option>
+  </select>
+</div>

@@ -1,0 +1,8 @@
+<div class="shell-panel-root p-2 text-[11px]" dir="rtl" data-shell-panel-root>
+{% if panel_title %}<p class="text-[10px] font-bold mb-1.5">{{ panel_title }}</p>{% endif %}
+{% if panel_form_errors %}<div class="rounded border border-danger/30 bg-danger/5 px-2 py-1 text-[10px] text-danger mb-1.5">{{ panel_form_errors }}</div>{% endif %}
+{% include "shell/_purchase_invoice_form_body.html" with purchase_form_compact=1 purchase_form_action=form_action panel_shell=1 range10=range10 range20=range20 supplier=supplier errors=errors payment_method_rows=payment_method_rows purchase_form_state=purchase_form_state %}
+<div class="flex gap-1.5 pt-2 border-t border-gray-200 mt-2">
+  <button type="submit" form="purchase-form" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold">حفظ</button>
+  <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border text-[11px] font-bold">إلغاء</button>
+</div></div>

@@ -1,0 +1,18 @@
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+  <form method="get"{% if filter_form_action %} action="{{ filter_form_action }}"{% endif %} class="shell-list-filters__form m-0">
+    {% if filter_per_page %}<input type="hidden" name="per_page" value="{{ filter_per_page }}">{% endif %}
+    {% if filter_extra_hidden %}{{ filter_extra_hidden }}{% endif %}
+    <div class="shell-list-filters__row flex flex-wrap items-end gap-2">
+      {% if filter_fields_template %}{% include filter_fields_template %}{% endif %}
+      <div class="shell-list-filters__actions flex flex-wrap items-center gap-1.5 shrink-0 pb-0.5">
+        <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">{{ filter_submit_label|default:"تطبيق" }}</button>
+        <a href="{{ filter_clear_url }}{{ filter_clear_suffix|default:"" }}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+      </div>
+    </div>
+    {% if filter_footer_template %}
+    <div class="shell-list-filters__footer mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+      {% include filter_footer_template %}
+    </div>
+    {% endif %}
+  </form>
+</div>

@@ -1,0 +1,14 @@
+{% load core_extras %}<div class="shell-panel-root p-2 text-[11px]" dir="rtl" data-shell-panel-root>
+<p class="text-[10px] font-bold mb-2">{{ panel_title|default:"عرض السند" }} #{{ audit_log.pk }}</p>
+{% if payload.cancelled %}<p class="text-danger text-[10px] font-bold mb-2">سند ملغى</p>{% endif %}
+<dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+<dt class="text-muted">نوع السند</dt><dd>{{ payload.voucher_type|treasury_voucher_type_ar }}</dd>
+<dt class="text-muted">التصنيف</dt><dd>{{ payload.party_type|treasury_party_type_ar }}</dd>
+<dt class="text-muted">الجهة</dt><dd>{{ payload.party_label|default:"—" }}</dd>
+<dt class="text-muted">المبلغ</dt><dd class="font-bold tabular-nums">{{ payload.amount }}</dd>
+<dt class="text-muted">طريقة الدفع</dt><dd>{{ payload.method|payment_method_label }}</dd>
+<dt class="text-muted">تاريخ السند</dt><dd>{{ payload.voucher_date|default:"—" }}</dd>
+<dt class="text-muted col-span-2">ملاحظة</dt><dd class="col-span-2">{{ payload.note|default:"—" }}</dd>
+</dl>
+<div class="pt-2 mt-2 border-t"><button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border text-[11px] font-bold">إغلاق</button></div>
+</div>

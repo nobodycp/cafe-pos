@@ -1,0 +1,52 @@
+<div class="shell-list-filters__field min-w-[9.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">عميل مرتبط</label>
+  <select name="linked" class="ds-input h-8 text-xs w-full">
+    {% for code, label in linked_filter_choices %}
+    <option value="{{ code }}"{% if supplier_filters.linked == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[9.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بائع نسبة</label>
+  <select name="commission" class="ds-input h-8 text-xs w-full">
+    {% for code, label in commission_filter_choices %}
+    <option value="{{ code }}"{% if supplier_filters.commission == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[11rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بعد المسحوبات</label>
+  <select name="net_side" class="ds-input h-8 text-xs w-full">
+    {% for code, label in net_side_choices %}
+    <option value="{{ code }}"{% if supplier_filters.net_side == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[12rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب العرض</label>
+  <select name="sort" class="ds-input h-8 text-xs w-full">
+    {% for code, label in supplier_sort_choices %}
+    <option value="{{ code }}"{% if supplier_filters.sort == code %} selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[6.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">رصيد من</label>
+  <input type="text" inputmode="decimal" name="min_balance" value="{{ supplier_filters.min_balance_s }}" placeholder="0" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[6.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">رصيد إلى</label>
+  <input type="text" inputmode="decimal" name="max_balance" value="{{ supplier_filters.max_balance_s }}" placeholder="∞" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[6.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">صافي من</label>
+  <input type="text" inputmode="decimal" name="min_net" value="{{ supplier_filters.min_net_s }}" placeholder="0" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[6.5rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">صافي إلى</label>
+  <input type="text" inputmode="decimal" name="max_net" value="{{ supplier_filters.max_net_s }}" placeholder="∞" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+  <input type="search" name="q" value="{{ supplier_filters.q }}" placeholder="الاسم، الهاتف، البريد…" class="ds-input w-full h-8 text-xs">
+</div>

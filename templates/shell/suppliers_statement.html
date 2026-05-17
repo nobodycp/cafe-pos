@@ -6,13 +6,12 @@
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">كشف حساب مورد: {{ supplier.name_ar }}</span>
     <span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:supplier_detail' supplier.pk %}" class="shell-toolbar-link">← المورد</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
       <form method="get" class="flex gap-4 flex-wrap items-end">
+        <input type="hidden" name="per_page" value="{{ per_page }}">
         <div><label>من تاريخ</label><input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"></div>
         <div><label>إلى تاريخ</label><input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"></div>
         <button type="submit" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm">عرض</button>
@@ -22,7 +21,11 @@
       <table class="w-full text-sm">
         <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الرصيد</th><th>المرجع</th></tr></thead>
         <tbody>
+          {% if page_obj.number == 1 %}
           <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد افتتاحي</td><td>{{ opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          {% else %}
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد بداية الصفحة</td><td>{{ page_opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          {% endif %}
           {% for r in rows %}
           <tr>
             <td>{{ r.date|date:"Y-m-d" }}</td>
@@ -45,6 +48,7 @@
           <tr class="bg-gray-50 dark:bg-gray-700/50 font-extrabold"><td colspan="3">الرصيد الختامي</td><td class="{% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td><td></td></tr>
         </tbody>
       </table>
+      {% include "shell/_shell_pagination.html" %}
     </div>
   </div>
 </div>

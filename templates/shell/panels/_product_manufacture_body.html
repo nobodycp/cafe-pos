@@ -1,0 +1,13 @@
+{% if recipe_count < 1 %}
+<p class="text-[10px] text-danger font-bold m-0 mb-2">أضف معادلة تصنيع أولاً من كرت المنتج.</p>
+{% else %}
+<p class="text-[10px] text-muted m-0 mb-2">يُخصم المخزون من المواد حسب المعادلة ويُضاف رصيد المنتج المصنع.</p>
+{% endif %}
+<label class="flex flex-col gap-0.5">
+  <span class="text-[10px] font-bold text-muted">كمية الإنتاج</span>
+  <input type="number" name="quantity" step="0.0001" min="0.0001" required class="ds-input w-36 text-[11px] tabular-nums" {% if recipe_count < 1 %}disabled{% endif %}>
+</label>
+<label class="flex flex-col gap-0.5">
+  <span class="text-[10px] font-bold text-muted">ملاحظة (اختياري)</span>
+  <input type="text" name="note" maxlength="500" placeholder="مثال: دفعة يوم الأحد" class="ds-input w-full text-[11px]" {% if recipe_count < 1 %}disabled{% endif %}>
+</label>

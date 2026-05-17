@@ -7,9 +7,10 @@ import json
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.catalog.forms import (
+    PRODUCT_QUICK_FORM_PREFIX,
     CategoryForm,
     ProductForm,
     QuickCategoryForm,
@@ -38,6 +39,7 @@ from apps.catalog.product_list_filters import (
     units_filters_open,
 )
 from apps.core.models import log_audit
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form
 from apps.core.services import SessionService
 from apps.inventory.models import ManufacturingBatch, StockBalance, StockMovement, StockTakeLine
 from apps.inventory.services import get_unit_cost, record_manufacturing_batch, void_manufacturing_batch
@@ -61,6 +63,84 @@ def _is_weight_unit(product: Product) -> bool:
 
 def _is_volume_unit(product: Product) -> bool:
     return _unit_code(product) in VOLUME_UNIT_CODES
+
+
+def _recipe_form_rows(product: Product, *, max_rows: int = 10) -> list[dict]:
+    """صفوف نموذج المعادلة — معبّأة من الوصفة الحالية + صف فارغ للإضافة."""
+    from decimal import Decimal
+
+    filled = []
+    for line in product.recipe_lines.select_related("component", "component__unit").order_by("id"):
+        comp = line.component
+        qty = line.quantity_per_unit
+        unit_mode = "base"
+        display_qty = qty
+        if _is_weight_unit(comp) and qty < Decimal("1"):
+            unit_mode = "gram"
+            display_qty = (qty * Decimal("1000")).quantize(Decimal("0.0001"))
+        elif _is_volume_unit(comp) and qty < Decimal("1"):
+            unit_mode = "ml"
+            display_qty = (qty * Decimal("1000")).quantize(Decimal("0.0001"))
+        label = comp.name_ar
+        if comp.unit:
+            label += f" — {comp.unit.name_ar}"
+        filled.append({
+            "component_id": comp.pk,
+            "component_label": label,
+            "qty": display_qty,
+            "unit_mode": unit_mode,
+        })
+    rows = []
+    for i in range(max_rows):
+        if i < len(filled):
+            rows.append({**filled[i], "show": True})
+        elif i == len(filled):
+            rows.append({"show": True})
+        else:
+            rows.append({"show": False})
+    return rows
+
+
+def _save_recipe_lines_from_post(request, product: Product) -> tuple[int, list[str]]:
+    from decimal import Decimal, InvalidOperation
+
+    errors = []
+    added = 0
+    for i in range(10):
+        comp_id = (request.POST.get(f"component_{i}") or "").strip()
+        qty_str = (request.POST.get(f"qty_{i}") or "").strip()
+        unit_mode = request.POST.get(f"unit_mode_{i}", "base")
+        if not comp_id and not qty_str:
+            continue
+        if not comp_id:
+            errors.append(f"سطر {i + 1}: اختر مكوّناً من نتائج البحث")
+            continue
+        if not qty_str:
+            errors.append(f"سطر {i + 1}: أدخل الكمية")
+            continue
+        try:
+            comp = Product.objects.get(
+                pk=int(comp_id),
+                is_active=True,
+                product_type=Product.ProductType.RAW,
+            )
+            qty = Decimal(qty_str)
+            if qty <= 0:
+                errors.append(f"سطر {i + 1}: الكمية يجب أن تكون أكبر من صفر")
+                continue
+            if unit_mode == "gram" and _is_weight_unit(comp):
+                qty = qty / Decimal("1000")
+            elif unit_mode == "ml" and _is_volume_unit(comp):
+                qty = qty / Decimal("1000")
+            RecipeLine.objects.update_or_create(
+                manufactured_product=product,
+                component=comp,
+                defaults={"quantity_per_unit": qty},
+            )
+            added += 1
+        except (Product.DoesNotExist, InvalidOperation, ValueError):
+            errors.append(f"سطر {i + 1}: بيانات غير صالحة")
+    return added, errors
 
 
 def _catalog_ctx(request, **kwargs):
@@ -421,9 +501,9 @@ def product_delete(request, pk):
 
 @login_required
 def category_list(request):
-    categories = Category.objects.select_related("parent").all()
-    tpl = _catalog_tpl(request, "shell/categories_list.html", "catalog/category_list.html")
-    return render(request, tpl, _catalog_ctx(request, categories=categories))
+    params = request.GET.copy()
+    params["tab"] = "categories"
+    return redirect(f"{reverse('shell:product_list')}?{params.urlencode()}")
 
 
 @login_required
@@ -472,9 +552,9 @@ def category_delete(request, pk):
 
 @login_required
 def unit_list(request):
-    units = Unit.objects.all()
-    tpl = _catalog_tpl(request, "shell/units_list.html", "catalog/unit_list.html")
-    return render(request, tpl, _catalog_ctx(request, units=units))
+    params = request.GET.copy()
+    params["tab"] = "units"
+    return redirect(f"{reverse('shell:product_list')}?{params.urlencode()}")
 
 
 @login_required
@@ -583,50 +663,13 @@ def recipe_list(request, pk):
 
 @login_required
 def recipe_add(request, pk):
-    from decimal import Decimal, InvalidOperation
-
     product = get_object_or_404(
         Product, pk=pk, product_type=Product.ProductType.MANUFACTURED
     )
-    components = Product.objects.filter(
-        is_active=True, product_type=Product.ProductType.RAW
-    ).select_related("unit").order_by("name_ar")
     errors = []
 
     if request.method == "POST":
-        added = 0
-        for i in range(10):
-            comp_id = request.POST.get(f"component_{i}")
-            qty_str = request.POST.get(f"qty_{i}", "").strip()
-            unit_mode = request.POST.get(f"unit_mode_{i}", "base")
-            if not comp_id or not qty_str:
-                continue
-            try:
-                comp = Product.objects.get(pk=int(comp_id))
-                qty = Decimal(qty_str)
-                if qty <= 0:
-                    errors.append(f"سطر {i+1}: الكمية يجب أن تكون أكبر من صفر")
-                    continue
-                if unit_mode == "gram" and _is_weight_unit(comp):
-                    qty = qty / Decimal("1000")
-                elif unit_mode == "ml" and _is_volume_unit(comp):
-                    qty = qty / Decimal("1000")
-                existing = RecipeLine.objects.filter(
-                    manufactured_product=product, component=comp
-                ).first()
-                if existing:
-                    existing.quantity_per_unit = qty
-                    existing.save(update_fields=["quantity_per_unit", "updated_at"])
-                else:
-                    RecipeLine.objects.create(
-                        manufactured_product=product,
-                        component=comp,
-                        quantity_per_unit=qty,
-                    )
-                added += 1
-            except (Product.DoesNotExist, InvalidOperation, ValueError):
-                errors.append(f"سطر {i+1}: بيانات غير صالحة")
-
+        added, errors = _save_recipe_lines_from_post(request, product)
         if added > 0 and not errors:
             messages.success(request, f"تم إضافة {added} مكوّن بنجاح")
             return _catalog_redirect(request, "recipe_list", pk=product.pk)
@@ -636,7 +679,13 @@ def recipe_add(request, pk):
     return render(
         request,
         _catalog_tpl(request, "shell/recipe_form.html", "catalog/recipe_form.html"),
-        _catalog_ctx(request, product=product, components=components, errors=errors, range10=range(10)),
+        _catalog_ctx(
+            request,
+            product=product,
+            errors=errors,
+            recipe_rows=_recipe_form_rows(product),
+            raw_materials_search_url=reverse("shell:raw_materials_search"),
+        ),
     )
 
 
@@ -648,8 +697,39 @@ def recipe_delete(request, pk, line_id):
     line = get_object_or_404(RecipeLine, pk=line_id, manufactured_product=product)
     if request.method == "POST":
         line.delete()
+        from apps.core.panel import panel_json_ok
+
+        jr = panel_json_ok(request, reload=True, message="تم حذف المكوّن")
+        if jr:
+            return jr
         messages.success(request, "تم حذف المكوّن من الوصفة")
     return _catalog_redirect(request, "recipe_list", pk=product.pk)
+
+
+@login_required
+@require_GET
+def raw_materials_search(request):
+    """بحث مواد خام لمعادلة التصنيع (autocomplete)."""
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 1:
+        return JsonResponse({"results": []})
+    name_q = Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(barcode__icontains=q)
+    qs = (
+        Product.objects.select_related("unit")
+        .filter(is_active=True, product_type=Product.ProductType.RAW)
+        .filter(name_q)
+        .order_by("name_ar")[:30]
+    )
+    return JsonResponse({
+        "results": [
+            {
+                "id": p.pk,
+                "name_ar": p.name_ar,
+                "unit_name": p.unit.name_ar if p.unit else "",
+            }
+            for p in qs
+        ],
+    })
 
 
 @login_required
@@ -848,3 +928,414 @@ def product_manufacture_batch_void(request, pk):
         else:
             messages.error(request, code)
     return redirect(reverse("shell:product_card", args=[pk]))
+
+
+@login_required
+def category_create_panel(request):
+    tpl = "shell/panels/category_create_panel.html"
+
+    def build_context():
+        form = CategoryForm(request.POST or None)
+        panelize_form(form)
+        return {"form": form, "form_action": reverse("shell:category_create_panel"), "panel_title": "إضافة تصنيف"}
+
+    def on_valid():
+        form = CategoryForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def category_edit_panel(request, pk):
+    category = get_object_or_404(Category, pk=pk)
+    tpl = "shell/panels/category_edit_panel.html"
+
+    def build_context():
+        form = CategoryForm(request.POST or None, instance=category)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:category_edit_panel", args=[pk]),
+            "panel_title": "تعديل تصنيف",
+        }
+
+    def on_valid():
+        form = CategoryForm(request.POST, instance=category)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def unit_create_panel(request):
+    tpl = "shell/panels/unit_create_panel.html"
+
+    def build_context():
+        form = UnitForm(request.POST or None)
+        panelize_form(form)
+        return {"form": form, "form_action": reverse("shell:unit_create_panel"), "panel_title": "إضافة وحدة"}
+
+    def on_valid():
+        form = UnitForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def unit_edit_panel(request, pk):
+    unit = get_object_or_404(Unit, pk=pk)
+    tpl = "shell/panels/unit_edit_panel.html"
+
+    def build_context():
+        form = UnitForm(request.POST or None, instance=unit)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:unit_edit_panel", args=[pk]),
+            "panel_title": "تعديل وحدة",
+        }
+
+    def on_valid():
+        form = UnitForm(request.POST, instance=unit)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def product_create_panel(request):
+    """نفس نموذج «منتج جديد» في الكاشير (تصنيف/وحدة سريعة + كل الحقول)."""
+    tpl = "shell/panels/product_create_panel.html"
+
+    def build_context():
+        form = ProductForm(request.POST or None, prefix=PRODUCT_QUICK_FORM_PREFIX)
+        panelize_form(form)
+        return {
+            "pos_product_quick_form": form,
+            "form_action": reverse("shell:product_create_panel"),
+            "panel_title": "منتج جديد",
+            "product_quick_shell": True,
+        }
+
+    def on_valid():
+        form = ProductForm(request.POST, prefix=PRODUCT_QUICK_FORM_PREFIX)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def product_edit_panel(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    tpl = "shell/panels/product_edit_panel.html"
+
+    def build_context():
+        form = ProductForm(request.POST or None, instance=product)
+        panelize_form(form)
+        return {
+            "form": form,
+            "product": product,
+            "form_action": reverse("shell:product_edit_panel", args=[pk]),
+            "panel_title": "تعديل منتج",
+        }
+
+    def on_valid():
+        form = ProductForm(request.POST, instance=product)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def manufactured_product_create_panel(request):
+    from decimal import Decimal, InvalidOperation
+
+    categories = Category.objects.filter(is_active=True).order_by("name_ar")
+    units = Unit.objects.all()
+    components = Product.objects.filter(
+        is_active=True,
+        product_type=Product.ProductType.RAW,
+    ).select_related("unit").order_by("name_ar")
+    errors: list[str] = []
+    tpl = "shell/panels/manufactured_product_create_panel.html"
+
+    def build_context():
+        return _catalog_ctx(
+            request,
+            categories=categories,
+            units=units,
+            components=components,
+            errors=errors,
+            range10=range(10),
+            form_action=reverse("shell:manufactured_product_create_panel"),
+            panel_title="تصنيع منتج",
+        )
+
+    @transaction.atomic
+    def on_valid():
+        nonlocal errors
+        errors = []
+        name_ar = (request.POST.get("name_ar") or "").strip()
+        selling_price_raw = request.POST.get("selling_price") or "0"
+        category_id = request.POST.get("category") or ""
+        unit_id = request.POST.get("unit") or ""
+        barcode = (request.POST.get("barcode") or "").strip()
+
+        if not name_ar:
+            errors.append("أدخل اسم المنتج المصنع.")
+        try:
+            selling_price = Decimal(str(selling_price_raw or "0")).quantize(Decimal("0.01"))
+        except (InvalidOperation, ValueError):
+            selling_price = Decimal("0")
+            errors.append("سعر البيع غير صالح.")
+
+        category = None
+        if category_id:
+            try:
+                category = Category.objects.get(pk=int(category_id))
+            except (Category.DoesNotExist, ValueError):
+                errors.append("التصنيف غير صالح.")
+
+        unit = None
+        if unit_id:
+            try:
+                unit = Unit.objects.get(pk=int(unit_id))
+            except (Unit.DoesNotExist, ValueError):
+                errors.append("الوحدة غير صالحة.")
+
+        recipe_rows = []
+        for i in range(10):
+            comp_id = request.POST.get(f"component_{i}")
+            qty_raw = (request.POST.get(f"qty_{i}") or "").strip()
+            if not comp_id and not qty_raw:
+                continue
+            try:
+                comp = Product.objects.get(pk=int(comp_id), product_type=Product.ProductType.RAW)
+                qty = Decimal(qty_raw)
+                unit_mode = request.POST.get(f"unit_mode_{i}", "base")
+                if qty <= 0:
+                    errors.append(f"سطر {i + 1}: الكمية يجب أن تكون أكبر من صفر.")
+                    continue
+                if unit_mode == "gram" and _is_weight_unit(comp):
+                    qty = qty / Decimal("1000")
+                elif unit_mode == "ml" and _is_volume_unit(comp):
+                    qty = qty / Decimal("1000")
+                recipe_rows.append((comp, qty))
+            except (Product.DoesNotExist, InvalidOperation, ValueError, TypeError):
+                errors.append(f"سطر {i + 1}: بيانات المكوّن غير صالحة.")
+
+        if not recipe_rows:
+            errors.append("أدخل مكوّن واحد على الأقل لمعادلة التصنيع.")
+
+        if errors:
+            raise PanelFormInvalid(errors[0])
+
+        product = Product.objects.create(
+            name_ar=name_ar,
+            name_en="",
+            category=category,
+            unit=unit,
+            selling_price=selling_price,
+            product_type=Product.ProductType.MANUFACTURED,
+            is_stock_tracked=False,
+            is_active=True,
+            barcode=barcode,
+        )
+        for comp, qty in recipe_rows:
+            RecipeLine.objects.create(
+                manufactured_product=product,
+                component=comp,
+                quantity_per_unit=qty,
+            )
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+def _recipe_list_panel_context(request, pk):
+    from decimal import Decimal
+    from apps.inventory.models import StockBalance
+
+    product = get_object_or_404(
+        Product, pk=pk, product_type=Product.ProductType.MANUFACTURED
+    )
+    lines = product.recipe_lines.select_related("component", "component__unit")
+    bom_cost = get_unit_cost(product)
+    enriched = []
+    for line in lines:
+        comp = line.component
+        unit_cost = get_unit_cost(comp)
+        qty = line.quantity_per_unit
+        line_cost = (unit_cost * qty).quantize(Decimal("0.01"))
+        try:
+            on_hand = comp.stock_balance.quantity_on_hand
+        except StockBalance.DoesNotExist:
+            on_hand = Decimal("0")
+        max_units = (
+            (on_hand / qty).quantize(Decimal("1"), rounding="ROUND_DOWN")
+            if qty > 0
+            else Decimal("0")
+        )
+        if _is_weight_unit(comp) and qty < 1:
+            display_qty = (qty * 1000).quantize(Decimal("0.1"))
+            display_unit = "غرام"
+        elif _is_volume_unit(comp) and qty < 1:
+            display_qty = (qty * 1000).quantize(Decimal("0.1"))
+            display_unit = "مل"
+        else:
+            display_qty = qty
+            display_unit = comp.unit.name_ar if comp.unit else ""
+        enriched.append({
+            "line": line,
+            "component": comp,
+            "unit_cost": unit_cost,
+            "line_cost": line_cost,
+            "on_hand": on_hand,
+            "max_units": max_units,
+            "display_qty": display_qty,
+            "display_unit": display_unit,
+        })
+    profit = (
+        (product.selling_price - bom_cost).quantize(Decimal("0.01"))
+        if bom_cost
+        else None
+    )
+    max_producible = (
+        min((e["max_units"] for e in enriched), default=Decimal("0"))
+        if enriched
+        else Decimal("0")
+    )
+    return {
+        "product": product,
+        "enriched": enriched,
+        "bom_cost": bom_cost,
+        "profit": profit,
+        "max_producible": max_producible,
+        "recipe_add_panel_url": reverse("shell:recipe_add_panel", args=[pk]),
+    }
+
+
+@login_required
+@require_GET
+def recipe_list_panel(request, pk):
+    from apps.core.panel import render_panel
+
+    ctx = _recipe_list_panel_context(request, pk)
+    ctx["panel_title"] = f"معادلة — {ctx['product'].name_ar}"
+    return render_panel(
+        request,
+        "shell/panels/recipe_list_panel.html",
+        ctx,
+        wide=True,
+    )
+
+
+@login_required
+def recipe_add_panel(request, pk):
+    from apps.core.panel import PanelFormInvalid, handle_panel_form, panel_json_ok, render_panel
+
+    product = get_object_or_404(
+        Product, pk=pk, product_type=Product.ProductType.MANUFACTURED
+    )
+    tpl = "shell/panels/recipe_add_panel.html"
+
+    def build_context():
+        return {
+            "product": product,
+            "form_action": reverse("shell:recipe_add_panel", args=[pk]),
+            "panel_title": f"معادلة — {product.name_ar}",
+            "recipe_rows": _recipe_form_rows(product),
+            "raw_materials_search_url": reverse("shell:raw_materials_search"),
+        }
+
+    def on_valid():
+        added, errors = _save_recipe_lines_from_post(request, product)
+        if not added and not errors:
+            raise PanelFormInvalid("أضف مكوّناً واحداً على الأقل")
+        if errors:
+            raise PanelFormInvalid("؛ ".join(errors[:3]))
+        jr = panel_json_ok(request, reload=True, message="تم حفظ معادلة التصنيع")
+        if jr:
+            return jr
+        messages.success(request, "تم حفظ معادلة التصنيع")
+        return redirect(reverse("shell:product_card", args=[pk]))
+
+    if request.method == "POST":
+        return handle_panel_form(
+            request,
+            template_name=tpl,
+            build_context=build_context,
+            on_valid=on_valid,
+            wide=True,
+        )
+    return render_panel(request, tpl, build_context(), wide=True)
+
+
+@login_required
+def product_manufacture_panel(request, pk):
+    from decimal import Decimal, InvalidOperation
+    from apps.core.panel import PanelFormInvalid, handle_panel_form, panel_json_ok, render_panel
+    from apps.core.services import SessionService
+    from apps.inventory.services import record_manufacturing_batch
+
+    product = get_object_or_404(
+        Product, pk=pk, product_type=Product.ProductType.MANUFACTURED
+    )
+    tpl = "shell/panels/product_manufacture_panel.html"
+
+    def build_context():
+        return {
+            "product": product,
+            "form_action": reverse("shell:product_manufacture_panel", args=[pk]),
+            "panel_title": f"تصنيع — {product.name_ar}",
+            "recipe_count": RecipeLine.objects.filter(manufactured_product=product).count(),
+        }
+
+    def on_valid():
+        raw = (request.POST.get("quantity") or "").strip()
+        note = (request.POST.get("note") or "").strip()[:500]
+        try:
+            qty = Decimal(raw)
+        except (InvalidOperation, ValueError, TypeError):
+            raise PanelFormInvalid("أدخل كمية صالحة")
+        if qty <= 0:
+            raise PanelFormInvalid("الكمية يجب أن تكون أكبر من صفر")
+        try:
+            session = SessionService.get_open_session()
+            record_manufacturing_batch(
+                product=product, quantity=qty, session=session, note=note
+            )
+        except ValueError as exc:
+            code = str(exc)
+            if code.startswith("INSUFFICIENT_STOCK:"):
+                raise PanelFormInvalid("المواد غير كافية في المخزون")
+            if code == "NO_RECIPE":
+                raise PanelFormInvalid("أضف معادلة تصنيع أولاً")
+            raise PanelFormInvalid(code)
+        jr = panel_json_ok(request, reload=True, message="تم تسجيل دفعة التصنيع")
+        if jr:
+            return jr
+        messages.success(request, "تم تسجيل دفعة التصنيع")
+        return redirect(reverse("shell:product_card", args=[pk]))
+
+    if request.method == "POST":
+        return handle_panel_form(
+            request,
+            template_name=tpl,
+            build_context=build_context,
+            on_valid=on_valid,
+        )
+    return render_panel(request, tpl, build_context())

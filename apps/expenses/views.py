@@ -5,10 +5,12 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 
 from apps.core.pagination import paginate_queryset
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form, render_panel
 from apps.core.payment_methods import get_payment_method_codes, load_payment_method_rows
 from apps.core.services import SessionService
 from apps.expenses.forms import ExpenseCategoryForm, ExpenseForm
@@ -237,3 +239,140 @@ def expense_category_edit(request, pk):
     else:
         form = ExpenseCategoryForm(instance=category)
     return render(request, "expenses/category_form.html", {"form": form, "edit": True})
+
+
+@login_required
+def expense_create_panel(request):
+    tpl = "shell/panels/expense_create_panel.html"
+
+    def build_context():
+        form = ExpenseForm(request.POST or None)
+        panelize_form(form)
+        ctx = _expense_form_template_ctx(form, request, edit_expense=None)
+        ctx.update({
+            "form_action": reverse("shell:expense_create_panel"),
+            "panel_title": "إضافة مصروف",
+        })
+        return ctx
+
+    def on_valid():
+        form = ExpenseForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        session = SessionService.get_open_session()
+        try:
+            create_expense(
+                category=form.cleaned_data["category"],
+                amount=form.cleaned_data["amount"],
+                payment_method=form.cleaned_data["payment_method"],
+                expense_date=form.cleaned_data["expense_date"],
+                notes=form.cleaned_data["notes"],
+                work_session=session,
+                user=request.user,
+                payment_splits_json=form.cleaned_data.get("payment_splits_json") or "",
+            )
+        except ValueError as e:
+            raise PanelFormInvalid(_expense_value_error_message(str(e))) from e
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def expense_edit_panel(request, pk):
+    expense = get_object_or_404(Expense.objects.select_related("category"), pk=pk)
+    if expense.category.code == ExpenseCategory.Code.SALARIES:
+        return render_panel(
+            request,
+            "shell/panels/expense_edit_panel.html",
+            {"panel_form_errors": "مصروف «رواتب» لا يُعدَّل هنا — يُدار من الموظفين."},
+            wide=True,
+        )
+    tpl = "shell/panels/expense_edit_panel.html"
+
+    def build_context():
+        if request.method == "POST":
+            form = ExpenseForm(request.POST)
+        else:
+            form = ExpenseForm(initial={
+                "category": expense.category_id,
+                "amount": expense.amount,
+                "payment_method": expense.payment_method,
+                "payment_splits_json": expense.payment_splits_json or "",
+                "expense_date": expense.expense_date,
+                "notes": expense.notes,
+            })
+        panelize_form(form)
+        ctx = _expense_form_template_ctx(form, request, edit_expense=expense)
+        ctx.update({
+            "form_action": reverse("shell:expense_edit_panel", args=[pk]),
+            "panel_title": "تعديل مصروف",
+        })
+        return ctx
+
+    def on_valid():
+        form = ExpenseForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        try:
+            with transaction.atomic():
+                ws = expense.work_session or SessionService.get_open_session()
+                delete_expense_permanent(expense=expense, user=request.user)
+                create_expense(
+                    category=form.cleaned_data["category"],
+                    amount=form.cleaned_data["amount"],
+                    payment_method=form.cleaned_data["payment_method"],
+                    expense_date=form.cleaned_data["expense_date"],
+                    notes=form.cleaned_data["notes"],
+                    work_session=ws,
+                    user=request.user,
+                    payment_splits_json=form.cleaned_data.get("payment_splits_json") or "",
+                )
+        except ValueError as e:
+            raise PanelFormInvalid(_expense_value_error_message(str(e))) from e
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def expense_category_create_panel(request):
+    tpl = "shell/panels/expense_category_create_panel.html"
+
+    def build_context():
+        form = ExpenseCategoryForm(request.POST or None)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:expense_category_create_panel"),
+            "panel_title": "إضافة تصنيف مصروف",
+        }
+
+    def on_valid():
+        form = ExpenseCategoryForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def expense_category_edit_panel(request, pk):
+    category = get_object_or_404(ExpenseCategory, pk=pk)
+    tpl = "shell/panels/expense_category_edit_panel.html"
+
+    def build_context():
+        form = ExpenseCategoryForm(request.POST or None, instance=category)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:expense_category_edit_panel", args=[pk]),
+            "panel_title": "تعديل تصنيف مصروف",
+        }
+
+    def on_valid():
+        form = ExpenseCategoryForm(request.POST, instance=category)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)

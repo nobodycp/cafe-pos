@@ -7,32 +7,17 @@
     <span class="pos-shell-toolbar-title">الموظفون</span>
     <span class="pos-shell-toolbar-hint hidden lg:inline">السلف، الصرف، والأرصدة</span>
     <span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       <span class="ds-section-title m-0">الموظفون</span>
       <span class="flex-1"></span>
-      <a href="{% url 'shell:employee_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة موظف</a>
+      {% url 'shell:employee_create_panel' as employee_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=employee_create_panel_url label="إضافة موظف" panel_title="إضافة موظف" %}
     </div>
-    <form method="get" action="{% url 'shell:employees' %}" class="ds-panel mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
-      <input type="hidden" name="per_page" value="{{ per_page }}">
-      <div class="flex flex-wrap items-center gap-3">
-        <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-800 dark:text-gray-100">
-          <span class="inline-flex items-center gap-1.5">
-            <input type="hidden" name="hide_zero_net" value="0">
-            <input type="checkbox" name="hide_zero_net" value="1" class="h-4 w-4 rounded border-gray-300" {% if employee_filter_hide_zero_net %}checked{% endif %}>
-            <span>إخفاء من صافي رصيدهم = 0 <span class="font-normal text-muted">(صافي غير صفري فقط)</span></span>
-          </span>
-        </label>
-      </div>
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <button type="submit" class="ds-btn ds-btn-primary shrink-0">تطبيق الفلتر</button>
-        <a href="{% url 'shell:employees' %}?per_page={{ per_page }}&amp;hide_zero_net=0" class="ds-btn shrink-0">مسح الفلاتر</a>
-      </div>
-    </form>
+    {% url 'shell:employees' as employees_url %}
+    {% include "shell/_shell_list_filters.html" with filter_form_action=employees_url filter_clear_url=employees_url filter_clear_suffix="?per_page="|add:per_page|add:"&hide_zero_net=0" filter_per_page=per_page filter_fields_template="shell/list_filters/_employees_fields.html" filter_footer_template="shell/list_filters/_employees_footer.html" %}
     <div class="shell-spa-table-root">
     <div class="ds-panel">
     <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
@@ -58,7 +43,8 @@
             <td class="text-end align-middle">
               <div class="ds-table-actions">
                 <a href="{% url 'shell:employee_detail' e.pk %}" class="ds-btn">عرض</a>
-                <a href="{% url 'shell:employee_edit' e.pk %}" class="ds-btn">تعديل</a>
+                {% url 'shell:employee_edit_panel' e.pk as eep_url %}
+                {% include "shell/_shell_panel_open_btn.html" with panel_url=eep_url label="تعديل" panel_title="تعديل موظف" btn_class="ds-btn" %}
                 <form method="post" action="{% url 'shell:employee_delete' e.pk %}" class="m-0">
                   {% csrf_token %}
                   <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>

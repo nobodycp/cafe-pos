@@ -11,9 +11,21 @@ urlpatterns_accounting = [
     path("accounting/trial-balance/", accounting_views.trial_balance_view, name="trial_balance"),
     path("accounting/pnl/", accounting_views.pnl_view, name="pnl"),
     path("accounting/journal/", accounting_views.journal_list, name="journal_list"),
+    path("accounting/journal/<int:pk>/detail-panel/", accounting_views.journal_detail_panel, name="journal_detail_panel"),
     path("accounting/journal/<int:pk>/", accounting_views.journal_detail, name="journal_detail"),
     path("accounting/journal/<int:pk>/edit/", accounting_views.journal_edit, name="journal_edit"),
     path("accounting/treasury/", core_views.treasury, name="accounting_treasury"),
+    path("accounting/treasury/voucher-panel/", core_views.treasury_voucher_panel, name="treasury_voucher_panel"),
+    path(
+        "accounting/treasury/voucher/<int:audit_pk>/edit-panel/",
+        core_views.treasury_voucher_edit_panel,
+        name="treasury_voucher_edit_panel",
+    ),
+    path(
+        "accounting/treasury/voucher/<int:audit_pk>/view-panel/",
+        core_views.treasury_voucher_view_panel,
+        name="treasury_voucher_view_panel",
+    ),
     path(
         "accounting/treasury/void/<int:audit_pk>/",
         core_views.treasury_void_voucher,

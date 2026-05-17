@@ -1,0 +1,23 @@
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="purchase-filter-q">بحث</label>
+  <input type="search" id="purchase-filter-q" name="q" value="{{ q }}" placeholder="رقم الفاتورة أو المورد…" class="ds-input w-full h-8 text-xs">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="purchase-filter-from">من تاريخ</label>
+  <input type="date" id="purchase-filter-from" name="date_from" value="{{ date_from }}" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="purchase-filter-to">إلى تاريخ</label>
+  <input type="date" id="purchase-filter-to" name="date_to" value="{{ date_to }}" class="ds-input h-8 text-xs w-full tabular-nums">
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="purchase-filter-status">الحالة</label>
+  <select id="purchase-filter-status" name="status" class="ds-input h-8 text-xs w-full">
+    <option value="">الكل</option>
+    <option value="active"{% if status == "active" %} selected{% endif %}>نشطة</option>
+    <option value="cancelled"{% if status == "cancelled" %} selected{% endif %}>ملغاة</option>
+    <option value="paid"{% if status == "paid" %} selected{% endif %}>مدفوعة</option>
+    <option value="partial"{% if status == "partial" %} selected{% endif %}>جزئية</option>
+    <option value="unpaid"{% if status == "unpaid" %} selected{% endif %}>غير مدفوعة</option>
+  </select>
+</div>

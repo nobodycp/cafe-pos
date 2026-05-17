@@ -4,8 +4,14 @@
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="سندات" toolbar_hint="سندات الخزينة الموحّدة — قبض وصرف" %}
 
-<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
-  <form method="get" class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+{% url 'shell:treasury_vouchers_report' as treasury_vouchers_url %}
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+  <form method="get" class="shell-list-filters__form m-0 flex flex-wrap items-end gap-2">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <label class="flex flex-col gap-0.5 flex-1 min-w-[10rem] max-w-md">
+      <span class="text-[11px] font-bold text-muted">بحث</span>
+      <input type="search" name="q" value="{{ q|default:'' }}" placeholder="رقم، طرف، ملاحظة…" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 w-full">
+    </label>
     <div>
       <label class="block text-[11px] font-bold text-muted mb-0.5">من تاريخ السند</label>
       <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
@@ -26,7 +32,10 @@
         <option value="expense"{% if kind_filter == "expense" %} selected{% endif %}>مصاريف</option>
       </select>
     </div>
-    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">عرض</button>
+    <div class="shell-list-filters__actions flex flex-wrap gap-1.5 shrink-0 pb-0.5">
+      <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">تطبيق</button>
+      <a href="{{ treasury_vouchers_url }}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+    </div>
   </form>
 </div>
 
@@ -65,14 +74,14 @@
           <td class="text-center">
             <div class="flex flex-wrap items-center justify-center gap-0.5">
               {% if not p.cancelled %}
-              <a href="{% url 'shell:treasury_start_edit_voucher' log.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل السند</a>
+              {% include "shell/_treasury_voucher_panel_btns.html" with audit_pk=log.pk btn_class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]" view_label="عرض" edit_label="تعديل السند" %}
               <form method="post" action="{% url 'shell:treasury_void_voucher' log.pk %}" class="inline m-0" onsubmit="return confirm('إلغاء هذا السند؟ سيتم عكس القيد والأرصدة.');">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <button type="submit" class="ds-btn py-0.5 px-1 min-h-0 h-7 text-[10px] text-danger border-danger/40 hover:bg-danger/10">حذف</button>
               </form>
               {% else %}
-              <span class="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-muted cursor-not-allowed dark:border-gray-600 dark:bg-gray-800" title="لا يمكن تعديل سند ملغى">تعديل السند</span>
+              {% include "shell/_treasury_voucher_panel_btns.html" with audit_pk=log.pk show_edit=False btn_class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]" view_label="عرض" %}
               <form method="post" action="{% url 'shell:treasury_purge_cancelled_voucher' log.pk %}" class="inline m-0" onsubmit="return confirm('حذف سجل هذا السند من القائمة نهائياً؟ (السند ملغى والأثر محاسبياً مُعكوس مسبقاً.)');">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">

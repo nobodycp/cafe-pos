@@ -1,0 +1,13 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم بالعربي</label>{{ form.name_ar }}{% if form.name_ar.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.name_ar.errors.0 }}</p>{% endif %}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم بالإنجليزي</label>{{ form.name_en }}{% if form.name_en.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.name_en.errors.0 }}</p>{% endif %}</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الهاتف</label>{{ form.phone }}{% if form.phone.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.phone.errors.0 }}</p>{% endif %}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">البريد</label>{{ form.email }}{% if form.email.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.email.errors.0 }}</p>{% endif %}</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">رصيد افتتاحي</label>{{ form.opening_balance }}{% if form.opening_balance.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.opening_balance.errors.0 }}</p>{% endif %}</div>
+  {% if not supplier %}<div><label class="flex items-center gap-1.5 text-[11px]">{{ form.also_customer }}<span>إنشاء حساب عميل</span></label></div>{% endif %}
+</div>
+<label class="flex items-start gap-1.5 text-[11px]">{{ form.is_commission_vendor }}<span>{{ form.is_commission_vendor.label }}</span></label>

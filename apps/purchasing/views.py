@@ -14,7 +14,10 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.catalog.models import Product, Unit
 from apps.core.models import log_audit
+from apps.core.ledger_pagination import paginate_amount_ledger
+from apps.core.list_filters import get_search_q, parse_date_range
 from apps.core.pagination import paginate_queryset
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form
 from apps.core.payment_methods import credit_method_codes, load_payment_method_rows
 from apps.purchasing.forms import SupplierForm, SupplierPaymentForm
 from apps.purchasing.supplier_list_filters import (
@@ -327,9 +330,9 @@ def _purchasing_redirect(request, viewname, *args, **kwargs):
 
 
 def _safe_return_path(raw: str) -> str:
-    from apps.billing.views import _safe_return_path as billing_safe
+    from apps.core.nav_back import safe_return_path
 
-    return billing_safe(raw)
+    return safe_return_path(raw)
 
 
 def _purchase_invoice_detail_queryset():
@@ -631,6 +634,126 @@ def purchase_invoice_create(request, pk):
 
 
 @login_required
+def purchase_invoice_create_panel(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    errors: list[str] = []
+    tpl = "shell/panels/purchase_invoice_create_panel.html"
+    panel_action = reverse("shell:purchase_invoice_create_panel", args=[pk])
+
+    def build_context():
+        return _purchasing_ctx(
+            request,
+            supplier=supplier,
+            errors=errors,
+            range10=range(10),
+            range20=range(20),
+            payment_method_rows=_payment_rows(),
+            purchase_form_state=_purchase_form_state(request) if request.method == "POST" else {},
+            purchase_form_action=panel_action,
+            form_action=panel_action,
+            purchase_form_compact=True,
+            panel_shell=True,
+            panel_title="فاتورة شراء",
+        )
+
+    def on_valid():
+        nonlocal errors
+        errors = []
+        lines = _purchase_lines_from_request(request, errors)
+        if not errors:
+            lines = _apply_general_discount(request, lines, errors)
+        if not errors:
+            total = sum((q * c for _, q, c in lines), Decimal("0")).quantize(Decimal("0.01"))
+            payments = _purchase_payments_from_request(request, total, errors)
+            if not errors:
+                try:
+                    post_purchase_invoice(
+                        supplier=supplier,
+                        lines=lines,
+                        user=request.user,
+                        payments=payments,
+                    )
+                except Exception as e:
+                    errors.append(f"حدث خطأ: {e}")
+        if errors:
+            raise PanelFormInvalid(errors[0])
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def supplier_create_panel(request):
+    from apps.contacts.models import Customer
+
+    tpl = "shell/panels/supplier_create_panel.html"
+
+    def build_context():
+        form = SupplierForm(request.POST or None)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:supplier_create_panel"),
+            "panel_title": "إضافة مورد",
+        }
+
+    @transaction.atomic
+    def on_valid():
+        form = SupplierForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        supplier = form.save()
+        ob = (form.cleaned_data.get("opening_balance") or Decimal("0")).quantize(Decimal("0.01"))
+        if ob < 0:
+            ob = Decimal("0")
+        _apply_supplier_opening_balance(supplier=supplier, amount=ob)
+        if form.cleaned_data.get("also_customer"):
+            cust = Customer.objects.create(
+                name_ar=supplier.name_ar,
+                name_en=supplier.name_en,
+                phone=supplier.phone,
+            )
+            supplier.linked_customer = cust
+            supplier.save(update_fields=["linked_customer", "updated_at"])
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def supplier_edit_panel(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    tpl = "shell/panels/supplier_edit_panel.html"
+
+    def build_context():
+        if request.method == "POST":
+            form = SupplierForm(request.POST, instance=supplier)
+        else:
+            form = SupplierForm(
+                instance=supplier,
+                initial={"opening_balance": _supplier_opening_balance_from_ledger(supplier)},
+            )
+        panelize_form(form)
+        return {
+            "form": form,
+            "supplier": supplier,
+            "form_action": reverse("shell:supplier_edit_panel", args=[pk]),
+            "panel_title": "تعديل مورد",
+        }
+
+    @transaction.atomic
+    def on_valid():
+        form = SupplierForm(request.POST, instance=supplier)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+        new_ob = (form.cleaned_data.get("opening_balance") or Decimal("0")).quantize(Decimal("0.01"))
+        if new_ob < 0:
+            new_ob = Decimal("0")
+        _apply_supplier_opening_balance(supplier=supplier, amount=new_ob)
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
 def purchase_invoice_new(request):
     suppliers = Supplier.objects.filter(is_active=True).order_by("name_ar")
     errors = []
@@ -862,68 +985,88 @@ def supplier_statement(request, pk):
     if date_to:
         entries = entries.filter(created_at__date__lte=date_to)
 
-    rows = []
-    running = opening_balance
-    for e in entries:
-        running += e.amount
-        rows.append({
+    def _statement_row(e, running):
+        return {
             "date": e.created_at,
             "type": e.get_entry_type_display(),
             "entry_type": e.entry_type,
             "amount": e.amount,
-            "running": running.quantize(Decimal("0.01")),
+            "running": running,
             "reference": e.note or e.reference_model,
             "reference_model": e.reference_model,
             "reference_pk": e.reference_pk,
-        })
+        }
 
-    closing_balance = running.quantize(Decimal("0.01"))
+    stmt_pag = paginate_amount_ledger(
+        request,
+        entries,
+        opening_balance=opening_balance,
+        build_row=_statement_row,
+    )
+    closing_balance = stmt_pag["closing_balance"]
 
     net_balance = closing_balance
     if supplier.linked_customer:
         net_balance = (closing_balance - supplier.linked_customer.balance).quantize(Decimal("0.01"))
 
     tpl = _purchasing_tpl(request, "shell/suppliers_statement.html", "purchasing/supplier_statement.html")
-    return render(request, tpl, _purchasing_ctx(
+    ctx = _purchasing_ctx(
         request,
         supplier=supplier,
-        rows=rows,
+        rows=stmt_pag["rows"],
         opening_balance=opening_balance,
         closing_balance=closing_balance,
+        page_opening_balance=stmt_pag["page_opening_balance"],
         net_balance=net_balance,
         date_from=date_from,
         date_to=date_to,
-    ))
+    )
+    ctx.update(stmt_pag)
+    return render(request, tpl, ctx)
 
 
 @login_required
 def supplier_balances(request):
-    suppliers = Supplier.objects.filter(is_active=True).select_related(
-        "linked_customer",
-    ).annotate(
-        last_txn=Max("ledger_entries__created_at"),
-    ).order_by("name_ar")
+    from django.db.models import DecimalField, ExpressionWrapper, F, Value
+    from django.db.models.functions import Coalesce
 
-    results = []
-    grand_total = Decimal("0.00")
-    for s in suppliers:
-        bal = s.computed_balance
-        cust_bal = s.linked_customer.balance if s.linked_customer else Decimal("0")
-        net = (bal - cust_bal).quantize(Decimal("0.01"))
-        if bal != Decimal("0") or cust_bal != Decimal("0"):
-            results.append({
-                "supplier": s,
-                "balance": bal,
-                "customer_balance": cust_bal,
-                "net_balance": net,
-                "last_txn": s.last_txn,
-            })
-            grand_total += net
+    zero = Value(Decimal("0"), output_field=DecimalField(max_digits=24, decimal_places=6))
+    qs = (
+        Supplier.objects.filter(is_active=True)
+        .select_related("linked_customer")
+        .annotate(
+            last_txn=Max("ledger_entries__created_at"),
+            _cust_bal=Coalesce(F("linked_customer__balance"), zero),
+            net_balance=ExpressionWrapper(
+                F("balance") - Coalesce(F("linked_customer__balance"), zero),
+                output_field=DecimalField(max_digits=24, decimal_places=6),
+            ),
+        )
+        .filter(Q(balance__ne=Decimal("0")) | ~Q(_cust_bal=Decimal("0")))
+        .order_by("name_ar")
+    )
+    q = get_search_q(request)
+    if q:
+        qs = qs.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q) | Q(phone__icontains=q))
 
-    grand_total = grand_total.quantize(Decimal("0.01"))
+    grand_agg = qs.aggregate(s=Sum("net_balance"))
+    grand_total = (grand_agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
 
     tpl = _purchasing_tpl(request, "shell/suppliers_balances.html", "purchasing/supplier_balances.html")
-    return render(request, tpl, _purchasing_ctx(request, results=results, grand_total=grand_total))
+    pag = paginate_queryset(request, qs)
+    results = [
+        {
+            "supplier": s,
+            "balance": s.balance,
+            "customer_balance": s._cust_bal,
+            "net_balance": s.net_balance.quantize(Decimal("0.01")),
+            "last_txn": s.last_txn,
+        }
+        for s in pag["page_obj"]
+    ]
+    ctx = _purchasing_ctx(request, q=q, grand_total=grand_total, results=results)
+    ctx.update(pag)
+    return render(request, tpl, ctx)
 
 
 @login_required
@@ -932,6 +1075,9 @@ def commission_vendor_report(request):
         commission_products__isnull=False,
         is_active=True,
     ).distinct().order_by("name_ar")
+    q = get_search_q(request)
+    if q:
+        vendors = vendors.filter(Q(name_ar__icontains=q) | Q(name_en__icontains=q))
 
     rows = []
     grand_sales = Decimal("0")
@@ -975,27 +1121,54 @@ def commission_vendor_report(request):
         grand_vendor_due += vendor_due_total
         grand_paid += paid
 
-    return render(request, "purchasing/commission_vendors.html", {
-        "rows": rows,
+    ctx = {
+        "q": q,
         "grand_sales": grand_sales.quantize(Decimal("0.01")),
         "grand_commission": grand_commission.quantize(Decimal("0.01")),
         "grand_vendor_due": grand_vendor_due.quantize(Decimal("0.01")),
         "grand_paid": grand_paid.quantize(Decimal("0.01")),
-    })
+    }
+    ctx.update(paginate_queryset(request, rows))
+    ctx["rows"] = list(ctx["page_obj"])
+    return render(request, "purchasing/commission_vendors.html", ctx)
 
 
 @login_required
 def purchase_invoice_list(request):
-    qs = PurchaseInvoice.objects.select_related("supplier", "work_session").order_by("-created_at")
+    from apps.core.list_filters import iso_date_str
 
-    q = request.GET.get("q", "").strip()
+    qs = PurchaseInvoice.objects.select_related("supplier", "work_session").order_by("-created_at", "-pk")
+
+    q = get_search_q(request)
     if q:
-        from django.db.models import Q
         qs = qs.filter(
-            Q(invoice_number__icontains=q) | Q(supplier__name_ar__icontains=q)
+            Q(invoice_number__icontains=q)
+            | Q(supplier__name_ar__icontains=q)
+            | Q(supplier__name_en__icontains=q)
         )
 
-    ctx = _purchasing_ctx(request, q=q)
+    date_from, date_to = parse_date_range(request)
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    status = (request.GET.get("status") or "").strip().lower()
+    if status == "cancelled":
+        qs = qs.filter(is_cancelled=True)
+    elif status == "active":
+        qs = qs.filter(is_cancelled=False)
+    elif status in ("paid", "partial", "unpaid"):
+        qs = qs.filter(is_cancelled=False, payment_status=status)
+
+    ctx = _purchasing_ctx(
+        request,
+        q=q,
+        date_from=iso_date_str(date_from),
+        date_to=iso_date_str(date_to),
+        status=status,
+        filters_open=bool(q or date_from or date_to or status),
+    )
     ctx.update(paginate_queryset(request, qs))
     tpl = _purchasing_tpl(request, "shell/purchase_list.html", "purchasing/purchase_list.html")
     return render(request, tpl, ctx)

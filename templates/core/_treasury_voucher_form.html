@@ -10,8 +10,8 @@
 {% else %}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 max-w-2xl mx-auto">
 {% endif %}
-  <form method="post" action="{% url 'shell:accounting_treasury' %}" id="treasury-voucher-form"
-        class="{% if treasury_form_compact and voucher_layout == 'wide' %}treasury-form--compact treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 gap-2 content-start{% elif voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %} tv-voucher-broad{% endif %}"
+  <form method="post" action="{% if treasury_form_action %}{{ treasury_form_action }}{% else %}{% url 'shell:accounting_treasury' %}{% endif %}" id="treasury-voucher-form"
+        class="{% if treasury_form_compact and voucher_layout == 'wide' %}treasury-form--compact treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 gap-2 content-start{% elif voucher_layout == 'wide' %}treasury-voucher-form--dense flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 lg:gap-x-3 lg:gap-y-1 lg:items-start content-start{% elif voucher_layout == 'shell' %}treasury-voucher-form--shell w-full grid grid-cols-1 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-4 lg:items-start content-start{% else %}space-y-3{% endif %}{% if voucher_layout == 'wide' or voucher_layout == 'shell' %} tv-voucher-broad{% endif %}"{% if panel_shell %} data-shell-panel-form="1"{% endif %}
         data-currency-symbol="{{ POS_SETTINGS.currency_symbol }}"
         data-payer-hints-url="{% url 'pos:payer_hints' %}"
         data-party-search-url="{{ treasury_party_search_url }}"
@@ -26,6 +26,7 @@
         data-supplier-create-url="{{ treasury_supplier_quick_create_url }}"
         {% if treasury_edit_party_label %}data-initial-party-label="{{ treasury_edit_party_label }}"{% endif %}>
     {% csrf_token %}
+    {% if panel_shell %}<input type="hidden" name="panel_embed" value="1">{% endif %}
     {% if treasury_replace_audit_pk %}
     <input type="hidden" name="replace_audit_pk" value="{{ treasury_replace_audit_pk }}">
     {% endif %}
@@ -153,6 +154,7 @@
       </div>
     {% endif %}
 
+    {% if not panel_shell %}
     <div class="{% if treasury_form_compact and voucher_layout == 'wide' %}mt-2 pt-0{% elif voucher_layout == 'wide' %}lg:col-span-2 mt-auto pt-1{% elif voucher_layout == 'shell' %}lg:col-span-2 pt-2{% endif %}">
       {% if voucher_layout == "wide" %}
       <button type="submit" class="w-full {% if treasury_form_compact %}h-9 rounded-lg bg-primary hover:bg-primary-dk text-white font-bold text-sm border-0 leading-none transition-colors{% else %}h-7 rounded-sm bg-[#1e3a5f] hover:bg-[#163051] text-white font-bold text-[11px] border border-[#163051] leading-none{% endif %}">تسجيل السند</button>
@@ -160,6 +162,7 @@
       <button type="submit" class="w-full h-12 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary-dk transition-colors">تسجيل السند</button>
       {% endif %}
     </div>
+    {% endif %}
   </form>
 </div>
 <style>

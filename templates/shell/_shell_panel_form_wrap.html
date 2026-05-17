@@ -1,0 +1,21 @@
+{% load static %}
+{# غلاف نموذج داخل النافذة — يتطلب: form_action, panel_title, panel_body_template #}
+<div class="shell-panel-root p-2 sm:p-2.5 text-[11px]" dir="rtl" data-shell-panel-root>
+  {% if panel_title %}
+  <p class="text-[10px] font-bold text-gray-800 dark:text-gray-100 mb-1.5">{{ panel_title }}</p>
+  {% endif %}
+  {% if panel_form_errors %}
+  <div class="rounded border border-danger/30 bg-danger/5 px-2 py-1 text-[10px] text-danger mb-1.5">{{ panel_form_errors }}</div>
+  {% endif %}
+  <form method="post" action="{{ form_action }}" class="shell-panel-form space-y-2" data-shell-panel-form="1"{% if form_id %} id="{{ form_id }}"{% endif %}{% if form_enctype %} enctype="{{ form_enctype }}"{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="panel_embed" value="1">
+    {% if panel_extra_hidden %}{{ panel_extra_hidden }}{% endif %}
+    {% include panel_body_template %}
+    <div class="flex flex-wrap gap-1.5 items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+      <button type="submit" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk">{{ submit_label|default:"حفظ" }}</button>
+      <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">إلغاء</button>
+    </div>
+  </form>
+</div>
+{% if panel_script_template %}{% include panel_script_template %}{% endif %}

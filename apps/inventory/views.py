@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 from apps.catalog.models import Category, Product, RecipeLine
 from apps.core.models import log_audit
 from apps.core.pagination import paginate_queryset
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form
 from apps.core.services import SessionService
 from apps.inventory.forms import ManualStockMovementForm, RawMaterialForm
 from apps.inventory.models import StockBalance, StockMovement, StockTake, StockTakeLine
@@ -421,25 +422,67 @@ def stock_adjust(request):
 
 @login_required
 def raw_material_list(request):
-    materials = (
+    from apps.core.list_filters import get_search_q
+
+    qs = (
         Product.objects.filter(product_type=Product.ProductType.RAW, is_active=True)
-        .select_related("unit")
+        .select_related("unit", "stock_balance")
         .order_by("name_ar")
     )
+    q_text = get_search_q(request)
+    if q_text:
+        qs = qs.filter(
+            Q(name_ar__icontains=q_text)
+            | Q(name_en__icontains=q_text)
+            | Q(barcode__icontains=q_text)
+        )
+
+    stock_filter = (request.GET.get("stock") or "").strip().lower()
+    zero_min = Value(Decimal("0"), output_field=DecimalField(max_digits=20, decimal_places=6))
+    if stock_filter == "low":
+        qs = qs.annotate(_on_hand=Coalesce(F("stock_balance__quantity_on_hand"), zero_min)).annotate(
+            _min_lvl=Coalesce(F("min_stock_level"), zero_min),
+        ).filter(_on_hand__lte=F("_min_lvl"))
+    elif stock_filter == "zero":
+        qs = qs.filter(
+            Q(stock_balance__isnull=True) | Q(stock_balance__quantity_on_hand=0),
+        )
+    elif stock_filter == "positive":
+        qs = qs.filter(stock_balance__quantity_on_hand__gt=0)
+
+    pag = paginate_queryset(request, qs)
     enriched = []
-    for m in materials:
-        try:
-            sb = m.stock_balance
+    for m in pag["page_obj"]:
+        sb = getattr(m, "stock_balance", None)
+        if sb:
             on_hand = sb.quantity_on_hand
             avg_cost = sb.average_cost
-            value = (on_hand * avg_cost).quantize(Decimal("0.01"))
-        except StockBalance.DoesNotExist:
+        else:
             on_hand = Decimal("0")
             avg_cost = Decimal("0")
-            value = Decimal("0")
-        low = on_hand <= (m.min_stock_level or 0)
-        enriched.append({"material": m, "on_hand": on_hand, "avg_cost": avg_cost, "value": value, "low": low})
-    return render(request, _inventory_tpl(request, "shell/raw_materials.html", "inventory/raw_materials.html"), _inventory_ctx(request, materials=enriched))
+        value = (on_hand * avg_cost).quantize(Decimal("0.01"))
+        min_lvl = m.min_stock_level or Decimal("0")
+        enriched.append({
+            "material": m,
+            "on_hand": on_hand,
+            "avg_cost": avg_cost,
+            "value": value,
+            "low": on_hand <= min_lvl,
+        })
+
+    ctx = _inventory_ctx(
+        request,
+        materials=enriched,
+        filter_q=q_text,
+        filter_stock=stock_filter,
+        filters_open=bool(q_text or stock_filter),
+    )
+    ctx.update(pag)
+    return render(
+        request,
+        _inventory_tpl(request, "shell/raw_materials.html", "inventory/raw_materials.html"),
+        ctx,
+    )
 
 
 @login_required
@@ -495,8 +538,29 @@ def raw_material_delete(request, pk):
 
 @login_required
 def stocktake_list(request):
-    takes = StockTake.objects.order_by("-created_at")[:50]
-    return render(request, _inventory_tpl(request, "shell/stocktake_list.html", "inventory/stocktake_list.html"), _inventory_ctx(request, takes=takes))
+    from apps.core.list_filters import get_search_q
+
+    qs = StockTake.objects.order_by("-created_at", "-pk")
+    q_text = get_search_q(request)
+    if q_text:
+        if q_text.isdigit():
+            qs = qs.filter(Q(pk=int(q_text)) | Q(note__icontains=q_text))
+        else:
+            qs = qs.filter(note__icontains=q_text)
+
+    status = (request.GET.get("status") or "").strip().lower()
+    if status in ("draft", "approved"):
+        qs = qs.filter(status=status)
+
+    ctx = _inventory_ctx(request, filter_q=q_text, filter_status=status, filters_open=bool(q_text or status))
+    pag = paginate_queryset(request, qs)
+    ctx["takes"] = pag["page_obj"]
+    ctx.update(pag)
+    return render(
+        request,
+        _inventory_tpl(request, "shell/stocktake_list.html", "inventory/stocktake_list.html"),
+        ctx,
+    )
 
 
 @login_required
@@ -680,3 +744,142 @@ def raw_material_card(request, pk):
         "date_from": date_from,
         "date_to": date_to,
     })
+
+
+@login_required
+def stock_adjust_panel(request):
+    products = Product.objects.filter(is_active=True, is_stock_tracked=True).order_by("name_ar")
+    errors: list[str] = []
+    tpl = "shell/panels/stock_adjust_panel.html"
+
+    def build_context():
+        return _inventory_ctx(
+            request,
+            products=products,
+            errors=errors,
+            form_action=reverse("shell:stock_adjust_panel"),
+            panel_title="تسوية مخزون",
+        )
+
+    def on_valid():
+        nonlocal errors
+        errors = []
+        pid = request.POST.get("product_id")
+        adj_type = request.POST.get("adj_type", "add")
+        qty_str = request.POST.get("quantity", "0")
+        cost_str = request.POST.get("unit_cost", "0")
+        note = request.POST.get("note", "")
+
+        try:
+            product = Product.objects.get(pk=pid, is_active=True)
+        except (Product.DoesNotExist, ValueError, TypeError):
+            raise PanelFormInvalid("اختر منتجاً صالحاً") from None
+
+        try:
+            qty = Decimal(qty_str)
+            cost = Decimal(cost_str) if cost_str else Decimal("0")
+        except (InvalidOperation, ValueError):
+            raise PanelFormInvalid("أدخل كمية صالحة") from None
+
+        if qty <= 0:
+            raise PanelFormInvalid("الكمية يجب أن تكون أكبر من صفر")
+
+        session = SessionService.get_open_session()
+
+        try:
+            if adj_type == "add":
+                if not product.is_stock_tracked:
+                    product.is_stock_tracked = True
+                    product.save(update_fields=["is_stock_tracked"])
+                receive_purchase_stock(
+                    product=product,
+                    quantity=qty,
+                    unit_cost=cost if cost > 0 else Decimal("0"),
+                    session=session,
+                    reference_model="manual",
+                    reference_pk="adjust",
+                    note=note or "إضافة مخزون يدوية",
+                )
+            elif adj_type == "set":
+                sb = ensure_stock_balance(product)
+                current = sb.quantity_on_hand
+                delta = qty - current
+                if delta != 0:
+                    adjust_stock(
+                        product=product,
+                        quantity_delta=delta,
+                        movement_type=StockMovement.MovementType.ADJUSTMENT,
+                        session=session,
+                        reference_model="manual",
+                        reference_pk="adjust",
+                        note=note or f"تسوية مخزون من {current} إلى {qty}",
+                    )
+                    if cost > 0:
+                        sb.refresh_from_db()
+                        sb.average_cost = cost
+                        sb.save(update_fields=["average_cost", "updated_at"])
+            elif adj_type == "waste":
+                adjust_stock(
+                    product=product,
+                    quantity_delta=-qty,
+                    movement_type=StockMovement.MovementType.WASTE,
+                    session=session,
+                    reference_model="manual",
+                    reference_pk="waste",
+                    note=note or "هالك / تلف",
+                )
+            else:
+                raise PanelFormInvalid("نوع التسوية غير معروف")
+            log_audit(request.user, f"inventory.{adj_type}", "inventory.StockBalance", str(product.pk), {"qty": str(qty)})
+        except ValueError as e:
+            raise PanelFormInvalid(str(e)) from e
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def raw_material_create_panel(request):
+    tpl = "shell/panels/raw_material_create_panel.html"
+
+    def build_context():
+        form = RawMaterialForm(request.POST or None)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:raw_material_create_panel"),
+            "panel_title": "إضافة مادة خام",
+        }
+
+    def on_valid():
+        form = RawMaterialForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        mat = form.save()
+        ensure_stock_balance(mat)
+        log_audit(request.user, "inventory.raw_material.create", "catalog.Product", mat.pk, {})
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def raw_material_edit_panel(request, pk):
+    material = get_object_or_404(Product, pk=pk, product_type=Product.ProductType.RAW)
+    tpl = "shell/panels/raw_material_edit_panel.html"
+
+    def build_context():
+        form = RawMaterialForm(request.POST or None, instance=material)
+        panelize_form(form)
+        return {
+            "form": form,
+            "material": material,
+            "form_action": reverse("shell:raw_material_edit_panel", args=[pk]),
+            "panel_title": "تعديل مادة خام",
+        }
+
+    def on_valid():
+        form = RawMaterialForm(request.POST, instance=material)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)

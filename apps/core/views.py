@@ -14,6 +14,7 @@ from django.urls import Resolver404, resolve, reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.core.treasury_void import void_unified_treasury_voucher
+from apps.core.panel import PanelFormInvalid, handle_panel_form, render_panel
 
 from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.contacts.customer_lookup import active_customers_search_qs
@@ -300,6 +301,126 @@ def treasury_start_edit_voucher(request, audit_pk):
         "عدّل الحقول ثم اضغط «تسجيل السند» — سيُلغى السند السابق ويُستبدل بالجديد بعد التحقق من صحة البيانات.",
     )
     return redirect("shell:accounting_treasury")
+
+
+@login_required
+def treasury_voucher_panel(request):
+    ws = SessionService.get_open_session()
+    tpl = "shell/panels/treasury_voucher_panel.html"
+    panel_action = reverse("shell:treasury_voucher_panel")
+
+    def build_context():
+        voucher_form = TreasuryVoucherForm(prefix="tv")
+        if request.method == "POST":
+            voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        return {
+            "voucher_form": voucher_form,
+            "work_session": ws,
+            "form_action": panel_action,
+            "panel_title": "سند جديد",
+            "treasury_replace_audit_pk": None,
+            "treasury_edit_party_label": "",
+        }
+
+    def on_valid():
+        voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        if not voucher_form.is_valid():
+            raise PanelFormInvalid("راجع بيانات السند")
+        vt = voucher_form.cleaned_data["voucher_type"]
+        try:
+            submit_treasury_voucher(
+                voucher_type=vt,
+                cleaned=voucher_form.cleaned_data,
+                user=request.user,
+                work_session=ws,
+            )
+        except ValueError as e:
+            code = str(e)
+            if code in ("UNKNOWN_VOUCHER_TYPE", "INVALID_AMOUNT", "PAYMENT_LINES_SUM_MISMATCH"):
+                raise PanelFormInvalid("راجع بيانات السند") from e
+            raise PanelFormInvalid(f"تعذّر التسجيل: {code}") from e
+        except Exception as e:
+            raise PanelFormInvalid(f"تعذّر التسجيل: {e}") from e
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+def treasury_voucher_edit_panel(request, audit_pk):
+    log = get_object_or_404(AuditLog, pk=audit_pk, action=TREASURY_VOUCHER_AUDIT_ACTION)
+    if (log.payload or {}).get("cancelled"):
+        return render_panel(
+            request,
+            "shell/panels/treasury_voucher_edit_panel.html",
+            {"panel_form_errors": "لا يمكن تعديل سند ملغى.", "panel_title": "تعديل السند"},
+            wide=True,
+        )
+    ws = SessionService.get_open_session()
+    tpl = "shell/panels/treasury_voucher_edit_panel.html"
+    panel_action = reverse("shell:treasury_voucher_edit_panel", args=[audit_pk])
+    party_label = str((log.payload or {}).get("party_label") or "")
+
+    def build_context():
+        try:
+            initial = treasury_voucher_form_initial_from_audit(audit_log=log)
+        except ValueError as e:
+            if str(e) == "UNSUPPORTED_EDIT":
+                return {
+                    "panel_form_errors": "لا يمكن تعديل هذا السند من النموذج.",
+                    "panel_title": "تعديل السند",
+                    "voucher_form": TreasuryVoucherForm(prefix="tv"),
+                    "form_action": panel_action,
+                }
+            raise
+        if request.method == "POST":
+            voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        else:
+            voucher_form = TreasuryVoucherForm(initial=initial, prefix="tv")
+        return {
+            "voucher_form": voucher_form,
+            "work_session": ws,
+            "form_action": panel_action,
+            "panel_title": "تعديل السند",
+            "treasury_replace_audit_pk": int(audit_pk),
+            "treasury_edit_party_label": party_label,
+        }
+
+    def on_valid():
+        voucher_form = TreasuryVoucherForm(request.POST, prefix="tv")
+        if not voucher_form.is_valid():
+            raise PanelFormInvalid("راجع بيانات السند")
+        vt = voucher_form.cleaned_data["voucher_type"]
+        try:
+            with transaction.atomic():
+                void_unified_treasury_voucher(audit_log_id=int(audit_pk), user=request.user)
+                submit_treasury_voucher(
+                    voucher_type=vt,
+                    cleaned=voucher_form.cleaned_data,
+                    user=request.user,
+                    work_session=ws,
+                )
+        except ValueError as e:
+            raise PanelFormInvalid(f"تعذّر الاستبدال: {e}") from e
+        except Exception as e:
+            raise PanelFormInvalid(f"تعذّر الاستبدال: {e}") from e
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid, wide=True)
+
+
+@login_required
+@require_GET
+def treasury_voucher_view_panel(request, audit_pk):
+    log = get_object_or_404(AuditLog, pk=audit_pk, action=TREASURY_VOUCHER_AUDIT_ACTION)
+    return render_panel(
+        request,
+        "shell/panels/treasury_voucher_view_panel.html",
+        {
+            "audit_log": log,
+            "payload": log.payload or {},
+            "panel_title": "عرض السند",
+        },
+        wide=True,
+    )
 
 
 def _supplier_net_balance_for_party(s: Supplier) -> Decimal:

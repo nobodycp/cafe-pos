@@ -1,17 +1,11 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
+{% load humanize shell_nav %}
 {% block title %}حركة الأصناف{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="حركة الأصناف" toolbar_hint="الأكثر مبيعاً والراكد" %}
 
-<details class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-3 overflow-hidden [&_summary::-webkit-details-marker]:hidden"
-  {% if filters_open %}open{% endif %}>
-  <summary class="px-3 py-2.5 text-xs font-extrabold text-gray-700 dark:text-gray-200 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/40 flex items-center justify-between gap-2 list-none">
-    <span>فلاتر البحث والعرض</span>
-    <span class="text-[10px] font-semibold text-muted shrink-0">اضغط للإظهار / الإخفاء</span>
-  </summary>
-  <div class="px-3 pb-3 pt-0 border-t border-gray-100 dark:border-gray-700">
-    <form method="get" class="flex flex-col gap-3 pt-2">
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+    <form method="get" class="shell-list-filters__form m-0">
       <input type="hidden" name="per_page" value="{{ top_per_page|default:slow_per_page|default:25 }}">
       <div class="flex flex-wrap gap-2 items-end">
         <div>
@@ -76,12 +70,13 @@
           <label class="block text-[11px] font-bold text-muted mb-0.5">بحث (اسم الصنف، إنجليزي، باركود)</label>
           <input type="search" name="q" value="{{ movement_filters.q }}" placeholder="مثال: كولا، 629…" class="ds-input w-full h-8 text-xs">
         </div>
-        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
-        <a href="{% url 'shell:product_movement' %}" class="h-8 px-3 rounded-sm border border-gray-300 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 inline-flex items-center shrink-0 hover:bg-gray-50 dark:hover:bg-gray-700">مسح الفلاتر</a>
+        <div class="shell-list-filters__actions flex flex-wrap items-center gap-1.5 shrink-0 pb-0.5">
+          <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">تطبيق</button>
+          <a href="{% url 'shell:product_movement' %}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+        </div>
       </div>
     </form>
-  </div>
-</details>
+</div>
 
 <p class="text-[11px] text-muted mb-3">الفترة: <span class="font-bold tabular-nums">{{ date_from }}</span> — <span class="font-bold tabular-nums">{{ date_to }}</span></p>
 
@@ -105,7 +100,7 @@
         <tr>
           <td class="py-2 px-2 tabular-nums">{{ top_page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="py-2 px-2">
-            <a href="{% url 'shell:product_card' p.product__pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.product__name_ar }}</a>
+            <a href="{% shell_url 'shell:product_card' p.product__pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.product__name_ar }}</a>
           </td>
           <td class="py-2 px-2 tabular-nums">{{ p.total_qty }}</td>
           <td class="py-2 px-2 tabular-nums">{{ p.total_revenue|floatformat:2|intcomma }}</td>
@@ -139,7 +134,7 @@
         <tr>
           <td class="py-2 px-2 tabular-nums">{{ slow_page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="py-2 px-2">
-            <a href="{% url 'shell:product_card' p.pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.name_ar }}</a>
+            <a href="{% shell_url 'shell:product_card' p.pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.name_ar }}</a>
           </td>
         </tr>
         {% empty %}

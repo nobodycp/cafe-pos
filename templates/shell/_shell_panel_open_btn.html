@@ -1,0 +1,6 @@
+{# زر فتح لوحة في النافذة المنبثقة — panel_url + label مطلوبان #}
+<button type="button"
+  class="shell-panel-open {% if btn_class %}{{ btn_class }}{% else %}ds-btn ds-btn-primary shrink-0{% endif %}"
+  data-panel-url="{{ panel_url }}"
+  data-panel-title="{{ panel_title|default:label }}"
+  {% if panel_wide %}data-panel-wide="1"{% endif %}>{{ label }}</button>

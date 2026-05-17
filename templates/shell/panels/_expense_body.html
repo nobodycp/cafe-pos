@@ -1,0 +1,12 @@
+{{ expense_form_state|json_script:"expense-form-state" }}
+<div><label class="block text-[10px] font-bold text-muted mb-0.5">التصنيف</label>{{ form.category }}</div>
+<div class="grid grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">المبلغ</label>{{ form.amount }}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">التاريخ</label>{{ form.expense_date }}</div>
+</div>
+<div class="text-[11px]">{{ form.payment_splits_json }}
+<label class="flex gap-1 items-center text-[10px] mb-1">{{ form.use_payment_splits }}<span>دفع مختلط</span></label>
+<div id="expense-pay-single"{% if expense_split_ui_open %} class="hidden"{% endif %}>{{ form.payment_method }}
+<div class="flex flex-wrap gap-1 mt-1" id="expense-pay-methods">{% for row in payment_method_rows %}<button type="button" class="expense-pay-btn h-7 px-2 text-[10px] border font-bold" data-code="{{ row.code }}">{{ row.label_ar }}</button>{% endfor %}</div></div>
+<div id="expense-pay-splits-wrap" class="mt-2{% if not expense_split_ui_open %} hidden{% endif %}"><table class="w-full text-[10px] border"><tbody id="expense-pay-splits-tbody"></tbody></table><button type="button" id="expense-pay-split-add" class="mt-1 h-7 px-2 text-[10px] border">+ سطر</button></div></div>
+<div><label class="block text-[10px] font-bold text-muted mb-0.5">ملاحظات</label>{{ form.notes }}</div>

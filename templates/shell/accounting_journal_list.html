@@ -8,12 +8,12 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="journal" %}
+    {% url 'shell:journal_list' as journal_list_url %}
+    {% include "shell/_shell_list_filters.html" with filter_clear_url=journal_list_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_journal_fields.html" %}
     <div class="shell-spa-table-root">
     <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div class="overflow-x-auto">
@@ -22,7 +22,7 @@
           <tbody>
             {% for e in page_obj %}
             <tr class="{% if e.is_reversed %}opacity-50{% endif %}">
-              <td><a href="{% url 'shell:journal_detail' e.pk %}" class="text-primary font-semibold hover:underline">{{ e.entry_number }}</a></td>
+              <td>{% include "shell/_journal_entry_view_btn.html" with entry_pk=e.pk label=e.entry_number %}</td>
               <td>{{ e.date }}</td>
               <td>{{ e.description|truncatechars:80 }}</td>
               <td class="text-xs text-muted">{% if e.reference_type == "billing.SaleInvoice" and e.reference_pk %}<button type="button" class="shell-invoice-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"

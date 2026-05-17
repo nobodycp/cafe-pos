@@ -3,14 +3,16 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Case, IntegerField, Sum, Value, When
+from django.db.models import Case, IntegerField, Q, Sum, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.core.decimalutil import as_decimal
+from apps.core.list_filters import get_search_q
 from apps.core.pagination import paginate_queryset
+from apps.core.panel import PanelFormInvalid, handle_panel_form, panelize_form
 from apps.core.services import SessionService
 from apps.expenses.models import ExpenseCategory
 from apps.expenses.services import create_expense, delete_expense_permanent
@@ -65,12 +67,21 @@ def employee_list(request):
     if hide_zero_net:
         qs = qs.exclude(net_balance=Decimal("0"))
 
+    q = get_search_q(request) or ""
+    if q:
+        qs = qs.filter(
+            Q(name_ar__icontains=q)
+            | Q(name_en__icontains=q)
+            | Q(linked_customer__phone__icontains=q)
+        )
+
     totals_agg = qs.aggregate(sum_net_balance=Sum("net_balance"))
     totals = {
         "sum_net_balance": (totals_agg["sum_net_balance"] or Decimal("0")).quantize(Decimal("0.01")),
     }
 
     ctx = {
+        "q": q,
         "employee_filter_hide_zero_net": hide_zero_net,
         "employee_totals": totals,
     }
@@ -378,3 +389,49 @@ def employee_delete(request, pk):
     emp.delete()
     messages.success(request, f"تم حذف الموظف «{name}» وجميع سجلاته.")
     return _payroll_redirect(request, "employees")
+
+
+@login_required
+def employee_create_panel(request):
+    tpl = "shell/panels/employee_create_panel.html"
+
+    def build_context():
+        form = EmployeeCreateForm(request.POST or None)
+        panelize_form(form)
+        return {
+            "form": form,
+            "form_action": reverse("shell:employee_create_panel"),
+            "panel_title": "إضافة موظف",
+        }
+
+    def on_valid():
+        form = EmployeeCreateForm(request.POST)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)
+
+
+@login_required
+def employee_edit_panel(request, pk):
+    emp = get_object_or_404(Employee, pk=pk)
+    tpl = "shell/panels/employee_edit_panel.html"
+
+    def build_context():
+        form = EmployeeForm(request.POST or None, instance=emp)
+        panelize_form(form)
+        return {
+            "form": form,
+            "employee": emp,
+            "form_action": reverse("shell:employee_edit_panel", args=[pk]),
+            "panel_title": "تعديل موظف",
+        }
+
+    def on_valid():
+        form = EmployeeForm(request.POST, instance=emp)
+        if not form.is_valid():
+            raise PanelFormInvalid("راجع البيانات")
+        form.save()
+
+    return handle_panel_form(request, template_name=tpl, build_context=build_context, on_valid=on_valid)

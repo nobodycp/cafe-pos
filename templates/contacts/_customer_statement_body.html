@@ -11,6 +11,7 @@
 <!-- Date Filter -->
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
   <form method="get" class="flex gap-4 flex-wrap items-end">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
     <div>
       <label class="block text-sm font-semibold text-muted mb-1.5">من تاريخ</label>
       <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="h-11 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors">
@@ -61,11 +62,19 @@
         </tr>
       </thead>
       <tbody>
+        {% if page_obj.number == 1 %}
         <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold">
           <td colspan="3" class="p-3 border-b border-gray-100 dark:border-gray-700">رصيد افتتاحي</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ opening_balance|floatformat:2|intcomma }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700"></td>
         </tr>
+        {% else %}
+        <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold">
+          <td colspan="3" class="p-3 border-b border-gray-100 dark:border-gray-700">رصيد بداية الصفحة</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ page_opening_balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700"></td>
+        </tr>
+        {% endif %}
         {% for r in rows %}
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ r.date|date:"Y-m-d" }}</td>
@@ -94,5 +103,6 @@
         </tr>
       </tbody>
     </table>
+    {% include "shell/_shell_pagination.html" %}
   </div>
 </div>

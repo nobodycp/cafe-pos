@@ -10,50 +10,14 @@
       <span class="flex-1"></span>
       <div class="flex flex-wrap gap-1.5 items-center justify-end shrink-0">
         <a href="{% url 'shell:raw_materials' %}" class="ds-btn shrink-0">المواد الخام</a>
-        <a href="{% url 'shell:inventory_adjust' %}" class="ds-btn shrink-0">تسوية مخزون</a>
+        {% url 'shell:stock_adjust_panel' as stock_adjust_panel_url %}
+        {% include "shell/_shell_panel_open_btn.html" with panel_url=stock_adjust_panel_url label="تسوية مخزون" panel_title="تسوية مخزون" btn_class="ds-btn shrink-0" %}
         <a href="{% url 'shell:inventory_movements' %}" class="ds-btn shrink-0">سجل الحركات</a>
         <a href="{% url 'shell:stocktake_list' %}" class="ds-btn shrink-0">الجرد</a>
       </div>
     </div>
-    <form method="get" action="{% url 'shell:inventory_home' %}" class="mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
-      <input type="hidden" name="per_page" value="{{ per_page }}">
-      <div class="flex flex-wrap items-end gap-2">
-        <label class="flex flex-col gap-0.5 min-w-[10rem] flex-1">
-          <span class="text-[10px] font-extrabold text-muted">بحث</span>
-          <input type="search" name="q" value="{{ filter_q }}" placeholder="اسم عربي / إنجليزي أو باركود" autocomplete="off" class="ds-input w-full text-sm">
-        </label>
-        <label class="flex flex-col gap-0.5 min-w-[8rem]">
-          <span class="text-[10px] font-extrabold text-muted">التصنيف</span>
-          <select name="category" class="ds-input text-sm min-w-[8rem]">
-            <option value="">الكل</option>
-            {% for c in categories %}
-            <option value="{{ c.pk }}"{% if filter_category == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name_ar }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="flex flex-col gap-0.5 min-w-[7rem]">
-          <span class="text-[10px] font-extrabold text-muted">نوع المنتج</span>
-          <select name="product_type" class="ds-input text-sm min-w-[7rem]">
-            {% for val, lbl in product_type_choices %}
-            <option value="{{ val }}"{% if filter_product_type == val %} selected{% endif %}>{{ lbl }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label class="flex flex-col gap-0.5 min-w-[9rem]">
-          <span class="text-[10px] font-extrabold text-muted">حالة الرصيد</span>
-          <select name="stock" class="ds-input text-sm min-w-[9rem]">
-            <option value=""{% if not filter_stock %} selected{% endif %}>الكل</option>
-            <option value="low"{% if filter_stock == "low" %} selected{% endif %}>عند أو تحت الحد الأدنى</option>
-            <option value="positive"{% if filter_stock == "positive" %} selected{% endif %}>رصيد &gt; 0</option>
-            <option value="zero"{% if filter_stock == "zero" %} selected{% endif %}>رصيد = 0</option>
-          </select>
-        </label>
-        <div class="flex flex-wrap gap-1.5 items-center shrink-0 pb-0.5">
-          <button type="submit" class="ds-btn ds-btn-primary shrink-0">تطبيق</button>
-          <a href="{% url 'shell:inventory_home' %}" class="ds-btn shrink-0">مسح</a>
-        </div>
-      </div>
-    </form>
+    {% url 'shell:inventory_home' as inventory_home_url %}
+    {% include "shell/_shell_list_filters.html" with filter_form_action=inventory_home_url filter_clear_url=inventory_home_url filter_per_page=per_page filter_fields_template="shell/list_filters/_inventory_fields.html" %}
     <div class="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-primary/25 dark:border-primary/40 bg-primary/5 dark:bg-primary/15 px-3 py-2 text-sm">
       <div>
         <span class="text-muted text-xs font-bold">أصناف ضمن الفلتر</span>

@@ -1,0 +1,11 @@
+<div class="shell-panel-root p-2 sm:p-2.5 text-[11px] max-h-[min(92vh,52rem)] overflow-y-auto" dir="rtl" data-shell-panel-root id="pos-product-overlay">
+  <p class="text-[10px] font-bold text-gray-800 dark:text-gray-100 mb-2">{{ panel_title|default:"منتج جديد" }}</p>
+  {% if panel_form_errors %}
+  <div class="rounded border border-danger/30 bg-danger/5 px-2 py-1 text-[10px] text-danger mb-2">{{ panel_form_errors }}</div>
+  {% endif %}
+  {% include "pos/_product_quick_overlay.html" with product_quick_shell=1 form_action=form_action %}
+  <div class="flex flex-wrap gap-1.5 items-center pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+    <button type="submit" form="shell-product-quick-form" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk">حفظ</button>
+    <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 dark:border-gray-600 dark:text-gray-200">إلغاء</button>
+  </div>
+</div>

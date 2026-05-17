@@ -1,0 +1,30 @@
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+  <input type="search" name="q" value="{{ filter_q }}" placeholder="اسم عربي / إنجليزي أو باركود" autocomplete="off" class="ds-input w-full h-8 text-xs">
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">التصنيف</label>
+  <select name="category" class="ds-input h-8 text-xs w-full">
+    <option value="">الكل</option>
+    {% for c in categories %}
+    <option value="{{ c.pk }}"{% if filter_category == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name_ar }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[7rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">نوع المنتج</label>
+  <select name="product_type" class="ds-input h-8 text-xs w-full">
+    {% for val, lbl in product_type_choices %}
+    <option value="{{ val }}"{% if filter_product_type == val %} selected{% endif %}>{{ lbl }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="shell-list-filters__field min-w-[9rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5">حالة الرصيد</label>
+  <select name="stock" class="ds-input h-8 text-xs w-full">
+    <option value=""{% if not filter_stock %} selected{% endif %}>الكل</option>
+    <option value="low"{% if filter_stock == "low" %} selected{% endif %}>عند أو تحت الحد الأدنى</option>
+    <option value="positive"{% if filter_stock == "positive" %} selected{% endif %}>رصيد &gt; 0</option>
+    <option value="zero"{% if filter_stock == "zero" %} selected{% endif %}>رصيد = 0</option>
+  </select>
+</div>

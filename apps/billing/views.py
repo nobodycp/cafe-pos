@@ -24,13 +24,9 @@ from apps.core.pagination import paginate_queryset
 
 
 def _safe_return_path(raw: str) -> str:
-    """مسار داخلي آمن للرجوع (يحفظ فلاتر القائمة عند تمرير return=)."""
-    path = (raw or "").strip()
-    if not path.startswith("/") or path.startswith("//"):
-        return ""
-    if "\n" in path or "\r" in path:
-        return ""
-    return path
+    from apps.core.nav_back import safe_return_path
+
+    return safe_return_path(raw)
 
 
 def _invoice_detail_back_context(request, invoice: SaleInvoice) -> dict:

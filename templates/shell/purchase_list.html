@@ -5,9 +5,7 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
     <span class="pos-shell-toolbar-title">فواتير الشراء</span><span class="flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:suppliers' %}" class="shell-toolbar-link">← الموردون</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
@@ -15,13 +13,8 @@
       <span class="flex-1"></span>
       <a href="{% url 'shell:purchase_new' %}" class="ds-btn ds-btn-primary shrink-0">فاتورة جديدة</a>
     </div>
-    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <form method="get" class="flex gap-2 flex-wrap items-center flex-1 min-w-0 m-0">
-        <input type="hidden" name="per_page" value="{{ per_page }}">
-        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم المورد..." class="ds-input flex-1 min-w-[200px] max-w-2xl">
-        <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
-      </form>
-    </div>
+    {% url 'shell:purchase_list' as purchase_list_url %}
+    {% include "shell/_shell_list_filters.html" with filter_clear_url=purchase_list_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_purchase_fields.html" %}
     <div class="shell-spa-table-root">
     <div class="ds-panel">
     <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">

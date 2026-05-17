@@ -2,9 +2,8 @@
 {% load humanize %}
 {% block title %}كرت الصنف — {{ product.name_ar }}{% endblock %}
 {% block cashier_body %}
-{% url 'shell:product_list' as shell_product_list_url %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
-  {% include "shell/_shell_toolbar.html" with toolbar_title="كرت الصنف" toolbar_hint="رصيد، مبيعات، حركات" toolbar_back_url=shell_product_list_url toolbar_back_label="← المنتجات" toolbar_back_title="قائمة المنتجات" %}
+  {% include "shell/_shell_toolbar.html" with toolbar_title="كرت الصنف" toolbar_hint="رصيد، مبيعات، حركات" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
 
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 flex flex-wrap items-center gap-2">
@@ -25,9 +24,13 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
           طباعة
         </button>
-        <a href="{% url 'shell:product_edit' product.pk %}" class="ds-btn ds-btn-primary shrink-0">تعديل</a>
+        {% url 'shell:product_edit_panel' product.pk as product_edit_panel_url %}
+        {% include "shell/_shell_panel_open_btn.html" with panel_url=product_edit_panel_url label="تعديل" panel_title="تعديل منتج" panel_wide=1 btn_class="ds-btn ds-btn-primary shrink-0" %}
         {% if product.product_type == 'manufactured' %}
-        <a href="{% url 'shell:recipe_list' product.pk %}" class="ds-btn shrink-0">معادلة التصنيع</a>
+        {% url 'shell:recipe_list_panel' product.pk as recipe_panel_url %}
+        {% include "shell/_shell_panel_open_btn.html" with panel_url=recipe_panel_url label="معادلة التصنيع" panel_title="معادلة التصنيع" panel_wide=1 btn_class="ds-btn shrink-0" %}
+        {% url 'shell:product_manufacture_panel' product.pk as manufacture_panel_url %}
+        {% include "shell/_shell_panel_open_btn.html" with panel_url=manufacture_panel_url label="تصنيع دفعة" panel_title="تصنيع دفعة" btn_class="ds-btn shrink-0" %}
         {% endif %}
       </div>
     </div>
@@ -75,18 +78,8 @@
             فعّل <strong>تتبع المخزون</strong> و<strong>الحد الأدنى</strong> في تعديل المنتج لتظهر التنبيهات مع
             <a href="{% url 'shell:low_stock_alerts' %}" class="text-primary font-semibold hover:underline">تنبيهات المخزون</a>.
           </p>
-          <form method="post" action="{% url 'shell:product_manufacture_batch' product.pk %}" class="m-0 flex flex-wrap items-end gap-2">
-            {% csrf_token %}
-            <label class="flex flex-col gap-0.5">
-              <span class="text-[10px] font-extrabold text-muted">كمية الإنتاج</span>
-              <input type="number" name="quantity" step="0.0001" min="0.0001" required class="ds-input w-36 text-sm tabular-nums">
-            </label>
-            <label class="flex flex-col gap-0.5 flex-1 min-w-[12rem] max-w-md">
-              <span class="text-[10px] font-extrabold text-muted">ملاحظة (اختياري)</span>
-              <input type="text" name="note" maxlength="500" placeholder="مثال: دفعة يوم الأحد" class="ds-input w-full text-sm">
-            </label>
-            <button type="submit" class="ds-btn ds-btn-primary shrink-0">تسجيل التصنيع</button>
-          </form>
+          {% url 'shell:product_manufacture_panel' product.pk as manufacture_panel_url %}
+          {% include "shell/_shell_panel_open_btn.html" with panel_url=manufacture_panel_url label="تسجيل التصنيع" panel_title="تصنيع دفعة" btn_class="ds-btn ds-btn-primary shrink-0" %}
         </div>
       </div>
       {% if manufacturing_batches %}
@@ -134,7 +127,8 @@
             عند تعريف المواد لكل وحدة واحدة (مثلاً ما يُستهلك لأرجيلة واحدة)، يظهر هنا النموذج:
             تدخل مثلاً <strong>30</strong> فيُزاد رصيد الأراجيل ويُخصم المخزون من المكوّنات تلقائياً وفق المعادلة.
           </p>
-          <a href="{% url 'shell:recipe_list' product.pk %}" class="ds-btn ds-btn-primary inline-flex">إضافة / تعديل معادلة التصنيع</a>
+          {% url 'shell:recipe_list_panel' product.pk as recipe_panel_url %}
+          {% include "shell/_shell_panel_open_btn.html" with panel_url=recipe_panel_url label="إضافة / تعديل معادلة التصنيع" panel_title="معادلة التصنيع" panel_wide=1 btn_class="ds-btn ds-btn-primary inline-flex" %}
         </div>
       </div>
       {% endif %}

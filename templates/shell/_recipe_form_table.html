@@ -1,0 +1,63 @@
+{# معادلة تصنيع — مكوّنات ببحث نصي. يتوقع: recipe_rows, raw_materials_search_url #}
+<style>
+.recipe-add-form .purchase-ac-hits {
+  max-height: min(220px, 40vh);
+  overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.recipe-add-form .recipe-component-cell {
+  position: relative;
+  min-width: 11rem;
+}
+.recipe-add-form .recipe-line-popover-open {
+  position: relative;
+  z-index: 50;
+}
+</style>
+<div class="recipe-add-form manufacture-form overflow-x-auto"
+     data-raw-materials-search-url="{{ raw_materials_search_url }}">
+  <table class="w-full text-[11px]">
+    <thead>
+      <tr>
+        <th class="w-8">#</th>
+        <th>المكوّن (مادة خام)</th>
+        <th class="w-24">الكمية</th>
+        <th class="w-28">الوحدة</th>
+        <th class="w-8"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recipe_rows %}
+      <tr class="manufacture-line recipe-line {% if not row.show %}hidden{% endif %}" data-row-idx="{{ forloop.counter0 }}">
+        <td>{{ forloop.counter }}</td>
+        <td class="recipe-component-cell">
+          <input type="hidden" name="component_{{ forloop.counter0 }}" class="recipe-component-id" value="{{ row.component_id|default:'' }}">
+          <input type="text"
+                 name="component_search_{{ forloop.counter0 }}"
+                 class="recipe-component-search ds-input w-full text-[11px]"
+                 autocomplete="off"
+                 placeholder="اكتب اسم المادة الخام…"
+                 value="{{ row.component_label|default:'' }}"
+                 {% if row.component_label %}data-locked-label="{{ row.component_label }}"{% endif %}>
+          <div class="recipe-ac-hits purchase-ac-hits absolute start-0 end-0 top-full mt-px z-[80] rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
+        </td>
+        <td>
+          <input type="number" name="qty_{{ forloop.counter0 }}" step="0.0001" min="0"
+                 value="{% if row.qty != None %}{{ row.qty }}{% endif %}"
+                 class="ds-input w-full text-[11px] tabular-nums">
+        </td>
+        <td>
+          <select name="unit_mode_{{ forloop.counter0 }}" class="recipe-unit-mode ds-input text-[11px] w-full">
+            <option value="base" {% if row.unit_mode == 'base' or not row.unit_mode %}selected{% endif %}>أساسية</option>
+            <option value="gram" {% if row.unit_mode == 'gram' %}selected{% endif %}>غرام</option>
+            <option value="ml" {% if row.unit_mode == 'ml' %}selected{% endif %}>مل</option>
+          </select>
+        </td>
+        <td>
+          <button type="button" class="manufacture-row-add h-6 w-6 rounded bg-success text-white text-xs font-bold" title="سطر إضافي">+</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,10 @@
+{% if errors %}<div class="mb-2">{% for e in errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</div>{% endif %}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">المنتج</label>
+    <select name="product_id" required class="ds-input w-full text-[11px]"><option value="">—</option>{% for p in products %}<option value="{{ p.pk }}">{{ p.name_ar }}</option>{% endfor %}</select></div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">نوع التسوية</label>
+    <select name="adj_type" class="ds-input w-full text-[11px]"><option value="add">إضافة</option><option value="set">تعيين</option><option value="waste">هالك</option></select></div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الكمية</label><input type="number" name="quantity" step="0.01" min="0.01" required class="ds-input w-full text-[11px]"></div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">تكلفة</label><input type="number" name="unit_cost" step="0.01" min="0" class="ds-input w-full text-[11px]"></div>
+  <div class="sm:col-span-2"><label class="block text-[10px] font-bold text-muted mb-0.5">ملاحظة</label><input type="text" name="note" class="ds-input w-full text-[11px]"></div>
+</div>

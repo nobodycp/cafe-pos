@@ -1,0 +1,43 @@
+{% load humanize %}
+<div class="shell-panel-root p-2 sm:p-2.5 text-[11px]" dir="rtl" data-shell-panel-root>
+  <p class="text-[10px] font-bold text-gray-800 dark:text-gray-100 mb-2">{{ panel_title|default:"معادلة التصنيع" }}</p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+    <div class="rounded border border-gray-200 dark:border-gray-700 p-2"><span class="block text-[10px] text-muted">سعر البيع</span><strong class="tabular-nums">{{ product.selling_price|floatformat:2|intcomma }}</strong></div>
+    <div class="rounded border border-gray-200 dark:border-gray-700 p-2"><span class="block text-[10px] text-muted">تكلفة التصنيع</span><strong class="tabular-nums">{{ bom_cost|floatformat:2|intcomma }}</strong></div>
+    <div class="rounded border border-gray-200 dark:border-gray-700 p-2"><span class="block text-[10px] text-muted">الربح</span><strong class="tabular-nums">{% if profit != None %}{{ profit|floatformat:2|intcomma }}{% else %}—{% endif %}</strong></div>
+    <div class="rounded border border-gray-200 dark:border-gray-700 p-2"><span class="block text-[10px] text-muted">أقصى إنتاج</span><strong class="tabular-nums">{% if enriched %}{{ max_producible|floatformat:0 }}{% else %}—{% endif %}</strong></div>
+  </div>
+  <div class="flex justify-end mb-2">
+    <button type="button" class="shell-panel-open h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold"
+            data-panel-url="{{ recipe_add_panel_url }}"
+            data-panel-title="تعديل معادلة — {{ product.name_ar }}"
+            data-panel-wide="1">تعديل/إضافة مكوّنات</button>
+  </div>
+  <div class="ds-table-wrap border border-gray-200 dark:border-gray-700 rounded overflow-x-auto max-h-[50vh]">
+    <table class="w-full text-[11px] ds-table">
+      <thead><tr><th>المكوّن</th><th>الوحدة</th><th>الكمية</th><th>تكلفة</th><th>المخزون</th><th>يكفي لـ</th><th></th></tr></thead>
+      <tbody>
+        {% for e in enriched %}
+        <tr>
+          <td class="font-bold">{{ e.component.name_ar }}</td>
+          <td>{{ e.component.unit.name_ar|default:"—" }}</td>
+          <td class="tabular-nums">{{ e.display_qty }} {{ e.display_unit }}</td>
+          <td class="tabular-nums text-danger font-bold">{{ e.line_cost|floatformat:2|intcomma }}</td>
+          <td class="tabular-nums">{{ e.on_hand|floatformat:2|intcomma }}</td>
+          <td class="tabular-nums">{{ e.max_units|floatformat:0 }}</td>
+          <td class="text-end">
+            <form method="post" action="{% url 'shell:recipe_delete' product.pk e.line.pk %}" class="m-0 shell-panel-form" data-shell-panel-form="1">
+              {% csrf_token %}
+              <input type="hidden" name="panel_embed" value="1">
+              <button type="submit" class="h-6 px-2 rounded border border-danger/40 text-danger text-[10px] font-bold">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted p-6">لا توجد مكوّنات.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pt-2 mt-2 border-t"><button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border text-[11px] font-bold">إغلاق</button></div>
+</div>

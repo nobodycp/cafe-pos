@@ -1,0 +1,20 @@
+<div class="shell-list-filters__field shell-list-filters__field--grow flex-1 min-w-[12rem] max-w-xl">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="journal-filter-q">بحث</label>
+  <input type="search" id="journal-filter-q" name="q" value="{{ journal_filters.q }}" placeholder="رقم القيد، الوصف، المرجع…" class="ds-input w-full h-8 text-xs">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="journal-filter-from">من تاريخ</label>
+  <input type="date" id="journal-filter-from" name="date_from" value="{{ date_from }}" class="ds-input h-8 text-xs w-full">
+</div>
+<div class="shell-list-filters__field min-w-[10rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="journal-filter-to">إلى تاريخ</label>
+  <input type="date" id="journal-filter-to" name="date_to" value="{{ date_to }}" class="ds-input h-8 text-xs w-full">
+</div>
+<div class="shell-list-filters__field min-w-[8rem]">
+  <label class="block text-[11px] font-bold text-muted mb-0.5" for="journal-filter-status">الحالة</label>
+  <select id="journal-filter-status" name="status" class="ds-input h-8 text-xs w-full">
+    <option value="">الكل</option>
+    <option value="active"{% if journal_filters.status == "active" %} selected{% endif %}>فعال</option>
+    <option value="reversed"{% if journal_filters.status == "reversed" %} selected{% endif %}>معكوس</option>
+  </select>
+</div>

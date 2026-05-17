@@ -1,5 +1,5 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
+{% load humanize shell_nav %}
 {% block title %}المنتجات{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -14,12 +14,14 @@
       </div>
       <div class="flex gap-1.5 flex-wrap items-center shrink-0">
       {% if active_tab == "products" %}
-      <a href="{% url 'shell:product_workspace' %}" class="ds-btn ds-btn-primary whitespace-nowrap">منتج جديد</a>
-      <a href="{% url 'shell:manufactured_product_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">تصنيع منتج</a>
+      {% url 'shell:product_create_panel' as product_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=product_create_panel_url label="منتج جديد" panel_title="منتج جديد" panel_wide=1 btn_class="ds-btn ds-btn-primary whitespace-nowrap" %}
       {% elif active_tab == "units" %}
-      <a href="{% url 'shell:unit_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">وحدة جديدة</a>
+      {% url 'shell:unit_create_panel' as unit_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=unit_create_panel_url label="وحدة جديدة" panel_title="إضافة وحدة" btn_class="ds-btn ds-btn-primary whitespace-nowrap" %}
       {% else %}
-      <a href="{% url 'shell:category_create' %}" class="ds-btn ds-btn-primary whitespace-nowrap">تصنيف جديد</a>
+      {% url 'shell:category_create_panel' as category_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=category_create_panel_url label="تصنيف جديد" panel_title="إضافة تصنيف" btn_class="ds-btn ds-btn-primary whitespace-nowrap" %}
       {% endif %}
       </div>
     </div>
@@ -35,7 +37,7 @@
             {% for p in products %}
             <tr>
               <td>
-                <a href="{% url 'shell:product_card' p.pk %}" title="فتح كرت المنتج" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/30 rounded-sm">{{ p.name_ar }}</a>
+                <a href="{% shell_url 'shell:product_card' p.pk %}" title="فتح كرت المنتج" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/30 rounded-sm">{{ p.name_ar }}</a>
                 {% if p.name_en %}<br><span class="text-xs text-muted">{{ p.name_en }}</span>{% endif %}
               </td>
               <td>{{ p.category.name_ar|default:"—" }}</td>
@@ -45,9 +47,11 @@
               <td>{% if p.is_active %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-success/15 text-success">نشط</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold bg-danger/15 text-danger">معطّل</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:product_edit' p.pk %}" class="ds-btn">تعديل</a>
+                  {% url 'shell:product_edit_panel' p.pk as pep_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=pep_url label="تعديل" panel_title="تعديل منتج" panel_wide=1 btn_class="ds-btn" %}
                   {% if p.product_type == 'manufactured' %}
-                  <a href="{% url 'shell:recipe_list' p.pk %}" class="ds-btn manufacturing-formula-link">معادلة التصنيع</a>
+                  {% url 'shell:recipe_list_panel' p.pk as rlp_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=rlp_url label="معادلة التصنيع" panel_title="معادلة التصنيع" panel_wide=1 btn_class="ds-btn manufacturing-formula-link" %}
                   {% endif %}
                   <form method="post" action="{% url 'shell:product_toggle' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn">{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}</button></form>
                   <form method="post" action="{% url 'shell:product_delete' p.pk %}" class="m-0">{% csrf_token %}<button type="submit" class="ds-btn text-danger border-danger/40">حذف</button></form>
@@ -70,7 +74,8 @@
               <td>{% if u.name_en %}{{ u.name_en }}{% else %}—{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:unit_edit' u.pk %}" class="ds-btn">تعديل</a>
+                  {% url 'shell:unit_edit_panel' u.pk as uep_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=uep_url label="تعديل" panel_title="تعديل وحدة" btn_class="ds-btn" %}
                   <form method="post" action="{% url 'shell:unit_delete' u.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
@@ -95,7 +100,8 @@
               <td>{% if cat.is_active %}نشط{% else %}معطل{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:category_edit' cat.pk %}" class="ds-btn">تعديل</a>
+                  {% url 'shell:category_edit_panel' cat.pk as cep_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=cep_url label="تعديل" panel_title="تعديل تصنيف" btn_class="ds-btn" %}
                   <form method="post" action="{% url 'shell:category_delete' cat.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>

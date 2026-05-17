@@ -1,5 +1,5 @@
 {% extends "shell/base.html" %}
-{% load humanize %}
+{% load humanize shell_nav %}
 {% block title %}دليل الحسابات{% endblock %}
 {% block cashier_body %}
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -9,9 +9,7 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">دليل الحسابات — أرصدة مجمّعة</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="chart" %}
@@ -30,7 +28,7 @@
               <td class="font-bold">{{ r.balance|floatformat:2|intcomma }}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:account_ledger' r.account.pk %}" class="ds-btn">كشف حساب</a>
+                  <a href="{% shell_url 'shell:account_ledger' r.account.pk %}" class="ds-btn">كشف حساب</a>
                 </div>
               </td>
             </tr>

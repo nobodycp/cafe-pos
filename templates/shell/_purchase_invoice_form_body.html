@@ -6,8 +6,9 @@
 
 <div class="bg-white dark:bg-gray-800 {% if purchase_form_compact %}rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm{% else %}rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5{% endif %}">
   {{ purchase_form_state|json_script:"purchase-form-state" }}
-  <form method="post" id="purchase-form" class="{% if purchase_form_compact %}purchase-form--compact{% endif %}"{% if purchase_form_action %} action="{{ purchase_form_action }}"{% endif %}>
+  <form method="post" id="purchase-form" class="{% if purchase_form_compact %}purchase-form--compact{% endif %}"{% if purchase_form_action %} action="{{ purchase_form_action }}"{% endif %}{% if panel_shell %} data-shell-panel-form="1"{% endif %}>
     {% csrf_token %}
+    {% if panel_shell %}<input type="hidden" name="panel_embed" value="1">{% endif %}
     {% if purchase_next %}
     <input type="hidden" name="next" value="{{ purchase_next }}">
     {% endif %}
@@ -165,7 +166,7 @@
       </div>
     </div>
 
-    <button type="submit" class="w-full {% if purchase_form_compact %}h-9 mt-3 text-sm{% else %}h-11 mt-5{% endif %} rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>
+    {% if not panel_shell %}<button type="submit" class="w-full {% if purchase_form_compact %}h-9 mt-3 text-sm{% else %}h-11 mt-5{% endif %} rounded-lg bg-primary text-white font-bold text-sm">حفظ الفاتورة</button>{% endif %}
     </div>
   </form>
 </div>

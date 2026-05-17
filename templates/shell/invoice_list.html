@@ -5,25 +5,8 @@
 <div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
   {% include "shell/_shell_toolbar.html" with toolbar_title="الفواتير" toolbar_hint="فواتير البيع والشراء — بحث وفلترة" %}
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
-    <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-      <form method="get" class="flex gap-1.5 items-center flex-wrap flex-1 min-w-0 m-0">
-        <input type="hidden" name="per_page" value="{{ per_page }}">
-        <input type="text" name="q" value="{{ q }}" placeholder="بحث برقم الفاتورة أو اسم العميل / المورد…" class="ds-input flex-1 min-w-[200px] max-w-xl">
-        <label class="flex items-center gap-1 text-xs font-semibold text-muted shrink-0"><span class="whitespace-nowrap">من</span><input type="date" name="date_from" value="{{ date_from }}" class="ds-input w-auto min-w-[10rem] text-sm tabular-nums"></label>
-        <label class="flex items-center gap-1 text-xs font-semibold text-muted shrink-0"><span class="whitespace-nowrap">إلى</span><input type="date" name="date_to" value="{{ date_to }}" class="ds-input w-auto min-w-[10rem] text-sm tabular-nums"></label>
-        <select name="invoice_kind" class="ds-input w-auto min-w-[8rem]">
-          <option value="all" {% if invoice_kind == 'all' %}selected{% endif %}>الكل</option>
-          <option value="sale" {% if invoice_kind == 'sale' %}selected{% endif %}>بيع</option>
-          <option value="purchase" {% if invoice_kind == 'purchase' %}selected{% endif %}>شراء</option>
-        </select>
-        <select name="status" class="ds-input w-auto min-w-[7rem]">
-          <option value="">الكل</option>
-          <option value="active" {% if status == 'active' %}selected{% endif %}>نشطة</option>
-          <option value="cancelled" {% if status == 'cancelled' %}selected{% endif %}>ملغاة</option>
-        </select>
-        <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
-      </form>
-    </div>
+    {% url 'shell:invoice_list' as invoice_list_url %}
+    {% include "shell/_shell_list_filters.html" with filter_clear_url=invoice_list_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_invoice_fields.html" %}
     <div class="shell-spa-table-root">
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none">

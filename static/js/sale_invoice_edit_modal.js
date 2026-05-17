@@ -65,13 +65,15 @@
       if (
         !u.searchParams.has("view_invoice") &&
         !u.searchParams.has("edit_invoice") &&
-        !u.searchParams.has("view_purchase_invoice")
+        !u.searchParams.has("view_purchase_invoice") &&
+        !u.searchParams.has("view_journal_entry")
       ) {
         return;
       }
       u.searchParams.delete("view_invoice");
       u.searchParams.delete("edit_invoice");
       u.searchParams.delete("view_purchase_invoice");
+      u.searchParams.delete("view_journal_entry");
       var qs = u.searchParams.toString();
       window.history.replaceState({}, "", u.pathname + (qs ? "?" + qs : "") + u.hash);
     } catch (e) {
@@ -89,6 +91,7 @@
     var editPk = params.get("edit_invoice");
     var viewPk = params.get("view_invoice");
     var viewPurchasePk = params.get("view_purchase_invoice");
+    var viewJournalPk = params.get("view_journal_entry");
     if (editPk) {
       openModal(panelUrl("edit", editPk), "تعديل الفاتورة", { mode: "edit", kind: "sale" });
       stripInvoiceQueryParams();
@@ -105,6 +108,14 @@
         kind: "purchase",
       });
       stripInvoiceQueryParams();
+      return;
+    }
+    if (viewJournalPk) {
+      openModal(panelUrl("journal_detail", viewJournalPk), "عرض القيد", {
+        mode: "view",
+        kind: "journal",
+      });
+      stripInvoiceQueryParams();
     }
   }
 
@@ -112,13 +123,16 @@
     opts = opts || {};
     var isView = opts.mode === "view";
     var isPurchase = opts.kind === "purchase";
+    var isJournal = opts.kind === "journal";
     var ov = getOverlay();
     var mount = getMount();
     if (!ov || !mount || !url) return;
     var defaultTitle = isView
-      ? isPurchase
-        ? "عرض فاتورة الشراء"
-        : "عرض الفاتورة"
+      ? isJournal
+        ? "عرض القيد"
+        : isPurchase
+          ? "عرض فاتورة الشراء"
+          : "عرض الفاتورة"
       : "تعديل الفاتورة";
     setTitle(title || defaultTitle);
     mount.innerHTML = '<p class="p-4 text-center text-xs text-muted" dir="rtl">جاري التحميل…</p>';
@@ -143,9 +157,11 @@
           '<p class="p-4 text-center text-xs text-danger" dir="rtl">تعذر تحميل المحتوى.</p>';
         toast(
           isView
-            ? isPurchase
-              ? "تعذر تحميل فاتورة الشراء"
-              : "تعذر تحميل العرض"
+            ? isJournal
+              ? "تعذر تحميل القيد"
+              : isPurchase
+                ? "تعذر تحميل فاتورة الشراء"
+                : "تعذر تحميل العرض"
             : "تعذر تحميل التعديل",
           "error"
         );
@@ -204,6 +220,18 @@
 
     document.addEventListener("click", function (e) {
       if (!e.target.closest) return;
+      var journalViewBtn = e.target.closest(".shell-journal-load-view");
+      if (journalViewBtn) {
+        var journalUrl = journalViewBtn.getAttribute("data-journal-detail-panel-url");
+        if (!journalUrl) return;
+        e.preventDefault();
+        openModal(
+          journalUrl,
+          journalViewBtn.getAttribute("data-journal-detail-title") || "عرض القيد",
+          { mode: "view", kind: "journal" }
+        );
+        return;
+      }
       var purchaseViewBtn = e.target.closest(".shell-purchase-load-view");
       if (purchaseViewBtn) {
         var purchaseUrl = purchaseViewBtn.getAttribute("data-purchase-detail-panel-url");
@@ -277,6 +305,9 @@
   };
   window.openPurchaseInvoiceDetailModal = function (url, title) {
     openModal(url, title, { mode: "view", kind: "purchase" });
+  };
+  window.openJournalEntryDetailModal = function (url, title) {
+    openModal(url, title, { mode: "view", kind: "journal" });
   };
   window.closeSaleInvoiceEditModal = closeModal;
 

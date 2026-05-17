@@ -9,12 +9,14 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">سندات الصندوق — قبض وصرف</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="treasury" %}
+    <div class="flex justify-end mb-2">
+      {% url 'shell:treasury_voucher_panel' as treasury_voucher_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=treasury_voucher_panel_url label="سند جديد" panel_title="سند جديد" panel_wide=1 btn_class="ds-btn ds-btn-primary shrink-0" %}
+    </div>
     <div class="ds-panel">
       <div class="ds-panel-header">سند موحّد</div>
       <div class="ds-panel-body">

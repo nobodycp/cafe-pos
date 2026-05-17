@@ -22,7 +22,7 @@ from apps.billing.tab_service import (
     finalize_order_invoice,
     sum_tab_payments,
 )
-from apps.catalog.forms import ProductForm
+from apps.catalog.forms import PRODUCT_QUICK_FORM_PREFIX, ProductForm
 from apps.catalog.models import Category, Product, ProductModifierGroup
 from apps.contacts.customer_lookup import active_customers_search_qs, customer_search_result_row
 from apps.contacts.forms import CustomerForm
@@ -58,7 +58,6 @@ from apps.pos.table_service import (
     retire_ephemeral_dining_table_if_safe,
 )
 
-PRODUCT_QUICK_FORM_PREFIX = "pq"
 POS_CUSTOMER_FORM_PREFIX = "poscc"
 
 

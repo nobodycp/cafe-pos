@@ -1,0 +1,10 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم بالعربي</label>{{ form.name_ar }}{% if form.name_ar.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.name_ar.errors.0 }}</p>{% endif %}</div>
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">الاسم بالإنجليزي</label>{{ form.name_en }}{% if form.name_en.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.name_en.errors.0 }}</p>{% endif %}</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  <div><label class="block text-[10px] font-bold text-muted mb-0.5">آلية العمل</label>{{ form.pay_type }}{% if form.pay_type.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.pay_type.errors.0 }}</p>{% endif %}</div>
+  <div><label id="panel-salary-amount-label" class="block text-[10px] font-bold text-muted mb-0.5">قيمة الراتب</label>{{ form.salary_amount }}{% if form.salary_amount.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.salary_amount.errors.0 }}</p>{% endif %}</div>
+</div>
+<div><label class="block text-[10px] font-bold text-muted mb-0.5">عميل مرتبط</label>{{ form.linked_customer }}{% if form.linked_customer.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.linked_customer.errors.0 }}</p>{% endif %}</div>
+{% if form.is_active %}<label class="flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer">{{ form.is_active }}<span>نشط</span></label>{% endif %}

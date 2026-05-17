@@ -1,12 +1,11 @@
 {% load humanize %}
-<div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+<div class="flex justify-between items-center mb-4 flex-wrap gap-4">
   <h1 class="text-2xl font-extrabold text-gray-800 dark:text-white">أرصدة العملاء</h1>
-  {% if contacts_ns == 'shell' %}
-  <a href="{% url 'shell:customers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة العملاء</a>
-  {% else %}
-  <a href="{% url 'shell:customers' %}" class="inline-flex items-center justify-center h-11 px-5 rounded-lg bg-primary text-white font-bold text-sm hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">قائمة العملاء</a>
-  {% endif %}
+  <a href="{% url 'shell:customers' %}" class="ds-btn ds-btn-primary shrink-0">قائمة العملاء</a>
 </div>
+
+{% url 'shell:customer_balances' as customer_balances_url %}
+{% include "shell/_shell_list_filters.html" with filter_clear_url=customer_balances_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_balances_search.html" %}
 
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
   <div class="overflow-x-auto">
@@ -24,23 +23,15 @@
       <tbody>
         {% for r in results %}
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ forloop.counter }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 tabular-nums">{{ page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">
-            {% if contacts_ns == 'shell' %}
             <a href="{% url 'shell:customer_detail' r.customer.pk %}" class="hover:text-primary transition-colors">{{ r.customer.name_ar }}</a>
-            {% else %}
-            <a href="{% url 'shell:customer_detail' r.customer.pk %}" class="hover:text-primary transition-colors">{{ r.customer.name_ar }}</a>
-            {% endif %}
           </td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ r.customer.phone }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-bold {% if r.balance > 0 %}text-danger{% elif r.balance < 0 %}text-success{% endif %}">{{ r.balance|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">{% if r.last_txn %}{{ r.last_txn|date:"Y-m-d" }}{% else %}-{% endif %}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">{% if r.last_txn %}{{ r.last_txn|date:"Y-m-d" }}{% else %}—{% endif %}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">
-            {% if contacts_ns == 'shell' %}
-            <a href="{% url 'shell:customer_statement' r.customer.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
-            {% else %}
-            <a href="{% url 'shell:customer_statement' r.customer.pk %}" class="inline-flex items-center justify-center h-9 px-3 text-xs rounded-lg bg-primary text-white font-bold hover:bg-primary-dk active:scale-[0.98] transition-all duration-200">كشف حساب</a>
-            {% endif %}
+            <a href="{% url 'shell:customer_statement' r.customer.pk %}" class="ds-btn">كشف حساب</a>
           </td>
         </tr>
         {% empty %}
@@ -52,12 +43,13 @@
       {% if results %}
       <tfoot>
         <tr class="font-extrabold text-base">
-          <td colspan="3" class="p-3 border-t-2 border-gray-200 dark:border-gray-600">الإجمالي</td>
+          <td colspan="3" class="p-3 border-t-2 border-gray-200 dark:border-gray-600">الإجمالي <span class="block text-xs font-normal text-muted">(كل النتائج بعد البحث)</span></td>
           <td class="p-3 border-t-2 border-gray-200 dark:border-gray-600 {% if grand_total > 0 %}text-danger{% elif grand_total < 0 %}text-success{% endif %}">{{ grand_total|floatformat:2|intcomma }}</td>
           <td colspan="2" class="p-3 border-t-2 border-gray-200 dark:border-gray-600"></td>
         </tr>
       </tfoot>
       {% endif %}
     </table>
+    {% include "shell/_shell_pagination.html" %}
   </div>
 </div>

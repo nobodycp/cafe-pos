@@ -1,18 +1,10 @@
-{% load humanize %}
-<div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-wrap items-center gap-2">
-  <form method="get" class="flex flex-wrap items-center gap-2 flex-1 min-w-0 m-0">
-    <input type="hidden" name="per_page" value="{{ per_page }}">
-    <input type="text" name="q" value="{{ q|default:'' }}" placeholder="بحث بالاسم أو الهاتف…" class="ds-input flex-1 min-w-[12rem] max-w-md">
-    <label class="inline-flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-800 dark:text-gray-100 shrink-0">
-      <input type="hidden" name="hide_zero_balance" value="0">
-      <input type="checkbox" name="hide_zero_balance" value="1" class="h-4 w-4 rounded border-gray-300" {% if customer_filter_hide_zero_balance %}checked{% endif %}>
-      <span>إخفاء رصيد = 0</span>
-    </label>
-    <button type="submit" class="ds-btn ds-btn-primary shrink-0">بحث</button>
-    <a href="{% url 'shell:customers' %}?per_page={{ per_page }}&amp;hide_zero_balance=0" class="ds-btn shrink-0">مسح الفلاتر</a>
-  </form>
+{% load humanize shell_nav %}
+{% url 'shell:customers' as customers_url %}
+{% include "shell/_shell_list_filters.html" with filter_clear_url=customers_url filter_clear_suffix="?per_page="|add:per_page|add:"&hide_zero_balance=0" filter_per_page=per_page filter_fields_template="shell/list_filters/_customers_fields.html" filter_footer_template="shell/list_filters/_customers_footer.html" %}
+<div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-wrap items-center gap-2 px-2.5 py-2">
   <span class="flex-1 min-w-2"></span>
-  <a href="{% url 'shell:customer_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة عميل</a>
+  {% url 'shell:customer_create_panel' as customer_create_panel_url %}
+  {% include "shell/_shell_panel_open_btn.html" with panel_url=customer_create_panel_url label="إضافة عميل" panel_title="إضافة عميل" %}
 </div>
 
 <div class="shell-spa-table-root">
@@ -31,18 +23,15 @@
         {% for c in page_obj %}
           <tr>
             <td class="font-semibold">
-              {% if contacts_ns == 'shell' %}
-              <a href="{% url 'shell:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
-              {% else %}
-              <a href="{% url 'shell:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
-              {% endif %}
+              <a href="{% shell_url 'shell:customer_detail' c.pk %}" class="text-gray-900 dark:text-gray-100 hover:text-primary hover:underline">{{ c.name_ar }}</a>
             </td>
             <td>{{ c.phone }}</td>
             <td class="font-semibold {% if c.balance > 0 %}text-danger{% else %}text-success{% endif %}">{{ c.balance|floatformat:2|intcomma }}</td>
             <td class="text-end align-middle">
               <div class="ds-table-actions">
-                <a href="{% url 'shell:customer_statement' c.pk %}" class="ds-btn">كشف</a>
-                <a href="{% url 'shell:customer_edit' c.pk %}" class="ds-btn">تعديل</a>
+                <a href="{% shell_url 'shell:customer_statement' c.pk %}" class="ds-btn">كشف</a>
+                {% url 'shell:customer_edit_panel' c.pk as cep_url %}
+                {% include "shell/_shell_panel_open_btn.html" with panel_url=cep_url label="تعديل" panel_title="تعديل عميل" btn_class="ds-btn" %}
                 <form method="post" action="{% url 'shell:customer_delete' c.pk %}" class="m-0">
                   {% csrf_token %}
                   <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>

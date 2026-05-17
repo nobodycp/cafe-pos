@@ -106,6 +106,13 @@ def _shell_topbar_active_id(path: str) -> str:
     return ""
 
 
+def shell_toolbar_back(request):
+    """زر رجوع واحد لصفحات الغلاف /app/ — return= ثم referer ثم الأب المنطقي."""
+    from apps.core.nav_back import toolbar_back_for_request
+
+    return toolbar_back_for_request(request)
+
+
 def shell_topbar(request):
     """روابط الشريط العلوي للغلاف + تمييز الصفحة النشطة (بدون تكرار في القوالب)."""
     from django.urls import NoReverseMatch, reverse

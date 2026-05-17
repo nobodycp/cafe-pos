@@ -35,7 +35,7 @@
             <td class="text-center">
               <div class="flex flex-wrap items-center justify-center gap-0.5">
               {% if not p.cancelled %}
-              <a href="{% url 'shell:treasury_start_edit_voucher' row.pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل السند</a>
+              {% include "shell/_treasury_voucher_panel_btns.html" with audit_pk=row.pk btn_class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]" view_label="عرض" edit_label="تعديل السند" %}
               <form method="post" action="{% url 'shell:treasury_void_voucher' row.pk %}" class="inline m-0" onsubmit="return confirm('إلغاء هذا السند؟ سيتم عكس القيد والأرصدة.');">
                 {% csrf_token %}
                 {% if treasury_void_next %}
@@ -44,7 +44,7 @@
                 <button type="submit" class="ds-btn py-0.5 px-1 min-h-0 h-7 text-[10px] text-danger border-danger/40 hover:bg-danger/10">حذف</button>
               </form>
               {% else %}
-              <span class="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-muted cursor-not-allowed dark:border-gray-600 dark:bg-gray-800" title="لا يمكن تعديل سند ملغى">تعديل السند</span>
+              {% include "shell/_treasury_voucher_panel_btns.html" with audit_pk=row.pk show_edit=False btn_class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]" view_label="عرض" %}
               <form method="post" action="{% url 'shell:treasury_purge_cancelled_voucher' row.pk %}" class="inline m-0" onsubmit="return confirm('حذف سجل هذا السند من القائمة نهائياً؟ (السند ملغى والأثر محاسبياً مُعكوس مسبقاً.)');">
                 {% csrf_token %}
                 {% if treasury_void_next %}
@@ -73,7 +73,7 @@
                 <a href="{% url 'shell:expense_edit' p.expense_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">تعديل مصروف</a>
                 {% endif %}
               {% elif p.journal_entry_pk %}
-                <a href="{% url 'shell:journal_detail' p.journal_entry_pk %}" class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]">القيد</a>
+                {% include "shell/_journal_entry_view_btn.html" with entry_pk=p.journal_entry_pk label="القيد" btn_class="ds-btn py-0.5 px-1.5 min-h-0 h-7 text-[10px]" %}
               {% endif %}
               </div>
             </td>

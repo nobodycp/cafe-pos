@@ -9,16 +9,15 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">قائمة المصروفات المسجّلة</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
-    </div>
+    {% include "shell/_shell_toolbar_back.html" %}
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     <div class="ds-shell-context-bar">
       <div class="flex flex-wrap items-center min-w-0">
         {% include "shell/_expenses_tabs.html" with expenses_tab="list" %}
       </div>
-      <a href="{% url 'shell:expense_create' %}" class="ds-btn ds-btn-primary shrink-0 whitespace-nowrap">إضافة مصروف</a>
+      {% url 'shell:expense_create_panel' as expense_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=expense_create_panel_url label="إضافة مصروف" panel_title="إضافة مصروف" panel_wide=1 %}
     </div>
     <div class="mb-2 flex flex-wrap items-end gap-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2">
       <form method="get" class="flex flex-wrap items-end gap-2 m-0 flex-1 min-w-0">
@@ -84,7 +83,8 @@
               <td class="text-muted">{{ e.notes|truncatechars:60 }}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:expense_edit' e.pk %}" class="ds-btn">تعديل</a>
+                  {% url 'shell:expense_edit_panel' e.pk as expense_edit_panel_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=expense_edit_panel_url label="تعديل" panel_title="تعديل مصروف" panel_wide=1 btn_class="ds-btn" %}
                   <form method="post" action="{% url 'shell:expense_delete' e.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>

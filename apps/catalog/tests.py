@@ -76,3 +76,31 @@ class ProductDeleteOpenOrderLineTest(TestCase):
         )
         self.client.post(self._delete_url())
         self.assertFalse(Product.objects.filter(pk=self.product.pk).exists())
+
+
+class RawMaterialsSearchTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="rm_search", password="pw")
+        self.client = Client()
+        self.client.login(username="rm_search", password="pw")
+        unit = Unit.objects.create(code="kg", name_ar="كغ")
+        Product.objects.create(
+            name_ar="سكر ناعم",
+            product_type=Product.ProductType.RAW,
+            unit=unit,
+            is_active=True,
+        )
+        Product.objects.create(
+            name_ar="كابتشينو جاهز",
+            product_type=Product.ProductType.READY,
+            unit=unit,
+            is_active=True,
+        )
+
+    def test_search_returns_raw_only(self):
+        url = reverse("shell:raw_materials_search")
+        r = self.client.get(url, {"q": "سكر"})
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(len(data["results"]), 1)
+        self.assertEqual(data["results"][0]["name_ar"], "سكر ناعم")

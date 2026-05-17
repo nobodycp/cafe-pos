@@ -8,9 +8,9 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:journal_detail' entry.pk %}" class="shell-toolbar-link">← عرض القيد</a>
-      <a href="{% url 'shell:journal_list' %}" class="shell-toolbar-link">← القيود اليومية</a>
+    <div class="shell-toolbar-actions flex items-center gap-2">
+      {% include "shell/_shell_toolbar_back.html" %}
+      {% include "shell/_journal_entry_view_btn.html" with entry_pk=entry.pk label="عرض القيد" btn_class="shell-toolbar-link bg-transparent border-0 p-0 cursor-pointer text-[11px]" %}
     </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
@@ -73,7 +73,7 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <button type="submit" class="h-11 px-6 rounded-lg bg-primary text-white font-bold text-sm">حفظ التعديلات</button>
-        <a href="{% url 'shell:journal_detail' entry.pk %}" class="h-11 px-6 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm inline-flex items-center">إلغاء</a>
+        {% include "shell/_journal_entry_view_btn.html" with entry_pk=entry.pk label="إلغاء" btn_class="h-11 px-6 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm inline-flex items-center bg-transparent cursor-pointer" %}
       </div>
     </form>
   </div>

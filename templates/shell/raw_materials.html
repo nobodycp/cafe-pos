@@ -9,8 +9,11 @@
     <div class="ds-toolbar mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
       <span class="ds-section-title m-0">المواد الخام</span>
       <span class="flex-1"></span>
-      <a href="{% url 'shell:raw_material_create' %}" class="ds-btn ds-btn-primary shrink-0">إضافة مادة خام</a>
+      {% url 'shell:raw_material_create_panel' as rm_create_panel_url %}
+      {% include "shell/_shell_panel_open_btn.html" with panel_url=rm_create_panel_url label="إضافة مادة خام" panel_title="إضافة مادة خام" %}
     </div>
+    {% url 'shell:raw_materials' as raw_materials_url %}
+    {% include "shell/_shell_list_filters.html" with filter_form_action=raw_materials_url filter_clear_url=raw_materials_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_raw_materials_fields.html" %}
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
         <table class="w-full text-sm ds-table">
@@ -38,7 +41,8 @@
               <td>{% if e.low %}<span class="text-danger font-bold">منخفض</span>{% else %}<span class="text-success font-bold">متوفر</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:raw_material_edit' e.material.pk %}" class="ds-btn">تعديل</a>
+                  {% url 'shell:raw_material_edit_panel' e.material.pk as rme_url %}
+                  {% include "shell/_shell_panel_open_btn.html" with panel_url=rme_url label="تعديل" panel_title="تعديل مادة خام" btn_class="ds-btn" %}
                   <form method="post" action="{% url 'shell:raw_material_delete' e.material.pk %}" class="m-0">
                     {% csrf_token %}
                     <button type="submit" class="ds-btn text-danger border-danger/40">حذف</button>
@@ -51,6 +55,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

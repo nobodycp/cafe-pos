@@ -11,6 +11,8 @@
       <span class="flex-1"></span>
       <a href="{% url 'shell:stocktake_create' %}" class="ds-btn ds-btn-primary shrink-0">جرد جديد</a>
     </div>
+    {% url 'shell:stocktake_list' as stocktake_list_url %}
+    {% include "shell/_shell_list_filters.html" with filter_clear_url=stocktake_list_url filter_clear_suffix="?per_page="|add:per_page filter_per_page=per_page filter_fields_template="shell/list_filters/_stocktake_fields.html" %}
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
         <table class="w-full text-sm ds-table">
@@ -45,6 +47,7 @@
             {% endfor %}
           </tbody>
         </table>
+        {% include "shell/_shell_pagination.html" %}
       </div>
     </div>
   </div>

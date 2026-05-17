@@ -1,0 +1,64 @@
+{% load humanize %}
+<div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
+  <span>{{ entry.entry_number }}</span>
+  {% if entry.is_reversed %}<span class="text-danger font-bold">معكوس</span>{% else %}<span class="text-success font-bold">فعال</span>{% endif %}
+  <span class="text-muted font-normal">{{ entry.date|date:"Y-m-d" }}</span>
+  {% if entry.work_session %}<span class="text-muted font-normal">وردية {{ entry.work_session_id }}</span>{% endif %}
+</div>
+
+{% if entry.description %}
+<p class="text-[10px] text-muted leading-snug mb-1.5">{{ entry.description }}</p>
+{% endif %}
+
+{% if entry.reference_type %}
+<div class="text-[10px] mb-1.5 flex flex-wrap items-center gap-1">
+  <span class="font-bold text-muted">المرجع:</span>
+  {% include "shell/_journal_entry_reference_link.html" with entry=entry %}
+</div>
+{% endif %}
+
+<div class="journal-entry-detail-table-region overflow-x-auto mb-1.5 max-h-[min(42vh,300px)] overflow-y-auto">
+  <table class="pos-cart-lines pos-cart-lines--excel journal-detail-lines-table w-full">
+    <colgroup>
+      <col class="journal-detail-col-account">
+      <col class="journal-detail-col-desc">
+      <col class="journal-detail-col-debit">
+      <col class="journal-detail-col-credit">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="text-start min-w-0">الحساب</th>
+        <th class="text-start min-w-0">البيان</th>
+        <th class="text-end">مدين</th>
+        <th class="text-end">دائن</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ln in lines %}
+      <tr>
+        <td class="journal-detail-col-account-cell truncate font-semibold" title="{{ ln.account.code }} — {{ ln.account.name_ar }}">{{ ln.account.code }} — {{ ln.account.name_ar }}</td>
+        <td class="journal-detail-col-desc-cell truncate text-muted" title="{{ ln.description }}">{{ ln.description|default:"—" }}</td>
+        <td class="text-end tabular-nums">{% if ln.debit %}{{ ln.debit|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+        <td class="text-end tabular-nums">{% if ln.credit %}{{ ln.credit|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-center text-muted py-2">لا توجد أسطر</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="font-extrabold bg-gray-50 dark:bg-gray-900/50">
+        <td colspan="2" class="text-end text-[10px]">المجموع</td>
+        <td class="text-end tabular-nums text-[10px]">{{ lines_total_debit|floatformat:2|intcomma }}</td>
+        <td class="text-end tabular-nums text-[10px]">{{ lines_total_credit|floatformat:2|intcomma }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="flex flex-wrap gap-1.5 items-center pt-1 border-t border-gray-200 dark:border-gray-700">
+  {% if can_edit_journal %}
+  <a href="{% url 'shell:journal_edit' entry.pk %}" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk inline-flex items-center">تعديل</a>
+  {% endif %}
+  <button type="button" onclick="window.print()" class="h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">طباعة</button>
+  <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">إغلاق</button>
+</div>

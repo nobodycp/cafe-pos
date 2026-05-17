@@ -80,6 +80,7 @@ TEMPLATES = [
                 "apps.core.context_processors.ui_labels",
                 "apps.core.context_processors.low_stock_count",
                 "apps.core.context_processors.shell_route_namespaces",
+                "apps.core.context_processors.shell_toolbar_back",
                 "apps.core.context_processors.shell_topbar",
                 "apps.core.context_processors.open_work_session",
             ],

@@ -1,0 +1,57 @@
+<script>
+(function () {
+  function initProductPanelTypeUi(root) {
+    if (!root) return;
+    var typeSel = root.querySelector('[name="product_type"]');
+    var commWrap = document.getElementById("product-panel-commission-wrap");
+    var stockLabel = root.closest("form") && root.closest("form").querySelector(".product-panel-stock-track");
+    var stockCb = stockLabel ? stockLabel.querySelector('input[type="checkbox"]') : null;
+    var minStockWrap = document.getElementById("product-panel-min-stock-wrap");
+    var minStock = root.querySelector('[name="min_stock_level"]');
+    if (!typeSel || !commWrap) return;
+
+    function syncTypeUi() {
+      var v = typeSel.value;
+      var commission = v === "commission";
+      commWrap.classList.toggle("hidden", !commission);
+      var lock = v === "service" || v === "commission";
+      var manufactured = v === "manufactured";
+      if (stockCb && lock) stockCb.checked = false;
+      if (minStock) {
+        if (manufactured) {
+          minStock.value = "0";
+          minStock.disabled = true;
+          if (minStockWrap) minStockWrap.classList.add("opacity-50", "pointer-events-none");
+        } else {
+          minStock.disabled = false;
+          if (minStockWrap) minStockWrap.classList.remove("opacity-50", "pointer-events-none");
+        }
+      }
+    }
+
+    if (!typeSel.dataset.productPanelTypeBound) {
+      typeSel.dataset.productPanelTypeBound = "1";
+      typeSel.addEventListener("change", syncTypeUi);
+    }
+    syncTypeUi();
+  }
+
+  function scan(mount) {
+    var scope = mount || document;
+    scope.querySelectorAll(".product-panel-form-fields").forEach(initProductPanelTypeUi);
+  }
+
+  scan();
+  if (typeof window.initShellPanel === "function") {
+    var prev = window.initShellPanel;
+    window.initShellPanel = function (mount) {
+      prev(mount);
+      scan(mount);
+    };
+  } else {
+    window.initShellPanel = function (mount) {
+      scan(mount);
+    };
+  }
+})();
+</script>

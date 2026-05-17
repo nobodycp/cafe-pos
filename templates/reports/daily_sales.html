@@ -4,8 +4,14 @@
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="مبيعات يومية" toolbar_hint="فواتير وإجماليات حسب الفترة" %}
 
-<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
-  <form method="get" class="flex gap-2 flex-wrap items-end">
+{% url 'shell:daily_sales' as daily_sales_url %}
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+  <form method="get" class="shell-list-filters__form m-0 flex flex-wrap items-end gap-2">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <label class="flex flex-col gap-0.5 flex-1 min-w-[10rem] max-w-md">
+      <span class="text-[11px] font-bold text-muted">بحث</span>
+      <input type="search" name="q" value="{{ q|default:'' }}" placeholder="رقم الفاتورة أو العميل…" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 w-full">
+    </label>
     <div>
       <label class="block text-[11px] font-bold text-muted mb-0.5">من تاريخ</label>
       <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 w-full max-w-[11rem]">
@@ -14,7 +20,10 @@
       <label class="block text-[11px] font-bold text-muted mb-0.5">إلى تاريخ</label>
       <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 w-full max-w-[11rem]">
     </div>
-    <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold">عرض</button>
+    <div class="shell-list-filters__actions flex flex-wrap gap-1.5 shrink-0 pb-0.5">
+      <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">تطبيق</button>
+      <a href="{{ daily_sales_url }}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+    </div>
   </form>
 </div>
 
@@ -85,6 +94,7 @@
         {% endfor %}
       </tbody>
     </table>
+    {% include "shell/_shell_pagination.html" %}
   </div>
   {% else %}
   <p class="text-center text-muted py-6 text-xs">لا توجد فواتير في هذه الفترة.</p>
