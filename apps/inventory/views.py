@@ -21,6 +21,7 @@ from apps.inventory.services import (
     ensure_stock_balance,
     get_unit_cost,
     is_manual_stock_movement,
+    movement_rows_with_balance_after,
     receive_purchase_stock,
     stock_home_base_queryset,
     sync_missing_stock_balance_rows,
@@ -183,7 +184,9 @@ def movement_list(request):
         filter_date_to=date_to,
         movement_type_choices=[("", "كل الأنواع")] + list(StockMovement.MovementType.choices),
     )
-    ctx.update(paginate_queryset(request, qs))
+    pag = paginate_queryset(request, qs)
+    ctx.update(pag)
+    ctx["movement_rows"] = movement_rows_with_balance_after(pag["page_obj"])
     return render(request, _inventory_tpl(request, "shell/inventory_movements.html", "inventory/movements.html"), ctx)
 
 

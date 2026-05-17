@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Iterable, Optional
 
 from django.db import transaction
-from django.db.models import DecimalField, F, Value
+from django.db.models import DecimalField, F, Sum, Value
 from django.db.models.functions import Coalesce
 from apps.catalog.models import Product, RecipeLine
 from apps.core.models import WorkSession, get_pos_settings
@@ -595,6 +596,42 @@ def check_stock_available(product: Product, quantity: Decimal) -> None:
         on_hand = as_decimal(sb.quantity_on_hand) if sb else Decimal("0")
         if on_hand < qty:
             raise ValueError(f"INSUFFICIENT_STOCK:{product.pk}")
+
+
+def movement_rows_with_balance_after(movements: Iterable[StockMovement]) -> list[dict[str, Any]]:
+    """
+    لكل حركة: الكمية المتبقية للصنف مباشرة بعد تنفيذها.
+    يُحسب من الرصيد الحالي مع طرح حركات أحدث منها (نفس نتيجة رصيد افتتاحي + تراكم زمني).
+    """
+    items = list(movements)
+    if not items:
+        return []
+    product_ids = list({m.product_id for m in items})
+    on_hand = {
+        sb.product_id: as_decimal(sb.quantity_on_hand)
+        for sb in StockBalance.objects.filter(product_id__in=product_ids)
+    }
+    delta_sum: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
+    for pid, total in (
+        StockMovement.objects.filter(product_id__in=product_ids)
+        .values("product_id")
+        .annotate(total=Sum("quantity_delta"))
+        .values_list("product_id", "total")
+    ):
+        delta_sum[pid] = as_decimal(total)
+    opening: dict[int, Decimal] = {
+        pid: on_hand.get(pid, Decimal("0")) - delta_sum.get(pid, Decimal("0")) for pid in product_ids
+    }
+    running: dict[int, Decimal] = {pid: opening[pid] for pid in product_ids}
+    balance_by_pk: dict[int, Decimal] = {}
+    for pk, pid, delta in (
+        StockMovement.objects.filter(product_id__in=product_ids)
+        .order_by("created_at", "pk")
+        .values_list("pk", "product_id", "quantity_delta")
+    ):
+        running[pid] += as_decimal(delta)
+        balance_by_pk[pk] = running[pid]
+    return [{"movement": m, "balance_after": balance_by_pk.get(m.pk, Decimal("0"))} for m in items]
 
 
 def stock_home_base_queryset(*, active_products_only: bool = False):

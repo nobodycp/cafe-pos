@@ -120,7 +120,12 @@
     </div>
   </div>
 
+  {% include "shell/_sale_invoice_edit_overlay.html" %}
   {% block cashier_scripts %}{% endblock %}
+  <script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
+  <script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>
+  <script src="{% static 'js/sale_invoice_edit_pay.js' %}"></script>
+  <script src="{% static 'js/sale_invoice_edit_modal.js' %}"></script>
   <script src="{% static 'js/shell_pagination_spa.js' %}"></script>
 
   <script>

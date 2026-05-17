@@ -28,14 +28,14 @@
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none">
         <table class="w-full text-sm ds-table">
-          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل / المورد</th><th>الإجمالي</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[9rem] w-[9rem]">إجراءات</th></tr></thead>
+          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل / المورد</th><th>الإجمالي</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[11rem] w-[11rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for row in page_obj %}
             {% if row.kind == "sale" %}
             {% with inv=row.obj %}
             <tr>
               <td><span class="inline-flex items-center rounded-sm bg-success/15 text-success px-2 py-0.5 text-xs font-extrabold">بيع</span></td>
-              <td><a href="{% url 'shell:invoice_detail' inv.pk %}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
+              <td><a href="{% url 'shell:invoice_detail' inv.pk %}?from=invoices&amp;return={{ request.get_full_path|urlencode }}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
               <td>{{ inv.created_at|date:"Y-m-d H:i" }}</td>
               <td>{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
               <td>{% if inv.customer %}<a href="{% url 'shell:customer_detail' inv.customer.pk %}" class="text-primary hover:underline">{{ inv.customer.name_ar }}</a>{% else %}—{% endif %}</td>
@@ -43,7 +43,12 @@
               <td>{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:invoice_detail' inv.pk %}" class="ds-btn">عرض</a>
+                  <a href="{% url 'shell:invoice_detail' inv.pk %}?from=invoices&amp;return={{ request.get_full_path|urlencode }}" class="ds-btn">عرض</a>
+                  {% if not inv.is_cancelled and POS_SETTINGS.allow_sale_invoice_edit %}
+                  <button type="button" class="ds-btn shell-invoice-load-edit border-primary/40 text-primary"
+                    data-edit-panel-url="{% url 'shell:sale_invoice_edit_panel' inv.pk %}"
+                    data-edit-title="تعديل {{ inv.invoice_number }}">تعديل</button>
+                  {% endif %}
                   <form method="post" action="{% url 'shell:sale_invoice_delete' inv.pk %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="reason" value="حذف نهائي من قائمة الفواتير">

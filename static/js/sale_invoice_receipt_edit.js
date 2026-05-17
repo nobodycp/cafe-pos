@@ -105,27 +105,43 @@
     if (subEl) subEl.textContent = fmt2(sum) + (cur ? " " + cur : "");
     if (totalEl) totalEl.textContent = fmt2(total) + (cur ? " " + cur : "");
 
-    var paySum = 0;
-    form.querySelectorAll(".sale-edit-pay-amt").forEach(function (inp) {
-      paySum += parseNum(inp && inp.value);
+    form.dispatchEvent(new CustomEvent("sale-edit-pay-change"));
+  }
+
+  function renumberLineRows(tbody) {
+    if (!tbody) return;
+    tbody.querySelectorAll("[data-sale-edit-line-full]").forEach(function (tr, i) {
+      var num = tr.querySelector(".sale-edit-line-num");
+      if (num) num.textContent = String(i + 1);
     });
-    var hint = form.querySelector("#sale-edit-pay-hint");
-    if (hint) {
-      var diff = Math.round((paySum - total) * 100) / 100;
-      if (Math.abs(diff) < 0.02) {
-        hint.textContent = "مجموع الدفعات يساوي الإجمالي ✓";
-        hint.className = "text-[11px] mt-1.5 font-semibold tabular-nums text-success";
-      } else {
-        hint.textContent =
-          "مجموع الدفعات: " +
-          fmt2(paySum) +
-          " — الإجمالي: " +
-          fmt2(total) +
-          " — فرق: " +
-          fmt2(diff);
-        hint.className = "text-[11px] mt-1.5 font-semibold tabular-nums text-danger";
-      }
+  }
+
+  function addLineRow(form) {
+    var tbody = form.querySelector("#sale-edit-lines-tbody");
+    var tpl = form.querySelector("#sale-edit-line-row-template");
+    if (!tbody || !tpl || !tpl.content) return;
+    var nextIdx = parseInt(tbody.getAttribute("data-next-idx") || "0", 10);
+    if (isNaN(nextIdx) || nextIdx < 0) nextIdx = tbody.querySelectorAll("[data-sale-edit-line-full]").length;
+    if (nextIdx >= 50) {
+      if (typeof window.shellToast === "function") window.shellToast("الحد الأقصى 50 سطراً", "info");
+      else if (typeof window.showToast === "function") window.showToast("الحد الأقصى 50 سطراً", "info");
+      return;
     }
+    var tr = tpl.content.firstElementChild.cloneNode(true);
+    tr.setAttribute("data-idx", String(nextIdx));
+    var hid = tr.querySelector(".sale-edit-line-product-id");
+    var searchInp = tr.querySelector(".sale-edit-product-search");
+    var qtyInp = tr.querySelector(".sale-edit-qty");
+    var priceInp = tr.querySelector(".sale-edit-price");
+    if (hid) hid.name = "line_" + nextIdx + "_product";
+    if (searchInp) searchInp.name = "line_" + nextIdx + "_search";
+    if (qtyInp) qtyInp.name = "line_" + nextIdx + "_qty";
+    if (priceInp) priceInp.name = "line_" + nextIdx + "_price";
+    tbody.appendChild(tr);
+    tbody.setAttribute("data-next-idx", String(nextIdx + 1));
+    renumberLineRows(tbody);
+    wireProductRow(tr, form.getAttribute("data-pos-products-search") || "");
+    form.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   function initFull(form) {
@@ -133,6 +149,14 @@
     form.querySelectorAll("[data-sale-edit-line-full]").forEach(function (tr) {
       wireProductRow(tr, searchUrl);
     });
+    renumberLineRows(form.querySelector("#sale-edit-lines-tbody"));
+    var addBtn = form.querySelector("#sale-edit-add-line");
+    if (addBtn && !addBtn.getAttribute("data-wired")) {
+      addBtn.setAttribute("data-wired", "1");
+      addBtn.addEventListener("click", function () {
+        addLineRow(form);
+      });
+    }
     var recalc = function () {
       recalcFull(form);
     };
@@ -185,5 +209,7 @@
     if (!form) return;
     if (form.getAttribute("data-sale-edit-full") === "1") initFull(form);
     else initLegacy(form);
+    if (window.initSaleInvoiceEditPay) window.initSaleInvoiceEditPay(form);
+    if (window.refreshSaleInvoiceEditPayTotal) window.refreshSaleInvoiceEditPayTotal(form);
   };
 })();

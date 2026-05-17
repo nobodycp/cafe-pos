@@ -6,8 +6,7 @@ from typing import Optional
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Case, DecimalField, ExpressionWrapper, F, IntegerField, Max, Q, Sum, Value, When
-from django.db.models.functions import Coalesce
+from django.db.models import Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
@@ -18,6 +17,16 @@ from apps.core.models import log_audit
 from apps.core.pagination import paginate_queryset
 from apps.core.payment_methods import credit_method_codes, load_payment_method_rows
 from apps.purchasing.forms import SupplierForm, SupplierPaymentForm
+from apps.purchasing.supplier_list_filters import (
+    COMMISSION_FILTER_CHOICES,
+    LINKED_FILTER_CHOICES,
+    NET_SIDE_CHOICES,
+    SUPPLIER_SORT_CHOICES,
+    apply_supplier_filters,
+    parse_supplier_filters,
+    supplier_filters_open,
+    supplier_list_base_queryset,
+)
 from apps.purchasing.models import (
     PurchaseInvoice,
     PurchaseLine,
@@ -321,44 +330,10 @@ def _purchasing_tpl(request, shell_tpl, classic_tpl):
     return shell_tpl
 
 
-def _supplier_list_hide_zero_net(request) -> bool:
-    """
-    إخفاء الموردين ذوي رصيدهم بعد المسحوبات = 0.
-    عند غياب المعامل في الطلب: مفعّل افتراضياً. نموذج الفلتر يرسل hidden=0 ثم checkbox=1 إن وُجد.
-    """
-    parts = request.GET.getlist("hide_zero_net")
-    if not parts:
-        return True
-    last = (parts[-1] or "").strip().lower()
-    return last not in ("0", "false", "off")
-
-
 @login_required
 def supplier_list(request):
-    dec0 = Value(Decimal("0"), output_field=DecimalField(max_digits=14, decimal_places=2))
-    money = DecimalField(max_digits=14, decimal_places=2)
-    qs = (
-        Supplier.objects.filter(is_active=True)
-        .select_related("linked_customer")
-        .annotate(
-            cust_balance_ann=Coalesce(F("linked_customer__balance"), dec0, output_field=money),
-            net_balance_ann=ExpressionWrapper(
-                F("balance") - Coalesce(F("linked_customer__balance"), dec0),
-                output_field=money,
-            ),
-            # Arabic-first: DB binary sort puts ASCII before Arabic; group Latin/digit-leading names last.
-            _supplier_name_script_group=Case(
-                When(name_ar__regex=r"^\s*[A-Za-z0-9]", then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            ),
-        )
-        .order_by("_supplier_name_script_group", "name_ar", "pk")
-    )
-
-    hide_zero_net = _supplier_list_hide_zero_net(request)
-    if hide_zero_net:
-        qs = qs.exclude(net_balance_ann=Decimal("0"))
+    supplier_filters = parse_supplier_filters(request.GET)
+    qs = apply_supplier_filters(supplier_list_base_queryset(), supplier_filters)
 
     totals_agg = qs.aggregate(
         sum_balance=Sum("balance"),
@@ -386,7 +361,12 @@ def supplier_list(request):
     ctx = _purchasing_ctx(
         request,
         rows=enriched,
-        supplier_filter_hide_zero_net=hide_zero_net,
+        supplier_filters=supplier_filters,
+        filters_open=supplier_filters_open(supplier_filters),
+        supplier_sort_choices=SUPPLIER_SORT_CHOICES,
+        linked_filter_choices=LINKED_FILTER_CHOICES,
+        commission_filter_choices=COMMISSION_FILTER_CHOICES,
+        net_side_choices=NET_SIDE_CHOICES,
         supplier_totals=totals,
     )
     ctx.update(pag)

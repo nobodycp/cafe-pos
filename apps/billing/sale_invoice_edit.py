@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
-from decimal import Decimal
-from typing import Dict, List, Tuple
+from decimal import Decimal, InvalidOperation
+from typing import Dict, List, Optional, Tuple
 
 from django.db import transaction
 from apps.billing.models import InvoicePayment, SaleInvoice, SaleInvoiceLine
 from apps.catalog.models import Product
+from apps.contacts.models import Customer
 from apps.core.decimalutil import as_decimal
 from apps.core.models import get_pos_settings, log_audit
-from apps.core.payment_methods import credit_method_codes, load_payment_method_rows
+from apps.core.payment_methods import (
+    credit_method_codes,
+    get_payment_method_codes,
+    load_payment_method_rows,
+    method_codes_requiring_payer_details,
+)
 from apps.inventory.services import (
     check_stock_available,
     consume_for_sale,
@@ -24,9 +31,120 @@ def _line_gross(qty: Decimal, unit_price: Decimal) -> Decimal:
     return (as_decimal(qty) * as_decimal(unit_price)).quantize(Decimal("0.01"))
 
 
-def parse_sale_invoice_full_edit_post(post) -> Tuple[List[Tuple[Product, Decimal, Decimal]], List[Tuple[str, Decimal]]]:
-    """يحلّل حقول نموذج التعديل الكامل: line_{i}_product/qty/price و pay_m_{i}/pay_a_{i}."""
-    from decimal import InvalidOperation
+PaymentEditRow = Tuple[str, Decimal, str, str]  # method, amount, payer_name, payer_phone
+
+
+def _payments_from_sale_edit_post(post) -> List[PaymentEditRow]:
+    """دفعة واحدة أو دفع مختلط — نفس حقول إتمام الدفع في السلة."""
+    codes = set(get_payment_method_codes())
+    payer_name = (post.get("payer_name") or "").strip()[:120]
+    payer_phone = (post.get("payer_phone") or "").strip()[:40]
+    use_splits = (post.get("use_payment_splits") or "").strip().lower() in ("1", "true", "on", "yes")
+    raw_json = (post.get("payment_splits_json") or "").strip()
+
+    if use_splits:
+        if not raw_json:
+            raise ValueError("INVALID_PAYMENT_SPLITS")
+        try:
+            data = json.loads(raw_json)
+        except json.JSONDecodeError:
+            raise ValueError("INVALID_PAYMENT_SPLITS") from None
+        if not isinstance(data, list) or len(data) > 24:
+            raise ValueError("INVALID_PAYMENT_SPLITS")
+        out: List[PaymentEditRow] = []
+        for item in data:
+            if isinstance(item, dict):
+                method = str(item.get("method") or "").strip().lower()
+                amt_raw = item.get("amount")
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                method = str(item[0] or "").strip().lower()
+                amt_raw = item[1]
+            else:
+                continue
+            if method not in codes:
+                continue
+            try:
+                a = as_decimal(amt_raw)
+            except (InvalidOperation, ValueError, TypeError):
+                raise ValueError("BAD_NUMBER") from None
+            if a <= 0:
+                continue
+            out.append((method, a, payer_name, payer_phone))
+        if not out:
+            raise ValueError("NO_PAYMENTS_ON_INVOICE")
+        return out
+
+    mode = (post.get("payment_mode") or "").strip().lower()
+    if mode:
+        if mode not in codes:
+            raise ValueError("INVALID_PAYMENT_METHOD")
+        raw_amt = (post.get("pay_amount") or "").strip()
+        try:
+            amt = as_decimal(raw_amt) if raw_amt else Decimal("0")
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError("BAD_NUMBER") from None
+        if amt <= 0:
+            raise ValueError("NO_PAYMENTS_ON_INVOICE")
+        return [(mode, amt, payer_name, payer_phone)]
+
+    return _parse_legacy_payment_rows(post)
+
+
+def _parse_legacy_payment_rows(post) -> List[PaymentEditRow]:
+    """توافق مع الحقول القديمة pay_m_{i} / pay_a_{i}."""
+    pay_rows: List[PaymentEditRow] = []
+    for i in range(16):
+        m = (post.get(f"pay_m_{i}") or "").strip().lower()
+        ra = (post.get(f"pay_a_{i}") or "").strip()
+        if not m and not ra:
+            continue
+        if not m or not ra:
+            raise ValueError("MISSING_FIELDS")
+        try:
+            a = Decimal(str(ra).replace(",", "."))
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError("BAD_NUMBER") from None
+        if a < 0:
+            raise ValueError("NEGATIVE_NOT_ALLOWED")
+        if a > 0:
+            pay_rows.append((m, a, "", ""))
+    return pay_rows
+
+
+def _resolve_edit_customer(post, inv: SaleInvoice) -> Optional[Customer]:
+    from apps.contacts.services import resolve_or_create_active_customer_by_name
+
+    cid = (post.get("customer_id") or "").strip()
+    if cid.isdigit():
+        c = Customer.objects.filter(pk=int(cid), is_active=True).first()
+        if c:
+            return c
+    draft = (post.get("customer_name_draft") or "").strip()[:200]
+    if len(draft) >= 2:
+        c, _ = resolve_or_create_active_customer_by_name(draft)
+        if c:
+            return c
+    return inv.customer
+
+
+def _validate_payment_rows(payment_rows: List[PaymentEditRow], customer: Optional[Customer]) -> None:
+    ar_codes = credit_method_codes()
+    payer_req = method_codes_requiring_payer_details()
+    credit_total = Decimal("0")
+    for method, amt, pn, ph in payment_rows:
+        if amt <= 0:
+            continue
+        if str(method).strip().lower() in ar_codes:
+            credit_total += as_decimal(amt)
+        if str(method).strip().lower() in payer_req:
+            if len((pn or "").strip()) < 2 or len("".join(ch for ch in (ph or "") if ch.isdigit())) < 8:
+                raise ValueError("PAYER_DETAILS_REQUIRED")
+    if credit_total > 0 and not customer:
+        raise ValueError("CREDIT_REQUIRES_CUSTOMER")
+
+
+def parse_sale_invoice_full_edit_post(post) -> Tuple[List[Tuple[Product, Decimal, Decimal]], List[PaymentEditRow]]:
+    """يحلّل حقول نموذج التعديل: أسطر + دفعات (نمط السلة)."""
 
     line_rows: List[Tuple[Product, Decimal, Decimal]] = []
     for i in range(50):
@@ -48,22 +166,9 @@ def parse_sale_invoice_full_edit_post(post) -> Tuple[List[Tuple[Product, Decimal
             raise ValueError("BAD_NUMBER") from None
         line_rows.append((prod, q, p))
 
-    pay_rows: List[Tuple[str, Decimal]] = []
-    for i in range(16):
-        m = (post.get(f"pay_m_{i}") or "").strip().lower()
-        ra = (post.get(f"pay_a_{i}") or "").strip()
-        if not m and not ra:
-            continue
-        if not m or not ra:
-            raise ValueError("MISSING_FIELDS")
-        try:
-            a = Decimal(str(ra).replace(",", "."))
-        except (InvalidOperation, ValueError, TypeError):
-            raise ValueError("BAD_NUMBER") from None
-        if a < 0:
-            raise ValueError("NEGATIVE_NOT_ALLOWED")
-        if a > 0:
-            pay_rows.append((m, a))
+    pay_rows = _payments_from_sale_edit_post(post)
+    if not pay_rows:
+        raise ValueError("NO_PAYMENTS_ON_INVOICE")
 
     return line_rows, pay_rows
 
@@ -235,7 +340,8 @@ def apply_sale_invoice_full_edit(
     invoice: SaleInvoice,
     user,
     line_rows: List[Tuple[Product, Decimal, Decimal]],
-    payment_rows: List[Tuple[str, Decimal]],
+    payment_rows: List[PaymentEditRow],
+    post=None,
 ) -> None:
     """
     إعادة بناء فاتورة البيع بالكامل: أسطر جديدة (منتج + كمية + سعر) ودفعات جديدة.
@@ -260,7 +366,7 @@ def apply_sale_invoice_full_edit(
         raise ValueError("NO_PAYMENTS_ON_INVOICE")
 
     valid_codes = {str(r["code"] or "").strip().lower() for r in load_payment_method_rows()}
-    for method, _ in payment_rows:
+    for method, _, _, _ in payment_rows:
         if str(method or "").strip().lower() not in valid_codes:
             raise ValueError("INVALID_PAYMENT_METHOD")
 
@@ -292,16 +398,21 @@ def apply_sale_invoice_full_edit(
         raise ValueError("INVALID_TOTALS")
 
     new_total = (gross_sum - discount_total + svc + tax).quantize(Decimal("0.01"))
-    pay_sum = sum((as_decimal(a) for _, a in payment_rows), Decimal("0")).quantize(Decimal("0.01"))
+    pay_sum = sum((as_decimal(a) for _, a, _, _ in payment_rows), Decimal("0")).quantize(Decimal("0.01"))
     if abs(pay_sum - new_total) > Decimal("0.02"):
         raise ValueError(f"PAYMENT_SUM_MISMATCH:{pay_sum}:{new_total}")
 
+    cust = _resolve_edit_customer(post, inv) if post is not None else inv.customer
+    if cust and (not inv.customer_id or inv.customer_id != cust.pk):
+        inv.customer = cust
+        inv.save(update_fields=["customer", "updated_at"])
+
+    _validate_payment_rows(payment_rows, inv.customer)
+
     credit_total = sum(
-        (as_decimal(a) for m, a in payment_rows if str(m).strip().lower() in credit_method_codes()),
+        (as_decimal(a) for m, a, _, _ in payment_rows if str(m).strip().lower() in credit_method_codes()),
         Decimal("0"),
     ).quantize(Decimal("0.01"))
-    if credit_total > 0 and not inv.customer:
-        raise ValueError("CREDIT_REQUIRES_CUSTOMER")
 
     for prod, qty, _, _lg in gross_by_idx:
         check_stock_available(prod, qty)
@@ -386,7 +497,7 @@ def apply_sale_invoice_full_edit(
         ]
     )
 
-    for method, amount in payment_rows:
+    for method, amount, payer_name, payer_phone in payment_rows:
         amt = as_decimal(amount)
         if amt <= 0:
             continue
@@ -394,8 +505,8 @@ def apply_sale_invoice_full_edit(
             invoice=inv,
             method=str(method).strip().lower(),
             amount=amt,
-            payer_name="",
-            payer_phone="",
+            payer_name=str(payer_name or "").strip()[:120],
+            payer_phone=str(payer_phone or "").strip()[:40],
             payment_source="",
         )
 
@@ -439,7 +550,7 @@ def apply_sale_invoice_full_edit(
         )
 
     pay_by_method: Dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    for method, amount in payment_rows:
+    for method, amount, _, _ in payment_rows:
         amt = as_decimal(amount)
         if amt <= 0:
             continue

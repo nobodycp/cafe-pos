@@ -58,6 +58,7 @@ urlpatterns = [
     path("customers/<int:pk>/statement/", contacts_views.customer_statement, name="customer_statement"),
     path("invoices/<int:pk>/", billing_views.sale_invoice_detail, name="invoice_detail"),
     path("invoices/<int:pk>/edit/", billing_views.sale_invoice_edit, name="sale_invoice_edit"),
+    path("invoices/<int:pk>/edit-panel/", billing_views.sale_invoice_edit_panel, name="sale_invoice_edit_panel"),
     path("suppliers/", purchasing_views.supplier_list, name="suppliers"),
     path("suppliers/balances/", purchasing_views.supplier_balances, name="supplier_balances"),
     path("suppliers/create/", purchasing_views.supplier_create, name="supplier_create"),

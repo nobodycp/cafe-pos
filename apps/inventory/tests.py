@@ -4,7 +4,10 @@ from django.test import TestCase
 
 from apps.catalog.models import Product, RecipeLine
 from apps.inventory.models import ManufacturingBatch, StockBalance
+from apps.inventory.models import StockMovement
 from apps.inventory.services import (
+    adjust_stock,
+    movement_rows_with_balance_after,
     record_manufacturing_batch,
     stock_home_base_queryset,
     sync_missing_stock_balance_rows,
@@ -45,6 +48,44 @@ class StockHomeAllProductTypesTests(TestCase):
         n = sync_missing_stock_balance_rows()
         self.assertGreaterEqual(n, 1)
         self.assertTrue(StockBalance.objects.filter(product=p).exists())
+
+
+class MovementBalanceAfterTests(TestCase):
+    def test_balance_after_includes_opening_and_chronological_deltas(self):
+        p = Product.objects.create(
+            name_ar="صنف حركات",
+            product_type=Product.ProductType.RAW,
+            is_stock_tracked=True,
+        )
+        StockBalance.objects.create(product=p, quantity_on_hand=Decimal("15"), average_cost=Decimal("1"))
+        m1 = adjust_stock(
+            product=p,
+            quantity_delta=Decimal("10"),
+            movement_type=StockMovement.MovementType.ADJUSTMENT,
+            session=None,
+            reference_model="manual",
+            reference_pk="1",
+        )
+        m2 = adjust_stock(
+            product=p,
+            quantity_delta=Decimal("-3"),
+            movement_type=StockMovement.MovementType.ADJUSTMENT,
+            session=None,
+            reference_model="manual",
+            reference_pk="2",
+        )
+        adjust_stock(
+            product=p,
+            quantity_delta=Decimal("5"),
+            movement_type=StockMovement.MovementType.ADJUSTMENT,
+            session=None,
+            reference_model="manual",
+            reference_pk="3",
+        )
+        rows = movement_rows_with_balance_after([m2, m1])
+        by_pk = {r["movement"].pk: r["balance_after"] for r in rows}
+        self.assertEqual(by_pk[m1.pk], Decimal("25"))
+        self.assertEqual(by_pk[m2.pk], Decimal("22"))
 
 
 class VoidManufacturingBatchTests(TestCase):

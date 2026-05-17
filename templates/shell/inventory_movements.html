@@ -53,19 +53,22 @@
               <th>نوع المنتج</th>
               <th>نوع الحركة</th>
               <th>التغيير</th>
+              <th class="whitespace-nowrap">الرصيد بعد الحركة</th>
               <th>مرجع</th>
               <th>ملاحظة</th>
               <th class="text-center whitespace-nowrap min-w-[10rem]">إجراءات</th>
             </tr>
           </thead>
           <tbody>
-            {% for m in page_obj %}
+            {% for row in movement_rows %}
+            {% with m=row.movement %}
             <tr>
               <td class="whitespace-nowrap text-muted">{{ m.created_at|date:"Y-m-d H:i" }}</td>
               <td class="font-semibold">{{ m.product.name_ar }}</td>
               <td class="text-muted whitespace-nowrap">{{ m.product.get_product_type_display }}</td>
               <td>{{ m.get_movement_type_display }}</td>
               <td class="font-semibold {% if m.quantity_delta > 0 %}text-success{% elif m.quantity_delta < 0 %}text-danger{% endif %}">{{ m.quantity_delta|floatformat:2 }}</td>
+              <td class="font-semibold tabular-nums">{{ row.balance_after|floatformat:2 }}{% if m.product.unit %} <span class="text-muted font-normal text-xs">{{ m.product.unit.code }}</span>{% endif %}</td>
               <td class="text-xs text-muted">
                 {% if m.reference_model == "billing.SaleInvoice" and m.reference_pk %}
                 <a href="{% url 'shell:invoice_detail' m.reference_pk %}" class="text-primary hover:underline">فاتورة بيع #{{ m.reference_pk }}</a>
@@ -90,8 +93,9 @@
                 {% endif %}
               </td>
             </tr>
+            {% endwith %}
             {% empty %}
-            <tr><td colspan="8" class="p-8 text-center text-muted">لا توجد حركات</td></tr>
+            <tr><td colspan="9" class="p-8 text-center text-muted">لا توجد حركات</td></tr>
             {% endfor %}
           </tbody>
         </table>

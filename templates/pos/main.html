@@ -31,6 +31,7 @@
 .pos-tables-scroll::-webkit-scrollbar-track{background:#f1f5f9}
 .cust-ac-hit{display:block;width:100%;padding:8px 12px;text-align:right;font-size:.85rem;border:none;background:none;cursor:pointer;font-family:inherit;color:inherit}
 .cust-ac-hit:hover{background:#eef0ff}
+.cust-ac-hit .font-semibold{display:block}
 .prod-ac-hit.ac-active{background:rgba(108,92,231,.1)}
 /* المنتجات: النصف العلوي 50٪ = بحث + تابات + جدول (تمرير داخلي)؛ النصف السفلي فارغ */
 .pos-products-main{display:flex;flex-direction:column;flex:1 1 0;min-height:0;height:100%;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06)}
@@ -345,6 +346,7 @@
 <script src="{% static 'js/money_parse.js' %}"></script>
 <script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
 <script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>
+<script src="{% static 'js/sale_invoice_edit_pay.js' %}"></script>
 <script>
 (function(){
   var CART_URL='{% url "pos:cart_fragment" %}';
@@ -538,6 +540,7 @@
         mount.innerHTML=html;
         setPosInvoiceOverlayTitle('تعديل الفاتورة');
         if(window.initSaleInvoiceReceiptEdit)window.initSaleInvoiceReceiptEdit(mount);
+        if(window.initSaleInvoiceEditPay)window.initSaleInvoiceEditPay(mount);
       })
       .catch(function(){
         mount.innerHTML='<p class="p-6 text-center text-sm text-danger" dir="rtl">تعذر تحميل التعديل.</p>';
@@ -567,6 +570,11 @@
       var form=e.target;
       if(!form||form.tagName!=='FORM'||form.getAttribute('data-pos-sale-edit')!=='1')return;
       e.preventDefault();
+      if(window.validateSaleInvoiceEditPay){
+        var payErr=window.validateSaleInvoiceEditPay(form);
+        if(payErr){showToast(payErr,'error');return;}
+      }
+      if(window.applySaleInvoiceEditPayHidden)window.applySaleInvoiceEditPayHidden(form);
       var fd=new FormData(form);
       fetch(form.action,{
         method:'POST',
@@ -1511,6 +1519,11 @@
       var dnf = document.getElementById('pay-cust-name-draft');
       if (dnf && String(dnf.value || '').trim()) coSearch.value = String(dnf.value || '').trim();
     }
+    var coBalLine = document.getElementById('pos-co-cust-balance');
+    if (coBalLine) {
+      coBalLine.classList.add('hidden');
+      coBalLine.textContent = '';
+    }
     var sc = document.getElementById('pos-co-split-chk');
     if (sc) sc.checked = false;
     syncCheckoutSplitMode(false);
@@ -1749,6 +1762,9 @@
       quickCreateCsrf: CSRF,
       arrowNav: true,
       useDisplayNone: true,
+      showBalance: true,
+      currencySymbol: CUR,
+      balanceEl: document.getElementById('pos-co-cust-balance'),
     });
   }
   (function initPosCheckoutOverlayOnce() {

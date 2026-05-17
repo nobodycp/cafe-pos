@@ -13,7 +13,7 @@
       <a href="{% url 'shell:customer_detail' invoice.customer.pk %}" class="shell-toolbar-link" {% if invoice_embedded %}target="_blank" rel="noopener"{% endif %}>← العميل</a>
       {% endif %}
       {% if not invoice_embedded %}
-      <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← لوحة الطلبات</a>
+      <a href="{{ toolbar_back_url }}" class="shell-toolbar-link" title="{{ toolbar_back_title }}">{{ toolbar_back_label }}</a>
       {% endif %}
       {% if invoice_embedded %}
       <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link" target="_blank" rel="noopener">فتح بالكامل ↗</a>
@@ -28,14 +28,10 @@
       </h1>
       <div class="flex gap-2 flex-wrap no-print items-center">
         {% if not invoice.is_cancelled and not has_sale_returns %}
-          {% if invoice_embedded %}
-          <button type="button" class="pos-invoice-load-edit inline-flex items-center justify-center h-9 px-3 rounded-lg border border-primary/50 bg-primary/10 text-primary font-bold text-xs hover:bg-primary hover:text-white cursor-pointer"
-            data-edit-panel-url="{% url 'pos:sale_invoice_edit_panel' invoice.pk %}"
+          <button type="button" class="shell-invoice-load-edit pos-invoice-load-edit inline-flex items-center justify-center h-9 px-3 rounded-lg border border-primary/50 bg-primary/10 text-primary font-bold text-xs hover:bg-primary hover:text-white cursor-pointer"
+            data-edit-panel-url="{% url 'shell:sale_invoice_edit_panel' invoice.pk %}"
+            data-edit-title="تعديل {{ invoice.invoice_number }}"
             title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الأصناف والكميات والدفعات{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</button>
-          {% else %}
-          <a href="{% url 'shell:sale_invoice_edit' invoice.pk %}" class="inline-flex items-center justify-center h-9 px-3 rounded-lg border border-primary/50 bg-primary/10 text-primary font-bold text-xs hover:bg-primary hover:text-white no-underline"
-            title="{% if POS_SETTINGS.allow_sale_invoice_edit %}تعديل الأصناف والكميات والدفعات{% else %}فعّل «السماح بتعديل فاتورة البيع» من الإعدادات → الإيصال لتتمكن من الحفظ{% endif %}">تعديل الفاتورة</a>
-          {% endif %}
         {% endif %}
         <button type="button" onclick="window.print()" class="inline-flex items-center justify-center h-9 px-3 rounded-lg bg-primary text-white font-bold text-xs hover:bg-primary-dk cursor-pointer">طباعة</button>
         <form method="post" action="{% url 'shell:sale_invoice_delete' invoice.pk %}" class="m-0">

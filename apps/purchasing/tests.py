@@ -5,6 +5,13 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from apps.catalog.models import Product, Unit
+from apps.contacts.models import Customer
+from apps.purchasing.models import Supplier
+from apps.purchasing.supplier_list_filters import (
+    apply_supplier_filters,
+    parse_supplier_filters,
+    supplier_list_base_queryset,
+)
 from apps.purchasing.views import _purchase_lines_from_request
 
 
@@ -122,3 +129,30 @@ class PurchaseProductsSearchTests(TestCase):
         self.assertEqual(r.status_code, 200)
         ids = [row["id"] for row in r.json()["results"]]
         self.assertNotIn(m.pk, ids)
+
+
+class SupplierListFiltersTests(TestCase):
+    def test_search_and_hide_zero_net_default(self):
+        Supplier.objects.create(name_ar="مورد صفر", balance=Decimal("0"))
+        Supplier.objects.create(name_ar="مورد علينا", balance=Decimal("100"))
+        qs = apply_supplier_filters(
+            supplier_list_base_queryset(),
+            parse_supplier_filters({}),
+        )
+        names = list(qs.values_list("name_ar", flat=True))
+        self.assertNotIn("مورد صفر", names)
+        self.assertIn("مورد علينا", names)
+
+    def test_net_side_zero_shows_zero_net(self):
+        cust = Customer.objects.create(name_ar="عميل مرتبط", balance=Decimal("50"))
+        Supplier.objects.create(name_ar="مورد متوازن", balance=Decimal("50"), linked_customer=cust)
+        f = parse_supplier_filters({"net_side": "zero", "hide_zero_net": "0"})
+        names = list(apply_supplier_filters(supplier_list_base_queryset(), f).values_list("name_ar", flat=True))
+        self.assertEqual(names, ["مورد متوازن"])
+
+    def test_search_by_phone(self):
+        Supplier.objects.create(name_ar="أ", phone="0599111222", balance=Decimal("10"))
+        Supplier.objects.create(name_ar="ب", phone="0500000000", balance=Decimal("10"))
+        f = parse_supplier_filters({"q": "99111", "hide_zero_net": "0"})
+        names = list(apply_supplier_filters(supplier_list_base_queryset(), f).values_list("name_ar", flat=True))
+        self.assertEqual(names, ["أ"])

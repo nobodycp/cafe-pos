@@ -4,22 +4,95 @@
 {% block cashier_body %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="حركة الأصناف" toolbar_hint="الأكثر مبيعاً والراكد" %}
 
-<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
-  <div class="flex flex-wrap gap-1.5 items-center">
-    <a href="{% url 'shell:product_movement' %}?period=week" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'week' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">أسبوع</a>
-    <a href="{% url 'shell:product_movement' %}?period=month" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'month' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">شهر</a>
-    <a href="{% url 'shell:product_movement' %}?period=year" class="h-8 px-2.5 rounded-sm text-xs font-bold inline-flex items-center no-underline {% if period == 'year' %}bg-primary text-white{% else %}bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-100{% endif %}">سنة</a>
+<details class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-3 overflow-hidden [&_summary::-webkit-details-marker]:hidden"
+  {% if filters_open %}open{% endif %}>
+  <summary class="px-3 py-2.5 text-xs font-extrabold text-gray-700 dark:text-gray-200 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/40 flex items-center justify-between gap-2 list-none">
+    <span>فلاتر البحث والعرض</span>
+    <span class="text-[10px] font-semibold text-muted shrink-0">اضغط للإظهار / الإخفاء</span>
+  </summary>
+  <div class="px-3 pb-3 pt-0 border-t border-gray-100 dark:border-gray-700">
+    <form method="get" class="flex flex-col gap-3 pt-2">
+      <input type="hidden" name="per_page" value="{{ top_per_page|default:slow_per_page|default:25 }}">
+      <div class="flex flex-wrap gap-2 items-end">
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+          <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+          <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">فترة سريعة</label>
+          <div class="flex flex-wrap gap-1">
+            <a href="{% url 'shell:product_movement' %}?period=week&amp;{% if movement_list_query %}{{ movement_list_query }}&amp;{% endif %}per_page={{ top_per_page|default:25 }}" class="h-8 px-2 rounded-sm text-[10px] font-bold inline-flex items-center no-underline {% if period_quick == 'week' %}bg-primary text-white{% else %}border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100{% endif %}">أسبوع</a>
+            <a href="{% url 'shell:product_movement' %}?period=month&amp;{% if movement_list_query %}{{ movement_list_query }}&amp;{% endif %}per_page={{ top_per_page|default:25 }}" class="h-8 px-2 rounded-sm text-[10px] font-bold inline-flex items-center no-underline {% if period_quick == 'month' or not period_quick %}bg-primary text-white{% else %}border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100{% endif %}">شهر</a>
+            <a href="{% url 'shell:product_movement' %}?period=year&amp;{% if movement_list_query %}{{ movement_list_query }}&amp;{% endif %}per_page={{ top_per_page|default:25 }}" class="h-8 px-2 rounded-sm text-[10px] font-bold inline-flex items-center no-underline {% if period_quick == 'year' %}bg-primary text-white{% else %}border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100{% endif %}">سنة</a>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">التصنيف</label>
+          <select name="category" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[9rem]">
+            <option value="">كل التصنيفات</option>
+            {% for cat in filter_category_options %}
+            <option value="{{ cat.pk }}"{% if movement_filters.category_id == cat.pk %} selected{% endif %}>{{ cat.name_ar }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">نوع المنتج</label>
+          <select name="product_type" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[9rem]">
+            <option value="">كل الأنواع</option>
+            {% for code, label in product_type_choices %}
+            <option value="{{ code }}"{% if movement_filters.product_type == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">العرض</label>
+          <select name="section" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[10rem]">
+            {% for code, label in section_choices %}
+            <option value="{{ code }}"{% if movement_filters.section == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب الأكثر مبيعاً</label>
+          <select name="sort_top" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[10rem]">
+            {% for code, label in top_sort_choices %}
+            <option value="{{ code }}"{% if movement_filters.sort_top == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-muted mb-0.5">ترتيب الراكد</label>
+          <select name="sort_slow" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[9rem]">
+            {% for code, label in slow_sort_choices %}
+            <option value="{{ code }}"{% if movement_filters.sort_slow == code %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex-1 min-w-[12rem] max-w-xl">
+          <label class="block text-[11px] font-bold text-muted mb-0.5">بحث (اسم الصنف، إنجليزي، باركود)</label>
+          <input type="search" name="q" value="{{ movement_filters.q }}" placeholder="مثال: كولا، 629…" class="ds-input w-full h-8 text-xs">
+        </div>
+        <button type="submit" class="h-8 px-3 rounded-sm bg-primary text-white text-xs font-bold shrink-0">تطبيق</button>
+        <a href="{% url 'shell:product_movement' %}" class="h-8 px-3 rounded-sm border border-gray-300 dark:border-gray-600 text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 inline-flex items-center shrink-0 hover:bg-gray-50 dark:hover:bg-gray-700">مسح الفلاتر</a>
+      </div>
+    </form>
   </div>
-  <p class="text-[11px] text-muted mt-2 mb-0">من {{ date_from }}</p>
-</div>
+</details>
 
+<p class="text-[11px] text-muted mb-3">الفترة: <span class="font-bold tabular-nums">{{ date_from }}</span> — <span class="font-bold tabular-nums">{{ date_to }}</span></p>
+
+{% if show_top %}
+<div class="shell-spa-table-root">
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-3">
   <h3 class="text-xs font-extrabold mb-2">الأكثر مبيعاً</h3>
-  {% if top_sellers %}
-  <div class="overflow-x-auto">
-    <table class="w-full text-xs">
+  <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+    <table class="w-full text-xs ds-table">
       <thead>
-        <tr class="border-b border-gray-200 dark:border-gray-600">
+        <tr>
           <th class="text-start py-2 px-2 font-bold text-muted">#</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الصنف</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الكمية</th>
@@ -29,50 +102,56 @@
       </thead>
       <tbody>
         {% for p in top_sellers %}
-        <tr class="border-b border-gray-100 dark:border-gray-700/80">
-          <td class="py-2 px-2">{{ forloop.counter }}</td>
-          <td class="py-2 px-2 font-semibold">{{ p.product__name_ar }}</td>
+        <tr>
+          <td class="py-2 px-2 tabular-nums">{{ top_page_obj.start_index|add:forloop.counter0 }}</td>
+          <td class="py-2 px-2">
+            <a href="{% url 'shell:product_card' p.product__pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.product__name_ar }}</a>
+          </td>
           <td class="py-2 px-2 tabular-nums">{{ p.total_qty }}</td>
           <td class="py-2 px-2 tabular-nums">{{ p.total_revenue|floatformat:2|intcomma }}</td>
           <td class="py-2 px-2 text-success font-bold tabular-nums">{{ p.total_profit|floatformat:2|intcomma }}</td>
         </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center text-muted py-8">لا توجد مبيعات مطابقة للفلتر.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    {% include "shell/_shell_pagination.html" with page_obj=top_page_obj per_page=top_per_page per_page_choices=top_per_page_choices pagination_query=top_pagination_query page_param=top_page_param %}
   </div>
-  {% else %}
-  <p class="text-center text-muted py-6 text-xs">لا توجد مبيعات في هذه الفترة.</p>
-  {% endif %}
 </div>
+</div>
+{% endif %}
 
+{% if show_slow %}
+<div class="shell-spa-table-root">
 <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-  <h3 class="text-xs font-extrabold mb-2">أصناف راكدة</h3>
-  {% if slow_movers %}
-  <div class="overflow-x-auto">
-    <table class="w-full text-xs">
+  <h3 class="text-xs font-extrabold mb-2">أصناف راكدة <span class="font-normal text-muted">(لم تُبَع في الفترة)</span></h3>
+  <div class="ds-table-wrap border-0 rounded-none overflow-x-auto">
+    <table class="w-full text-xs ds-table">
       <thead>
-        <tr class="border-b border-gray-200 dark:border-gray-600">
+        <tr>
           <th class="text-start py-2 px-2 font-bold text-muted">#</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الصنف</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">عرض</th>
         </tr>
       </thead>
       <tbody>
         {% for p in slow_movers %}
-        <tr class="border-b border-gray-100 dark:border-gray-700/80">
-          <td class="py-2 px-2">{{ forloop.counter }}</td>
-          <td class="py-2 px-2 font-semibold">{{ p.name_ar }}</td>
+        <tr>
+          <td class="py-2 px-2 tabular-nums">{{ slow_page_obj.start_index|add:forloop.counter0 }}</td>
           <td class="py-2 px-2">
-            <a href="{% url 'shell:product_card' p.pk %}" class="text-primary font-bold text-[10px] hover:underline">بطاقة الصنف</a>
+            <a href="{% url 'shell:product_card' p.pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.name_ar }}</a>
           </td>
         </tr>
+        {% empty %}
+        <tr><td colspan="2" class="text-center text-muted py-8">لا توجد أصناف راكدة مطابقة للفلتر.</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    {% include "shell/_shell_pagination.html" with page_obj=slow_page_obj per_page=slow_per_page per_page_choices=slow_per_page_choices pagination_query=slow_pagination_query page_param=slow_page_param %}
   </div>
-  {% else %}
-  <p class="text-center text-muted py-6 text-xs">لا توجد أصناف راكدة.</p>
-  {% endif %}
 </div>
+</div>
+{% endif %}
+
 {% include "reports/_reports_shell_end.html" %}
 {% endblock %}

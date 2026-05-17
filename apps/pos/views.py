@@ -24,7 +24,7 @@ from apps.billing.tab_service import (
 )
 from apps.catalog.forms import ProductForm
 from apps.catalog.models import Category, Product, ProductModifierGroup
-from apps.contacts.customer_lookup import active_customers_search_qs
+from apps.contacts.customer_lookup import active_customers_search_qs, customer_search_result_row
 from apps.contacts.forms import CustomerForm
 from apps.contacts.services import resolve_or_create_active_customer_by_name
 from apps.contacts.models import Customer
@@ -572,10 +572,7 @@ def table_open(request):
 @require_GET
 def customers_search(request):
     q = (request.GET.get("q") or "").strip()[:80]
-    data = [
-        {"id": c.pk, "name_ar": c.name_ar, "phone": c.phone or ""}
-        for c in active_customers_search_qs(q, limit=20)
-    ]
+    data = [customer_search_result_row(c) for c in active_customers_search_qs(q, limit=20)]
     return JsonResponse({"results": data})
 
 
@@ -620,7 +617,18 @@ def customer_quick_create(request):
         c.save(update_fields=["phone", "updated_at"])
     if not reused:
         log_audit(request.user, "contacts.customer.quick_create", "contacts.Customer", c.pk, {})
-    return JsonResponse({"ok": True, "id": c.pk, "name_ar": c.name_ar, "reused": reused})
+    row = customer_search_result_row(c)
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": c.pk,
+            "name_ar": c.name_ar,
+            "reused": reused,
+            "balance": row["balance"],
+            "balance_hint": row["balance_hint"],
+            "balance_kind": row["balance_kind"],
+        }
+    )
 
 
 @login_required

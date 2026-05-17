@@ -1,0 +1,182 @@
+{% load humanize core_extras %}
+{# تعديل فاتورة — جدول مضغوط مثل سلة الكاشير (Excel) #}
+<form method="post" action="{% url 'shell:sale_invoice_edit' invoice.pk %}" class="sale-invoice-edit-compact-form"
+  data-sale-edit-form="1"
+  data-sale-edit-full="1"
+  data-pos-products-search="{{ pos_products_search_url|escape }}"
+  {% if sale_edit_embed %}data-pos-sale-edit="1"{% endif %}
+  data-discount="{{ invoice.discount_total|floatformat:2 }}"
+  data-service="{{ invoice.service_charge_total|floatformat:2 }}"
+  data-tax="{{ invoice.tax_total|floatformat:2 }}"
+  data-currency="{{ POS_SETTINGS.currency_symbol }}">
+  {% csrf_token %}
+  {% if sale_edit_embed %}<input type="hidden" name="pos_embed" value="1">{% endif %}
+
+  <p class="text-[10px] text-muted leading-snug mb-1.5">
+    عدّل الأصناف والكميات والأسعار وطرق الدفع — مجموع الدفعات = الإجمالي.
+  </p>
+
+  <div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
+    <span>{{ invoice.invoice_number }}</span>
+    <span class="text-muted font-normal">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
+    {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
+    <span class="text-muted font-normal">طاولة {{ invoice.order.table_session.dining_table.name_ar }}</span>
+    {% endif %}
+    {% if invoice.customer %}
+    <span class="text-muted font-normal">{{ invoice.customer.name_ar }}</span>
+    {% endif %}
+  </div>
+
+  <div class="sale-invoice-edit-table-region overflow-x-auto mb-1.5">
+    <table class="pos-cart-lines pos-cart-lines--excel sale-edit-lines-table w-full">
+      <colgroup>
+        <col class="sale-edit-col-num">
+        <col class="sale-edit-col-name">
+        <col class="sale-edit-col-qty">
+        <col class="sale-edit-col-price">
+        <col class="sale-edit-col-total">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="text-center">#</th>
+          <th class="text-start min-w-0">الصنف</th>
+          <th class="text-center">كم</th>
+          <th class="text-center">سعر</th>
+          <th class="text-end">مجموع</th>
+        </tr>
+      </thead>
+      <tbody id="sale-edit-lines-tbody" data-next-idx="{{ line_edit_rows|length }}">
+        {% for row in line_edit_rows %}
+        <tr class="sale-edit-line-full cart-line-item" data-sale-edit-line-full data-idx="{{ row.idx }}">
+          <td class="text-muted tabular-nums sale-edit-line-num">{{ forloop.counter }}</td>
+          <td class="relative min-w-0 sale-edit-col-name-cell">
+            <input type="hidden" name="line_{{ row.idx }}_product" value="{% if row.line %}{{ row.line.product_id }}{% endif %}" class="sale-edit-line-product-id">
+            <input type="text" name="line_{{ row.idx }}_search" value="{% if row.line %}{{ row.line.product.name_ar }}{% endif %}" autocomplete="off" placeholder="بحث…"
+              class="sale-edit-product-search w-full min-w-0 max-w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-0 text-[11px] leading-tight">
+            <div class="sale-edit-ac hidden absolute z-[500] mt-px max-h-36 overflow-y-auto min-w-full rounded border border-gray-300 bg-white text-[10px] shadow-lg dark:border-gray-600 dark:bg-gray-800"></div>
+          </td>
+          <td class="text-center sale-edit-col-qty-cell">
+            <input type="number" name="line_{{ row.idx }}_qty" value="{% if row.line %}{{ row.line.quantity|floatformat:'-3' }}{% endif %}" step="0.001" min="0" autocomplete="off"
+              class="sale-edit-qty w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-0.5 py-0 text-center text-[11px] tabular-nums leading-tight" dir="ltr">
+          </td>
+          <td class="text-center sale-edit-col-price-cell">
+            <input type="number" name="line_{{ row.idx }}_price" value="{% if row.line %}{{ row.line.unit_price|floatformat:2 }}{% endif %}" step="0.01" min="0" autocomplete="off"
+              class="sale-edit-price w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-0.5 py-0 text-center text-[11px] tabular-nums leading-tight" dir="ltr">
+          </td>
+          <td class="font-bold tabular-nums text-end text-[11px]"><span class="sale-edit-line-total">—</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" id="sale-edit-add-line" class="mt-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-[10px] font-bold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">+ إضافة سطر</button>
+  </div>
+
+  <template id="sale-edit-line-row-template">
+    <tr class="sale-edit-line-full cart-line-item" data-sale-edit-line-full>
+      <td class="text-muted tabular-nums sale-edit-line-num">—</td>
+      <td class="relative min-w-0 sale-edit-col-name-cell">
+        <input type="hidden" value="" class="sale-edit-line-product-id">
+        <input type="text" value="" autocomplete="off" placeholder="بحث…"
+          class="sale-edit-product-search w-full min-w-0 max-w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-0 text-[11px] leading-tight">
+        <div class="sale-edit-ac hidden absolute z-[500] mt-px max-h-36 overflow-y-auto min-w-full rounded border border-gray-300 bg-white text-[10px] shadow-lg dark:border-gray-600 dark:bg-gray-800"></div>
+      </td>
+      <td class="text-center sale-edit-col-qty-cell">
+        <input type="number" value="" step="0.001" min="0" autocomplete="off"
+          class="sale-edit-qty w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-0.5 py-0 text-center text-[11px] tabular-nums leading-tight" dir="ltr">
+      </td>
+      <td class="text-center sale-edit-col-price-cell">
+        <input type="number" value="" step="0.01" min="0" autocomplete="off"
+          class="sale-edit-price w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-0.5 py-0 text-center text-[11px] tabular-nums leading-tight" dir="ltr">
+      </td>
+      <td class="font-bold tabular-nums text-end text-[11px]"><span class="sale-edit-line-total">—</span></td>
+    </tr>
+  </template>
+
+  <div class="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5 text-[10px] mb-1.5 tabular-nums">
+    <span><span class="text-muted">فرعي</span> <strong id="sale-edit-live-subtotal">—</strong></span>
+    {% if invoice.discount_total > 0 %}
+    <span class="text-danger"><span class="text-muted">خصم</span> -{{ invoice.discount_total|floatformat:2 }}</span>
+    {% endif %}
+    {% if invoice.service_charge_total > 0 %}
+    <span><span class="text-muted">خدمة</span> {{ invoice.service_charge_total|floatformat:2 }}</span>
+    {% endif %}
+    {% if invoice.tax_total > 0 %}
+    <span><span class="text-muted">ضريبة</span> {{ invoice.tax_total|floatformat:2 }}</span>
+    {% endif %}
+    <span class="font-extrabold text-[11px]"><span class="text-muted font-semibold">إجمالي</span> <span id="sale-edit-live-total">—</span></span>
+  </div>
+
+  {% include "shell/_sale_invoice_edit_pay_section.html" %}
+
+  <div class="flex flex-wrap gap-1.5 items-center pt-1 border-t border-gray-200 dark:border-gray-700">
+    <button type="submit" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk">حفظ</button>
+    {% if sale_edit_embed %}
+    <button type="button" class="sale-invoice-edit-cancel h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 pos-invoice-back-preview">إلغاء</button>
+    {% else %}
+    <button type="button" class="sale-invoice-edit-cancel shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">إلغاء</button>
+    {% endif %}
+  </div>
+</form>
+
+<style>
+.sale-invoice-edit-compact-form .sale-invoice-edit-table-region,
+#sale-invoice-edit-compact .sale-invoice-edit-table-region{
+  border:1px solid #cbd5e1;border-radius:4px;background:#fff;
+}
+.dark .sale-invoice-edit-compact-form .sale-invoice-edit-table-region,
+.dark #sale-invoice-edit-compact .sale-invoice-edit-table-region{border-color:#475569;background:#111827}
+.sale-invoice-edit-compact-form .pos-cart-lines--excel,
+#sale-invoice-edit-compact .pos-cart-lines--excel{
+  border-collapse:collapse;width:100%;table-layout:fixed;
+  font-size:11px;line-height:1.2;font-variant-numeric:tabular-nums;
+}
+.sale-invoice-edit-compact-form .sale-edit-lines-table col.sale-edit-col-num{width:1.6rem}
+.sale-invoice-edit-compact-form .sale-edit-lines-table col.sale-edit-col-qty{width:4.75rem}
+.sale-invoice-edit-compact-form .sale-edit-lines-table col.sale-edit-col-price{width:4.75rem}
+.sale-invoice-edit-compact-form .sale-edit-lines-table col.sale-edit-col-total{width:5rem}
+.sale-invoice-edit-compact-form .sale-edit-col-name-cell{max-width:0;overflow:hidden}
+.sale-invoice-edit-compact-form .pos-cart-lines--excel thead th,
+#sale-invoice-edit-compact .pos-cart-lines--excel thead th{
+  position:sticky;top:0;z-index:2;background:#e2e8f0;color:#334155;font-weight:800;
+  padding:3px 4px;border:1px solid #cbd5e1;font-size:10px;
+}
+.dark .sale-invoice-edit-compact-form .pos-cart-lines--excel thead th,
+.dark #sale-invoice-edit-compact .pos-cart-lines--excel thead th{
+  background:#334155;color:#e2e8f0;border-color:#475569;
+}
+.sale-invoice-edit-compact-form .pos-cart-lines--excel tbody td,
+#sale-invoice-edit-compact .pos-cart-lines--excel tbody td{
+  border:1px solid #cbd5e1;padding:2px 4px;vertical-align:middle;font-size:11px;
+}
+.dark .sale-invoice-edit-compact-form .pos-cart-lines--excel tbody td,
+.dark #sale-invoice-edit-compact .pos-cart-lines--excel tbody td{border-color:#475569}
+.sale-invoice-edit-compact-form .pos-cart-lines--excel tbody tr:nth-child(even),
+#sale-invoice-edit-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:#f8fafc}
+.dark .sale-invoice-edit-compact-form .pos-cart-lines--excel tbody tr:nth-child(even),
+.dark #sale-invoice-edit-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:rgba(30,41,59,.45)}
+.sale-invoice-edit-compact-form .sale-edit-product-search,
+.sale-invoice-edit-compact-form .sale-edit-qty,
+.sale-invoice-edit-compact-form .sale-edit-price,
+.sale-invoice-edit-compact-form .sale-edit-pay-amt,
+.sale-invoice-edit-compact-form select,
+#sale-invoice-edit-compact .sale-edit-product-search,
+#sale-invoice-edit-compact .sale-edit-qty,
+#sale-invoice-edit-compact .sale-edit-price,
+#sale-invoice-edit-compact .sale-edit-pay-amt,
+#sale-invoice-edit-compact select{
+  min-height:1.35rem!important;height:1.35rem!important;font-size:11px!important;
+  border:1px solid #cbd5e1!important;border-radius:2px!important;box-sizing:border-box!important;
+}
+.dark .sale-invoice-edit-compact-form .sale-edit-product-search,
+.dark .sale-invoice-edit-compact-form .sale-edit-qty,
+.dark .sale-invoice-edit-compact-form .sale-edit-price,
+.dark .sale-invoice-edit-compact-form .sale-edit-pay-amt,
+.dark .sale-invoice-edit-compact-form select,
+.dark #sale-invoice-edit-compact .sale-edit-product-search,
+.dark #sale-invoice-edit-compact .sale-edit-qty,
+.dark #sale-invoice-edit-compact .sale-edit-price,
+.dark #sale-invoice-edit-compact .sale-edit-pay-amt,
+.dark #sale-invoice-edit-compact select{
+  border-color:#475569!important;background:#0f172a!important;color:#e2e8f0!important;
+}
+</style>

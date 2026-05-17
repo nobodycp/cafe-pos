@@ -1,0 +1,15 @@
+{% load humanize core_extras %}
+{# جزء تعديل الفاتورة للنافذة المنبثقة (كاشير + غلاف) #}
+<div id="sale-invoice-edit-compact" class="sale-invoice-edit-modal p-2 sm:p-2.5" dir="rtl">
+  {% if not pos_allows_edit %}
+  <div class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+    تعديل فواتير البيع غير مفعّل. فعّل «السماح بتعديل فاتورة البيع بعد الإصدار» من <strong>الإعدادات → الإيصال</strong>.
+  </div>
+  {% elif has_sale_returns %}
+  <div class="rounded border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">لا يمكن تعديل فاتورة عليها مرتجع.</div>
+  {% elif not can_edit_sale_invoice %}
+  <div class="rounded border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">{{ cannot_edit_reason }}</div>
+  {% else %}
+  {% include "shell/_sale_invoice_edit_compact_form.html" with sale_edit_embed=1 %}
+  {% endif %}
+</div>

@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from decimal import Decimal
 
@@ -20,6 +21,78 @@ from apps.billing.sale_invoice_edit import (
 from apps.core.models import get_pos_settings
 from apps.core.payment_methods import load_payment_method_rows
 from apps.core.pagination import paginate_queryset
+
+
+def _safe_return_path(raw: str) -> str:
+    """مسار داخلي آمن للرجوع (يحفظ فلاتر القائمة عند تمرير return=)."""
+    path = (raw or "").strip()
+    if not path.startswith("/") or path.startswith("//"):
+        return ""
+    if "\n" in path or "\r" in path:
+        return ""
+    return path
+
+
+def _invoice_detail_back_context(request, invoice: SaleInvoice) -> dict:
+    """زر الرجوع في تفاصيل الفاتورة حسب مصدر الدخول."""
+    return_path = _safe_return_path(request.GET.get("return", ""))
+    if return_path:
+        return {
+            "toolbar_back_url": return_path,
+            "toolbar_back_label": "← رجوع",
+            "toolbar_back_title": "الصفحة السابقة",
+        }
+
+    from_key = (request.GET.get("from") or "").strip().lower()
+    if from_key == "pos":
+        return {
+            "toolbar_back_url": reverse("pos:main"),
+            "toolbar_back_label": "← لوحة الطلبات",
+            "toolbar_back_title": "لوحة الطلبات",
+        }
+    if from_key == "customer" and invoice.customer_id:
+        return {
+            "toolbar_back_url": reverse("shell:customer_detail", args=[invoice.customer_id]),
+            "toolbar_back_label": "← العميل",
+            "toolbar_back_title": "بطاقة العميل",
+        }
+    if from_key == "customer_invoices" and invoice.customer_id:
+        return {
+            "toolbar_back_url": reverse("shell:customer_invoices", args=[invoice.customer_id]),
+            "toolbar_back_label": "← فواتير العميل",
+            "toolbar_back_title": "فواتير العميل",
+        }
+    if from_key == "reports":
+        return {
+            "toolbar_back_url": reverse("shell:reports"),
+            "toolbar_back_label": "← التقارير",
+            "toolbar_back_title": "التقارير",
+        }
+    if from_key == "supplier" and getattr(invoice, "supplier_buyer_id", None):
+        return {
+            "toolbar_back_url": reverse("shell:supplier_detail", args=[invoice.supplier_buyer_id]),
+            "toolbar_back_label": "← المورد",
+            "toolbar_back_title": "بطاقة المورد",
+        }
+
+    return {
+        "toolbar_back_url": reverse("shell:invoice_list"),
+        "toolbar_back_label": "← الفواتير",
+        "toolbar_back_title": "أرشيف الفواتير",
+    }
+
+
+def _redirect_sale_invoice_detail(request, pk: int, *, edit: bool = False):
+    """إعادة توجيه لتفاصيل الفاتورة مع الحفاظ على from/return."""
+    q = request.GET.copy()
+    if edit:
+        q["edit"] = "1"
+    if "from" not in q and not _safe_return_path(q.get("return", "")):
+        q["from"] = "invoices"
+    url = reverse("shell:invoice_detail", kwargs={"pk": pk})
+    if q:
+        url = f"{url}?{q.urlencode()}"
+    return redirect(url)
 
 
 def _invoice_list_parse_date(raw: str):
@@ -60,7 +133,11 @@ def _sale_invoice_edit_error_message(code: str) -> str:
     if code == "ZERO_QTY_NOT_ALLOWED":
         return "الكمية يجب أن تكون أكبر من صفر لكل سطر."
     if code == "CREDIT_REQUIRES_CUSTOMER":
-        return "الدفع الآجل يتطلب عميلاً مرتبطاً بالفاتورة."
+        return "الدفع الآجل يتطلب عميلاً موجوداً — ابحث عنه أو اكتب اسمه."
+    if code == "PAYER_DETAILS_REQUIRED":
+        return "أدخل اسم المحوّل ورقم الجوال (للتتبع) مع بنك فلسطين / بال باي / جوال باي."
+    if code == "INVALID_PAYMENT_SPLITS":
+        return "بيانات الدفع المختلط غير صالحة — راجع الأسطر والمبالغ."
     if code == "INVALID_PAYMENT_METHOD":
         return "طريقة دفع غير معروفة — اختر من القائمة."
     if code.startswith("PAYMENT_SUM_MISMATCH:"):
@@ -69,11 +146,43 @@ def _sale_invoice_edit_error_message(code: str) -> str:
     return code.replace("_", " ")
 
 
+def _sale_edit_pay_boot(invoice, payments) -> dict:
+    """بيانات قسم الدفع — تُقرأ من JSON في الصفحة (تعمل بعد حقن AJAX للنافذة)."""
+    rows = load_payment_method_rows()
+    return {
+        "customersSearchUrl": reverse("pos:customers_search"),
+        "customerCreateUrl": reverse("pos:customer_quick_create"),
+        "payerHintsUrl": reverse("pos:payer_hints"),
+        "pmRows": [
+            {
+                "code": str(r.get("code") or "").strip().lower(),
+                "label_ar": str(r.get("label_ar") or ""),
+                "ledger": str(r.get("ledger") or ""),
+                "needsPayer": str(r.get("ledger") or "") == "bank",
+            }
+            for r in rows
+        ],
+        "payInit": {
+            "currency": get_pos_settings().currency_symbol or "",
+            "total": f"{invoice.total:.2f}",
+            "customerId": str(invoice.customer_id or ""),
+            "customerName": (invoice.customer.name_ar if invoice.customer else "") or "",
+            "payments": [
+                {
+                    "method": p.method,
+                    "amount": f"{p.amount:.2f}",
+                    "payer_name": p.payer_name or "",
+                    "payer_phone": p.payer_phone or "",
+                }
+                for p in payments
+            ],
+        },
+    }
+
+
 def _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns):
-    slots = max(len(lines) + 8, 12)
+    slots = len(lines) + 2
     line_edit_rows = [{"idx": i, "line": lines[i] if i < len(lines) else None} for i in range(slots)]
-    pay_slots = max(len(payments) + 4, 4)
-    pay_edit_rows = [{"idx": i, "pay": payments[i] if i < len(payments) else None} for i in range(pay_slots)]
     return {
         "invoice": invoice,
         "lines": lines,
@@ -84,8 +193,11 @@ def _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, 
         "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
         "payment_method_rows": load_payment_method_rows(),
         "line_edit_rows": line_edit_rows,
-        "pay_edit_rows": pay_edit_rows,
         "pos_products_search_url": reverse("pos:products_search"),
+        "sale_edit_pay_boot": _sale_edit_pay_boot(invoice, payments),
+        "sale_edit_pay_boot_json": json.dumps(
+            _sale_edit_pay_boot(invoice, payments), ensure_ascii=False
+        ),
     }
 
 
@@ -219,13 +331,15 @@ def sale_invoice_detail(request, pk):
     )
     lines = invoice.lines.select_related("product").order_by("pk")
     payments = invoice.payments.all()
-    return render(request, "shell/invoice_detail.html", {
+    ctx = {
         "invoice": invoice,
         "lines": lines,
         "payments": payments,
         "has_sale_returns": invoice.returns.exists(),
         "sale_returns": list(invoice.returns.order_by("-created_at")),
-    })
+    }
+    ctx.update(_invoice_detail_back_context(request, invoice))
+    return render(request, "shell/invoice_detail.html", ctx)
 
 
 @login_required
@@ -245,7 +359,7 @@ def sale_invoice_edit_panel(request, pk):
     has_returns = invoice.returns.exists()
     return render(
         request,
-        "shell/_sale_invoice_edit_fragment.html",
+        "shell/_sale_invoice_edit_modal_fragment.html",
         _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns),
     )
 
@@ -271,27 +385,29 @@ def sale_invoice_edit(request, pk):
             if is_pos_embed:
                 return JsonResponse({"ok": False, "error": msg}, status=400)
             messages.error(request, msg)
-            return redirect("shell:invoice_detail", pk=invoice.pk)
+            return _redirect_sale_invoice_detail(request, invoice.pk)
         try:
             lr, pr = parse_sale_invoice_full_edit_post(request.POST)
-            apply_sale_invoice_full_edit(invoice=invoice, user=request.user, line_rows=lr, payment_rows=pr)
+            apply_sale_invoice_full_edit(
+                invoice=invoice,
+                user=request.user,
+                line_rows=lr,
+                payment_rows=pr,
+                post=request.POST,
+            )
         except ValueError as e:
             code = str(e)
             err_msg = _sale_invoice_edit_error_message(code)
             if is_pos_embed:
                 return JsonResponse({"ok": False, "error": err_msg}, status=400)
             messages.error(request, err_msg)
-            return redirect("shell:sale_invoice_edit", pk=invoice.pk)
+            return _redirect_sale_invoice_detail(request, invoice.pk, edit=True)
         if is_pos_embed:
             return JsonResponse({"ok": True})
         messages.success(request, "تم حفظ تعديل الفاتورة (الأصناف والدفعات والقيود).")
-        return redirect("shell:invoice_detail", pk=invoice.pk)
+        return _redirect_sale_invoice_detail(request, invoice.pk)
 
-    return render(
-        request,
-        "shell/sale_invoice_edit.html",
-        _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns),
-    )
+    return _redirect_sale_invoice_detail(request, invoice.pk, edit=True)
 
 
 @login_required

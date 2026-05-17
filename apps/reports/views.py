@@ -375,49 +375,97 @@ def weekly_report(request):
 @login_required
 def product_movement_report(request):
     from apps.billing.models import SaleInvoiceLine
-    from apps.catalog.models import Product
+    from apps.catalog.models import Category, Product
+    from apps.reports.product_movement_filters import (
+        SECTION_CHOICES,
+        SLOW_SORT_CHOICES,
+        TOP_SORT_CHOICES,
+        apply_product_name_filters,
+        movement_filters_open,
+        order_slow_movers,
+        order_top_sellers,
+        parse_movement_filters,
+        quick_period_dates,
+    )
 
-    period = request.GET.get("period", "month")
     today = date.today()
-    if period == "week":
-        d_from = today - timedelta(days=7)
-    elif period == "year":
-        d_from = today.replace(month=1, day=1)
+    period_quick = (request.GET.get("period") or "").strip()
+    f = parse_movement_filters(request.GET, today=today)
+    if period_quick in ("week", "month", "year"):
+        d_from, d_to = quick_period_dates(period_quick, today=today)
+        f["date_from"] = d_from
+        f["date_to"] = d_to
+        f["date_from_iso"] = d_from.isoformat()
+        f["date_to_iso"] = d_to.isoformat()
     else:
-        d_from = today.replace(day=1)
+        period_quick = ""
 
-    top_sellers = (
-        SaleInvoiceLine.objects.filter(
-            invoice__is_cancelled=False,
-            invoice__created_at__date__gte=d_from,
-        )
-        .values("product__pk", "product__name_ar")
+    valid_types = {c[0] for c in Product.ProductType.choices}
+    product_type = f["product_type"] if f["product_type"] in valid_types else ""
+
+    line_base = SaleInvoiceLine.objects.filter(
+        invoice__is_cancelled=False,
+        invoice__created_at__date__gte=f["date_from"],
+        invoice__created_at__date__lte=f["date_to"],
+    )
+    line_base = apply_product_name_filters(line_base, {**f, "product_type": product_type}, prefix="product__")
+
+    top_qs = (
+        line_base.values("product__pk", "product__name_ar")
         .annotate(
             total_qty=Sum("quantity"),
             total_revenue=Sum("line_subtotal"),
             total_profit=Sum("line_profit"),
         )
-        .order_by("-total_qty")[:20]
     )
+    top_qs = order_top_sellers(top_qs, f["sort_top"])
 
-    sold_pks = SaleInvoiceLine.objects.filter(
-        invoice__is_cancelled=False,
-        invoice__created_at__date__gte=d_from,
-    ).values_list("product_id", flat=True).distinct()
+    sold_pks = line_base.values_list("product_id", flat=True).distinct()
 
-    slow_movers = Product.objects.filter(
+    slow_qs = Product.objects.filter(
         is_active=True,
         is_stock_tracked=True,
-    ).exclude(
-        product_type__in=[Product.ProductType.RAW, Product.ProductType.SERVICE]
-    ).exclude(pk__in=sold_pks).order_by("name_ar")[:20]
+    ).exclude(product_type__in=[Product.ProductType.RAW, Product.ProductType.SERVICE]).exclude(
+        pk__in=sold_pks
+    )
+    slow_qs = apply_product_name_filters(slow_qs, {**f, "product_type": product_type})
+    slow_qs = order_slow_movers(slow_qs, f["sort_slow"])
 
-    return render(request, "reports/product_movement.html", {
-        "top_sellers": top_sellers,
-        "slow_movers": slow_movers,
-        "period": period,
-        "date_from": d_from,
-    })
+    ctx = {
+        "movement_filters": f,
+        "filters_open": movement_filters_open(f, today=today),
+        "section_choices": SECTION_CHOICES,
+        "top_sort_choices": TOP_SORT_CHOICES,
+        "slow_sort_choices": SLOW_SORT_CHOICES,
+        "product_type_choices": Product.ProductType.choices,
+        "filter_category_options": list(Category.objects.filter(is_active=True).order_by("sort_order", "name_ar")),
+        "date_from": f["date_from_iso"],
+        "date_to": f["date_to_iso"],
+        "period_quick": period_quick,
+        "show_top": f["section"] in ("all", "top"),
+        "show_slow": f["section"] in ("all", "slow"),
+    }
+
+    if ctx["show_top"]:
+        top_ctx = paginate_queryset(request, top_qs, page_param="page_top", default_per_page=25)
+        ctx.update({f"top_{k}": v for k, v in top_ctx.items()})
+        ctx["top_sellers"] = top_ctx["page_obj"]
+    else:
+        ctx["top_sellers"] = []
+
+    if ctx["show_slow"]:
+        slow_ctx = paginate_queryset(request, slow_qs, page_param="page_slow", default_per_page=25)
+        ctx.update({f"slow_{k}": v for k, v in slow_ctx.items()})
+        ctx["slow_movers"] = slow_ctx["page_obj"]
+    else:
+        ctx["slow_movers"] = []
+
+    qd = request.GET.copy()
+    for pk in ("page_top", "page_slow"):
+        qd.pop(pk, None)
+    ctx["movement_list_query"] = qd.urlencode()
+
+    return render(request, "reports/product_movement.html", ctx)
 
 
 @login_required

@@ -17,6 +17,7 @@ def paginate_queryset(
     *,
     default_per_page: int = 25,
     per_page_choices: Sequence[int] | None = None,
+    page_param: str = "page",
 ) -> dict:
     """
     يعيد page_obj و per_page و pagination_query (بدون مفتاح page) للحفاظ على باقي معاملات البحث.
@@ -29,12 +30,13 @@ def paginate_queryset(
     if per_page not in choices:
         per_page = default_per_page if default_per_page in choices else choices[0]
 
-    page = Paginator(queryset, per_page).get_page(request.GET.get("page"))
+    page = Paginator(queryset, per_page).get_page(request.GET.get(page_param))
     q = request.GET.copy()
-    q.pop("page", None)
+    q.pop(page_param, None)
     return {
         "page_obj": page,
         "per_page": per_page,
         "per_page_choices": choices,
         "pagination_query": q.urlencode(),
+        "page_param": page_param,
     }

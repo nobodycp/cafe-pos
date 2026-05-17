@@ -1,0 +1,133 @@
+{% load core_extras %}
+{# طرق الدفع — نفس أسلوب إتمام الدفع في السلة #}
+{# حقل مخفي — يبقى بعد حقن AJAX (عكس script الذي يُحذف من innerHTML) #}
+<input type="hidden" id="sale-edit-pay-boot-data" value="{{ sale_edit_pay_boot_json|escape }}">
+<div class="sale-invoice-edit-pay-section mb-2 rounded-md border border-gray-200 bg-gray-50/80 p-2 dark:border-gray-600 dark:bg-gray-900/40" data-sale-edit-pay-section>
+  <p class="text-[10px] font-bold text-muted mb-1.5">الدفع</p>
+
+  <input type="hidden" name="use_payment_splits" id="sale-edit-use-splits" value="">
+  <input type="hidden" name="payment_splits_json" id="sale-edit-splits-json" value="">
+  <input type="hidden" name="payment_mode" id="sale-edit-pay-mode" value="">
+  <input type="hidden" name="pay_amount" id="sale-edit-pay-amt-hid" value="">
+  <input type="hidden" name="customer_id" id="sale-edit-cust-id" value="{% if invoice.customer_id %}{{ invoice.customer_id }}{% endif %}">
+  <input type="hidden" name="customer_name_draft" id="sale-edit-cust-draft" value="">
+  <input type="hidden" name="payer_name" id="sale-edit-payer-name-hid" value="">
+  <input type="hidden" name="payer_phone" id="sale-edit-payer-phone-hid" value="">
+
+  <div class="mb-1.5 rounded border border-emerald-200 bg-emerald-50 px-2 py-1.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+    <div class="text-[10px] font-bold text-emerald-800 dark:text-emerald-200">إجمالي الفاتورة (يجب أن يساوي مجموع الدفعات)</div>
+    <div class="text-base font-black tabular-nums text-emerald-700 dark:text-emerald-300" dir="ltr">
+      <span id="sale-edit-co-hero-amt">0.00</span>
+      <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">{{ POS_SETTINGS.currency_symbol }}</span>
+    </div>
+  </div>
+
+  <label class="block text-[10px] font-bold text-muted mb-0.5" for="sale-edit-co-cust-search">اسم الزبون / بحث عميل <span class="font-normal">(للآجل)</span></label>
+  <div class="relative mb-1.5 min-w-0">
+    <input type="search" id="sale-edit-co-cust-search" autocomplete="off" placeholder="بحث أو اسم عميل للآجل…"
+      value="{% if invoice.customer %}{{ invoice.customer.name_ar }}{% endif %}"
+      class="w-full rounded border border-gray-300 bg-white px-2 py-1 text-[11px] dark:border-gray-600 dark:bg-gray-800">
+    <div id="sale-edit-co-cust-hits" class="cust-ac-panel absolute start-0 end-0 top-full z-[500] mt-px max-h-[min(10rem,30vh)] overflow-y-auto rounded-b border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800 hidden"></div>
+  </div>
+  <p id="sale-edit-co-cust-balance" class="mb-1.5 -mt-1 text-[10px] font-extrabold tabular-nums text-muted hidden" aria-live="polite"></p>
+
+  <div class="mb-1 flex flex-wrap items-center gap-2">
+    <input type="checkbox" id="sale-edit-co-split-chk" value="1" class="rounded border-gray-400 h-3.5 w-3.5">
+    <label for="sale-edit-co-split-chk" class="text-[10px] font-bold cursor-pointer">دفع مختلط</label>
+  </div>
+
+  <div id="sale-edit-co-single-wrap" class="mb-1.5 min-w-0">
+    <span class="mb-0.5 block text-[10px] font-bold text-muted">طريقة الدفع</span>
+    <div id="sale-edit-co-methods" class="flex flex-row flex-wrap gap-1" role="group" aria-label="طريقة الدفع">
+      {% for row in payment_method_rows %}
+      <button type="button" class="sale-edit-co-pm-btn flex-1 min-w-[4.25rem] rounded border border-gray-300 bg-white px-1 py-1 text-[10px] font-bold leading-tight text-gray-900 hover:border-[#1e3a5f] dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+        data-m="{{ row.code }}" data-ledger="{{ row.ledger }}"{% if row.ledger == 'bank' %} data-needs-payer="1"{% endif %}>{{ row.label_ar }}</button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div id="sale-edit-co-split-wrap" class="mb-1.5 hidden min-w-0 rounded border border-gray-200 bg-gray-50/80 p-1.5 dark:border-gray-600 dark:bg-gray-900/50">
+    <p class="mb-1 text-[10px] font-semibold text-muted">أسطر الدفع — المجموع = الإجمالي</p>
+    <div class="sale-edit-split-table-wrap overflow-visible rounded border border-gray-200 dark:border-gray-600">
+      <table class="w-full border-collapse text-[10px]">
+        <thead>
+          <tr class="border-b border-gray-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-800">
+            <th class="p-1 text-end font-bold">طريقة</th>
+            <th class="p-1 text-end font-bold w-24">مبلغ</th>
+            <th class="w-7 p-0"></th>
+          </tr>
+        </thead>
+        <tbody id="sale-edit-co-split-tbody"></tbody>
+      </table>
+    </div>
+    <button type="button" id="sale-edit-co-split-add" class="mt-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-[10px] font-bold dark:border-gray-600 dark:bg-gray-800">+ بند</button>
+    <p id="sale-edit-co-split-hint" class="mt-0.5 text-[10px] tabular-nums text-muted min-h-[1rem]"></p>
+  </div>
+
+  <div id="sale-edit-co-payer-panel" class="mb-1 hidden grid grid-cols-1 gap-1 sm:grid-cols-2">
+    <span class="sm:col-span-2 text-[10px] font-bold text-muted">بيانات المحوّل <span class="font-normal">(بنك / شبكة)</span></span>
+    <div class="relative min-w-0">
+      <input type="text" id="sale-edit-co-payer-name" maxlength="120" autocomplete="off" placeholder="اسم المحوّل"
+        class="w-full rounded border border-gray-300 bg-white px-2 py-1 text-[11px] dark:border-gray-600 dark:bg-gray-800">
+      <div id="sale-edit-co-payer-hits" class="absolute start-0 end-0 top-full z-30 mt-px max-h-[6rem] overflow-y-auto rounded-b border border-gray-300 bg-white shadow dark:border-gray-600 dark:bg-gray-800 hidden"></div>
+    </div>
+    <input type="tel" id="sale-edit-co-payer-phone" maxlength="40" inputmode="tel" placeholder="جوال"
+      class="min-w-0 rounded border border-gray-300 bg-white px-2 py-1 text-[11px] tabular-nums dark:border-gray-600 dark:bg-gray-800">
+  </div>
+
+  <p id="sale-edit-pay-hint" class="text-[10px] mt-0.5 font-semibold tabular-nums min-h-[1rem]"></p>
+</div>
+
+<style>
+#sale-invoice-edit-compact .sale-edit-co-pm-btn.on{border-color:#1e3a5f;background:#e2e8f0;color:#0f172a;}
+.dark #sale-invoice-edit-compact .sale-edit-co-pm-btn.on{border-color:#3b82f6;background:rgba(30,58,95,.4);color:#f8fafc;}
+.sale-invoice-edit-pay-section .cust-ac-hit,
+#sale-invoice-edit-compact .cust-ac-hit{
+  display:block;width:100%;padding:6px 10px;text-align:right;font-size:11px;
+  border:none;border-bottom:1px solid #e2e8f0;background:none;cursor:pointer;
+  font-family:inherit;color:inherit;
+}
+.dark .sale-invoice-edit-pay-section .cust-ac-hit,
+.dark #sale-invoice-edit-compact .cust-ac-hit{border-bottom-color:#334155}
+.sale-invoice-edit-pay-section .cust-ac-hit:hover,
+#sale-invoice-edit-compact .cust-ac-hit:hover{background:#eef2ff}
+.dark .sale-invoice-edit-pay-section .cust-ac-hit:hover,
+.dark #sale-invoice-edit-compact .cust-ac-hit:hover{background:rgba(51,65,85,.55)}
+.sale-invoice-edit-pay-section .sale-edit-split-m,
+.sale-invoice-edit-pay-section .sale-edit-split-amt,
+#sale-invoice-edit-compact .sale-edit-split-m,
+#sale-invoice-edit-compact .sale-edit-split-amt{
+  min-height:1.6rem!important;height:1.6rem!important;max-height:none!important;
+}
+.sale-invoice-edit-pay-section .sale-edit-split-m,
+#sale-invoice-edit-compact .sale-edit-split-m{
+  -webkit-appearance:menulist!important;appearance:menulist!important;
+  padding-inline-end:1.5rem!important;background-image:none!important;
+  cursor:pointer!important;min-width:5.5rem!important;
+}
+#sale-invoice-edit-compact .sale-edit-split-table-wrap,
+.sale-invoice-edit-pay-section .sale-edit-split-table-wrap{overflow:visible!important}
+</style>
+<script>
+(function(){
+  window.SALE_EDIT_PM_ROWS = [
+    {% for row in payment_method_rows %}
+    { code: "{{ row.code|escapejs }}", label_ar: "{{ row.label_ar|escapejs }}", ledger: "{{ row.ledger|escapejs }}", needsPayer: {% if row.ledger == 'bank' %}true{% else %}false{% endif %} }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  window.SALE_EDIT_PAY_INIT = {
+    currency: "{{ POS_SETTINGS.currency_symbol|escapejs }}",
+    total: "{{ invoice.total|floatformat:2 }}",
+    customerId: "{% if invoice.customer_id %}{{ invoice.customer_id }}{% endif %}",
+    customerName: "{% if invoice.customer %}{{ invoice.customer.name_ar|escapejs }}{% endif %}",
+    payments: [
+      {% for p in payments %}
+      { method: "{{ p.method|escapejs }}", amount: "{{ p.amount|floatformat:2 }}", payer_name: "{{ p.payer_name|escapejs }}", payer_phone: "{{ p.payer_phone|escapejs }}" }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ]
+  };
+  window.SALE_EDIT_CUSTOMERS_SEARCH_URL = "{% url 'pos:customers_search' %}";
+  window.SALE_EDIT_CUSTOMER_CREATE_URL = "{% url 'pos:customer_quick_create' %}";
+  window.SALE_EDIT_PAYER_HINTS_URL = "{% url 'pos:payer_hints' %}";
+})();
+</script>

@@ -27,14 +27,14 @@
             {% for inv in page_obj %}
             <tr class="{% if inv.is_cancelled %}opacity-50{% endif %}">
               <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
-              <td><a href="{% url 'shell:invoice_detail' inv.pk %}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
+              <td><a href="{% url 'shell:invoice_detail' inv.pk %}?from=customer_invoices&amp;return={{ request.get_full_path|urlencode }}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
               <td>{{ inv.created_at|date:"Y-m-d H:i" }}</td>
               <td>{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
               <td class="font-bold">{{ inv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
               <td>{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:invoice_detail' inv.pk %}" class="ds-btn">عرض</a>
+                  <a href="{% url 'shell:invoice_detail' inv.pk %}?from=customer_invoices&amp;return={{ request.get_full_path|urlencode }}" class="ds-btn">عرض</a>
                 </div>
               </td>
             </tr>
