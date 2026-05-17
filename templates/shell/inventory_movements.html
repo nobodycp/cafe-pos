@@ -71,9 +71,13 @@
               <td class="font-semibold tabular-nums">{{ row.balance_after|floatformat:2 }}{% if m.product.unit %} <span class="text-muted font-normal text-xs">{{ m.product.unit.code }}</span>{% endif %}</td>
               <td class="text-xs text-muted">
                 {% if m.reference_model == "billing.SaleInvoice" and m.reference_pk %}
-                <a href="{% url 'shell:invoice_detail' m.reference_pk %}" class="text-primary hover:underline">فاتورة بيع #{{ m.reference_pk }}</a>
+                <button type="button" class="shell-invoice-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                  data-detail-panel-url="{% url 'shell:sale_invoice_detail_panel' m.reference_pk %}"
+                  data-detail-title="فاتورة بيع #{{ m.reference_pk }}">فاتورة بيع #{{ m.reference_pk }}</button>
                 {% elif m.reference_model == "purchasing.PurchaseInvoice" and m.reference_pk %}
-                <a href="{% url 'shell:purchase_detail' m.reference_pk %}" class="text-primary hover:underline">فاتورة شراء #{{ m.reference_pk }}</a>
+                <button type="button" class="shell-purchase-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                  data-purchase-detail-panel-url="{% url 'shell:purchase_invoice_detail_panel' m.reference_pk %}"
+                  data-purchase-detail-title="فاتورة شراء #{{ m.reference_pk }}">فاتورة شراء #{{ m.reference_pk }}</button>
                 {% elif m.reference_model == "inventory.ManufacturingBatch" and m.reference_pk %}
                 دفعة تصنيع #{{ m.reference_pk }}
                 {% else %}{{ m.reference_model }} #{{ m.reference_pk }}{% endif %}

@@ -434,26 +434,13 @@ def last_sale_invoice_panel(request):
             '<div class="p-6 text-center text-sm text-muted" dir="rtl">لا توجد فاتورة بيع مسجّلة بعد.</div>',
             content_type="text/html; charset=utf-8",
         )
-    invoice = get_object_or_404(
-        SaleInvoice.objects.select_related(
-            "customer", "supplier_buyer",
-            "order__table_session__dining_table", "work_session",
-        ),
-        pk=inv.pk,
-    )
-    lines = invoice.lines.select_related("product").order_by("pk")
-    payments = invoice.payments.all()
+    from apps.billing.views import _sale_invoice_detail_context, _sale_invoice_detail_queryset
+
+    invoice = get_object_or_404(_sale_invoice_detail_queryset(), pk=inv.pk)
     return render(
         request,
-        "shell/_invoice_detail_fragment.html",
-        {
-            "invoice": invoice,
-            "lines": lines,
-            "payments": payments,
-            "invoice_embedded": True,
-            "has_sale_returns": invoice.returns.exists(),
-            "sale_returns": list(invoice.returns.order_by("-created_at")),
-        },
+        "shell/_sale_invoice_detail_modal_fragment.html",
+        _sale_invoice_detail_context(request, invoice),
     )
 
 

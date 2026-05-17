@@ -186,7 +186,7 @@
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ x.amount|floatformat:2|intcomma }}</td>
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-xs">
                 {% if x.sale_invoice %}
-                <a href="{% url 'shell:invoice_detail' x.sale_invoice.pk %}" class="font-bold text-primary hover:underline">{{ x.sale_invoice.invoice_number }}</a>
+                {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=x.sale_invoice.pk label=x.sale_invoice.invoice_number %}
                 {% else %}<span class="text-muted">—</span>{% endif %}
               </td>
               <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-muted text-sm">{{ x.note }}</td>

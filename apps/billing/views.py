@@ -82,17 +82,29 @@ def _invoice_detail_back_context(request, invoice: SaleInvoice) -> dict:
     }
 
 
+def _redirect_open_sale_invoice_to(url: str, pk: int, *, edit: bool = False):
+    """إعادة توجيه مع فتح الفاتورة في النافذة المنبثقة على الصفحة الهدف."""
+    sep = "&" if "?" in url else "?"
+    key = "edit_invoice" if edit else "view_invoice"
+    return redirect(f"{url}{sep}{key}={pk}")
+
+
+def _redirect_open_sale_invoice(request, pk: int, *, edit: bool = False):
+    """إعادة توجيه للصفحة السابقة (أو الأرشيف) مع فتح الفاتورة في النافذة."""
+    invoice = get_object_or_404(_sale_invoice_detail_queryset(), pk=pk)
+    dest = _safe_return_path(request.GET.get("return", ""))
+    if not dest and request.method == "POST":
+        dest = _safe_return_path(request.POST.get("next", ""))
+    if not dest:
+        dest = _safe_return_path(request.META.get("HTTP_REFERER", ""))
+    if not dest:
+        dest = _invoice_detail_back_context(request, invoice)["toolbar_back_url"]
+    return _redirect_open_sale_invoice_to(dest, pk, edit=edit)
+
+
 def _redirect_sale_invoice_detail(request, pk: int, *, edit: bool = False):
-    """إعادة توجيه لتفاصيل الفاتورة مع الحفاظ على from/return."""
-    q = request.GET.copy()
-    if edit:
-        q["edit"] = "1"
-    if "from" not in q and not _safe_return_path(q.get("return", "")):
-        q["from"] = "invoices"
-    url = reverse("shell:invoice_detail", kwargs={"pk": pk})
-    if q:
-        url = f"{url}?{q.urlencode()}"
-    return redirect(url)
+    """إعادة توجيه بعد تعديل/عرض — نافذة منبثقة بدل صفحة كاملة."""
+    return _redirect_open_sale_invoice(request, pk, edit=edit)
 
 
 def _invoice_list_parse_date(raw: str):
@@ -320,26 +332,48 @@ def sale_invoice_delete(request, pk):
     return redirect("shell:invoice_list")
 
 
-@login_required
-def sale_invoice_detail(request, pk):
-    invoice = get_object_or_404(
-        SaleInvoice.objects.select_related(
-            "customer", "supplier_buyer",
-            "order__table_session__dining_table", "work_session",
-        ),
-        pk=pk,
+def _sale_invoice_detail_queryset():
+    return SaleInvoice.objects.select_related(
+        "customer", "supplier_buyer",
+        "order__table_session__dining_table", "work_session",
     )
-    lines = invoice.lines.select_related("product").order_by("pk")
-    payments = invoice.payments.all()
+
+
+def _sale_invoice_detail_context(request, invoice: SaleInvoice) -> dict:
+    can_edit, reason = can_edit_sale_invoice(invoice)
+    has_returns = invoice.returns.exists()
     ctx = {
         "invoice": invoice,
-        "lines": lines,
-        "payments": payments,
-        "has_sale_returns": invoice.returns.exists(),
+        "lines": invoice.lines.select_related("product").order_by("pk"),
+        "payments": invoice.payments.all(),
+        "has_sale_returns": has_returns,
         "sale_returns": list(invoice.returns.order_by("-created_at")),
+        "can_edit_sale_invoice": can_edit,
+        "cannot_edit_reason": reason,
+        "pos_allows_edit": get_pos_settings().allow_sale_invoice_edit,
     }
     ctx.update(_invoice_detail_back_context(request, invoice))
-    return render(request, "shell/invoice_detail.html", ctx)
+    return ctx
+
+
+@login_required
+def sale_invoice_detail(request, pk):
+    """الرابط القديم — يعيد التوجيه لفتح النافذة المنبثقة على الصفحة السابقة."""
+    invoice = get_object_or_404(_sale_invoice_detail_queryset(), pk=pk)
+    dest = _safe_return_path(request.GET.get("return", ""))
+    if not dest:
+        dest = _invoice_detail_back_context(request, invoice)["toolbar_back_url"]
+    return _redirect_open_sale_invoice_to(dest, pk, edit=request.GET.get("edit") == "1")
+
+
+@login_required
+@require_GET
+def sale_invoice_detail_panel(request, pk):
+    """HTML جزئي لعرض الفاتورة داخل النافذة المنبثقة (GET فقط)."""
+    invoice = get_object_or_404(_sale_invoice_detail_queryset(), pk=pk)
+    ctx = _sale_invoice_detail_context(request, invoice)
+    ctx["detail_modal"] = True
+    return render(request, "shell/_sale_invoice_detail_modal_fragment.html", ctx)
 
 
 @login_required
@@ -438,7 +472,7 @@ def sale_return_create(request, invoice_pk):
     if invoice.is_cancelled:
         from django.contrib import messages
         messages.error(request, "لا يمكن إرجاع فاتورة ملغاة")
-        return redirect("shell:invoice_detail", pk=invoice.pk)
+        return _redirect_open_sale_invoice(request, invoice.pk)
 
     inv_lines = invoice.lines.select_related("product").order_by("pk")
     errors = []
@@ -520,7 +554,7 @@ def sale_return_create(request, invoice_pk):
 
                 from django.contrib import messages
                 messages.success(request, f"تم تسجيل مرتجع {ret.return_number} بمبلغ {total_refund}")
-                return redirect("shell:invoice_detail", pk=invoice.pk)
+                return _redirect_open_sale_invoice(request, invoice.pk)
 
     return render(request, "billing/sale_return_form.html", {
         "invoice": invoice,
@@ -536,8 +570,10 @@ def sale_return_delete(request, invoice_pk, return_pk):
     invoice = get_object_or_404(SaleInvoice, pk=invoice_pk)
     ret = get_object_or_404(SaleReturn, pk=return_pk, invoice=invoice)
     reason = (request.POST.get("reason") or "").strip()
-    fallback = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse(
-        "shell:invoice_detail", kwargs={"pk": invoice.pk}
+    fallback = (
+        _safe_return_path(request.POST.get("next", ""))
+        or _safe_return_path(request.META.get("HTTP_REFERER", ""))
+        or reverse("shell:invoice_list")
     )
     if len(reason) < 3:
         messages.error(request, "اكتب سبب حذف المرتجع (3 أحرف على الأقل).")
@@ -559,4 +595,4 @@ def sale_return_delete(request, invoice_pk, return_pk):
         request,
         f"تم حذف المرتجع {ret_label} وعكس أثره (مخزون / رصيد عميل إن وُجد). يمكنك الآن حذف الفاتورة إن رغبت.",
     )
-    return redirect(reverse("shell:invoice_detail", kwargs={"pk": invoice.pk}))
+    return _redirect_open_sale_invoice(request, invoice.pk)

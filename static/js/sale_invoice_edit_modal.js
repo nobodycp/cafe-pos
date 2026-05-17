@@ -43,11 +43,84 @@
     if (el) el.textContent = text || "تعديل الفاتورة";
   }
 
-  function openModal(url, title) {
+  function panelRoutes() {
+    var el = document.getElementById("shell-invoice-panel-routes");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function panelUrl(kind, pk) {
+    var routes = panelRoutes();
+    if (!routes || !routes[kind]) return "";
+    return routes[kind].replace("/0/", "/" + String(pk) + "/");
+  }
+
+  function stripInvoiceQueryParams() {
+    try {
+      var u = new URL(window.location.href);
+      if (
+        !u.searchParams.has("view_invoice") &&
+        !u.searchParams.has("edit_invoice") &&
+        !u.searchParams.has("view_purchase_invoice")
+      ) {
+        return;
+      }
+      u.searchParams.delete("view_invoice");
+      u.searchParams.delete("edit_invoice");
+      u.searchParams.delete("view_purchase_invoice");
+      var qs = u.searchParams.toString();
+      window.history.replaceState({}, "", u.pathname + (qs ? "?" + qs : "") + u.hash);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  function openFromQueryParams() {
+    var params;
+    try {
+      params = new URLSearchParams(window.location.search);
+    } catch (e) {
+      return;
+    }
+    var editPk = params.get("edit_invoice");
+    var viewPk = params.get("view_invoice");
+    var viewPurchasePk = params.get("view_purchase_invoice");
+    if (editPk) {
+      openModal(panelUrl("edit", editPk), "تعديل الفاتورة", { mode: "edit", kind: "sale" });
+      stripInvoiceQueryParams();
+      return;
+    }
+    if (viewPk) {
+      openModal(panelUrl("detail", viewPk), "عرض الفاتورة", { mode: "view", kind: "sale" });
+      stripInvoiceQueryParams();
+      return;
+    }
+    if (viewPurchasePk) {
+      openModal(panelUrl("purchase_detail", viewPurchasePk), "عرض فاتورة الشراء", {
+        mode: "view",
+        kind: "purchase",
+      });
+      stripInvoiceQueryParams();
+    }
+  }
+
+  function openModal(url, title, opts) {
+    opts = opts || {};
+    var isView = opts.mode === "view";
+    var isPurchase = opts.kind === "purchase";
     var ov = getOverlay();
     var mount = getMount();
     if (!ov || !mount || !url) return;
-    setTitle(title || "تعديل الفاتورة");
+    var defaultTitle = isView
+      ? isPurchase
+        ? "عرض فاتورة الشراء"
+        : "عرض الفاتورة"
+      : "تعديل الفاتورة";
+    setTitle(title || defaultTitle);
     mount.innerHTML = '<p class="p-4 text-center text-xs text-muted" dir="rtl">جاري التحميل…</p>';
     ov.style.display = "flex";
     document.body.classList.add("overflow-hidden");
@@ -61,14 +134,21 @@
       })
       .then(function (html) {
         mount.innerHTML = html;
-        if (window.initSaleInvoiceReceiptEdit) {
+        if (mount.querySelector("[data-sale-edit-form]") && window.initSaleInvoiceReceiptEdit) {
           window.initSaleInvoiceReceiptEdit(mount);
         }
       })
       .catch(function () {
         mount.innerHTML =
-          '<p class="p-4 text-center text-xs text-danger" dir="rtl">تعذر تحميل التعديل.</p>';
-        toast("تعذر تحميل التعديل", "error");
+          '<p class="p-4 text-center text-xs text-danger" dir="rtl">تعذر تحميل المحتوى.</p>';
+        toast(
+          isView
+            ? isPurchase
+              ? "تعذر تحميل فاتورة الشراء"
+              : "تعذر تحميل العرض"
+            : "تعذر تحميل التعديل",
+          "error"
+        );
       });
   }
 
@@ -123,16 +203,40 @@
     });
 
     document.addEventListener("click", function (e) {
+      if (!e.target.closest) return;
+      var purchaseViewBtn = e.target.closest(".shell-purchase-load-view");
+      if (purchaseViewBtn) {
+        var purchaseUrl = purchaseViewBtn.getAttribute("data-purchase-detail-panel-url");
+        if (!purchaseUrl) return;
+        e.preventDefault();
+        openModal(
+          purchaseUrl,
+          purchaseViewBtn.getAttribute("data-purchase-detail-title") || "عرض فاتورة الشراء",
+          { mode: "view", kind: "purchase" }
+        );
+        return;
+      }
+      var viewBtn = e.target.closest(".shell-invoice-load-view");
+      if (viewBtn) {
+        var viewUrl = viewBtn.getAttribute("data-detail-panel-url");
+        if (!viewUrl) return;
+        e.preventDefault();
+        openModal(
+          viewUrl,
+          viewBtn.getAttribute("data-detail-title") || "عرض الفاتورة",
+          { mode: "view", kind: "sale" }
+        );
+        return;
+      }
       var btn =
-        e.target.closest &&
-        (e.target.closest(".shell-invoice-load-edit") ||
-          e.target.closest(".pos-invoice-load-edit"));
+        e.target.closest(".shell-invoice-load-edit") ||
+        e.target.closest(".pos-invoice-load-edit");
       if (!btn) return;
       var url = btn.getAttribute("data-edit-panel-url");
       if (!url) return;
       e.preventDefault();
       var title = btn.getAttribute("data-edit-title") || "تعديل الفاتورة";
-      openModal(url, title);
+      openModal(url, title, { mode: "edit" });
     });
 
     ov.addEventListener("click", function (e) {
@@ -168,11 +272,21 @@
   }
 
   window.openSaleInvoiceEditModal = openModal;
+  window.openSaleInvoiceDetailModal = function (url, title) {
+    openModal(url, title, { mode: "view", kind: "sale" });
+  };
+  window.openPurchaseInvoiceDetailModal = function (url, title) {
+    openModal(url, title, { mode: "view", kind: "purchase" });
+  };
   window.closeSaleInvoiceEditModal = closeModal;
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setup);
+    document.addEventListener("DOMContentLoaded", function () {
+      setup();
+      openFromQueryParams();
+    });
   } else {
     setup();
+    openFromQueryParams();
   }
 })();

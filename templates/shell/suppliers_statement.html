@@ -31,9 +31,9 @@
             <td class="font-semibold">{{ r.running|floatformat:2|intcomma }}</td>
             <td class="text-sm text-muted">
               {% if r.reference_model == "purchasing.PurchaseInvoice" and r.reference_pk %}
-              <a href="{% url 'shell:purchase_detail' r.reference_pk %}" class="font-bold text-primary hover:underline">{{ r.reference }}</a>
+              {% include "shell/_purchase_invoice_view_btn.html" with invoice_pk=r.reference_pk label=r.reference %}
               {% elif r.reference_model == "billing.SaleInvoice" and r.reference_pk %}
-              <a href="{% url 'shell:invoice_detail' r.reference_pk %}" class="font-bold text-primary hover:underline">{{ r.reference }}</a>
+              {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=r.reference_pk label=r.reference %}
               {% else %}
               {{ r.reference }}
               {% endif %}

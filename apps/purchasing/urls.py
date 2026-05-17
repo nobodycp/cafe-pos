@@ -24,6 +24,7 @@ urlpatterns = [
     path("api/purchase-products/quick-create/", views.purchase_product_quick_create, name="purchase_product_quick_create"),
     path("purchase/list/", views.purchase_invoice_list, name="purchase_list"),
     path("purchase/<int:pk>/delete/", views.purchase_invoice_delete, name="purchase_delete"),
+    path("purchase/<int:pk>/detail-panel/", views.purchase_invoice_detail_panel, name="purchase_invoice_detail_panel"),
     path("purchase/<int:pk>/", views.purchase_invoice_detail, name="purchase_detail"),
     path("purchase/<int:pk>/return/", views.purchase_return_create, name="purchase_return"),
     path("commission-vendors/", views.commission_vendor_report, name="commission_vendors"),

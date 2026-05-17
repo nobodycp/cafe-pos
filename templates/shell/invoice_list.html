@@ -35,7 +35,7 @@
             {% with inv=row.obj %}
             <tr>
               <td><span class="inline-flex items-center rounded-sm bg-success/15 text-success px-2 py-0.5 text-xs font-extrabold">بيع</span></td>
-              <td><a href="{% url 'shell:invoice_detail' inv.pk %}?from=invoices&amp;return={{ request.get_full_path|urlencode }}" class="font-bold text-primary hover:underline">{{ inv.invoice_number }}</a></td>
+              <td>{% include "shell/_sale_invoice_view_btn.html" with invoice_pk=inv.pk label=inv.invoice_number %}</td>
               <td>{{ inv.created_at|date:"Y-m-d H:i" }}</td>
               <td>{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
               <td>{% if inv.customer %}<a href="{% url 'shell:customer_detail' inv.customer.pk %}" class="text-primary hover:underline">{{ inv.customer.name_ar }}</a>{% else %}—{% endif %}</td>
@@ -43,7 +43,7 @@
               <td>{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:invoice_detail' inv.pk %}?from=invoices&amp;return={{ request.get_full_path|urlencode }}" class="ds-btn">عرض</a>
+                  {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=inv.pk label="عرض" btn_class="ds-btn" %}
                   {% if not inv.is_cancelled and POS_SETTINGS.allow_sale_invoice_edit %}
                   <button type="button" class="ds-btn shell-invoice-load-edit border-primary/40 text-primary"
                     data-edit-panel-url="{% url 'shell:sale_invoice_edit_panel' inv.pk %}"
@@ -64,7 +64,7 @@
             {% with pinv=row.obj %}
             <tr>
               <td><span class="inline-flex items-center rounded-sm bg-info/20 text-info px-2 py-0.5 text-xs font-extrabold">شراء</span></td>
-              <td><a href="{% url 'shell:purchase_detail' pinv.pk %}" class="font-bold text-primary hover:underline">{{ pinv.invoice_number }}</a></td>
+              <td>{% include "shell/_purchase_invoice_view_btn.html" with invoice_pk=pinv.pk label=pinv.invoice_number %}</td>
               <td>{{ pinv.created_at|date:"Y-m-d H:i" }}</td>
               <td>—</td>
               <td><a href="{% url 'shell:supplier_detail' pinv.supplier.pk %}" class="text-primary hover:underline">{{ pinv.supplier.name_ar }}</a></td>
@@ -72,7 +72,7 @@
               <td>{% if pinv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
-                  <a href="{% url 'shell:purchase_detail' pinv.pk %}" class="ds-btn">عرض</a>
+                  {% include "shell/_purchase_invoice_view_btn.html" with invoice_pk=pinv.pk label="عرض" btn_class="ds-btn" %}
                   <form method="post" action="{% url 'shell:purchase_delete' pinv.pk %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="reason" value="حذف نهائي من قائمة الفواتير">

@@ -10,7 +10,7 @@ from django.db.models import Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.catalog.models import Product, Unit
 from apps.core.models import log_audit
@@ -324,6 +324,51 @@ def _purchasing_reverse(request, viewname, *args, **kwargs):
 
 def _purchasing_redirect(request, viewname, *args, **kwargs):
     return redirect(_purchasing_reverse(request, viewname, *args, **kwargs))
+
+
+def _safe_return_path(raw: str) -> str:
+    from apps.billing.views import _safe_return_path as billing_safe
+
+    return billing_safe(raw)
+
+
+def _purchase_invoice_detail_queryset():
+    return PurchaseInvoice.objects.select_related("supplier", "work_session")
+
+
+def _purchase_detail_back_url(request, invoice: PurchaseInvoice) -> str:
+    dest = _safe_return_path(request.GET.get("return", ""))
+    if dest:
+        return dest
+    if invoice.supplier_id:
+        return reverse("shell:supplier_detail", args=[invoice.supplier_id])
+    return reverse("shell:invoice_list")
+
+
+def _redirect_open_purchase_invoice_to(url: str, pk: int):
+    sep = "&" if "?" in url else "?"
+    return redirect(f"{url}{sep}view_purchase_invoice={pk}")
+
+
+def _redirect_open_purchase_invoice(request, pk: int):
+    invoice = get_object_or_404(_purchase_invoice_detail_queryset(), pk=pk)
+    dest = _safe_return_path(request.GET.get("return", ""))
+    if not dest and request.method == "POST":
+        dest = _safe_return_path(request.POST.get("next", ""))
+    if not dest:
+        dest = _safe_return_path(request.META.get("HTTP_REFERER", ""))
+    if not dest:
+        dest = _purchase_detail_back_url(request, invoice)
+    return _redirect_open_purchase_invoice_to(dest, pk)
+
+
+def _purchase_invoice_detail_context(request, invoice: PurchaseInvoice) -> dict:
+    return {
+        "invoice": invoice,
+        "lines": invoice.lines.select_related("product").order_by("pk"),
+        "has_purchase_returns": invoice.returns.exists(),
+        "purchase_returns": list(invoice.returns.order_by("-created_at")),
+    }
 
 
 def _purchasing_tpl(request, shell_tpl, classic_tpl):
@@ -958,13 +1003,19 @@ def purchase_invoice_list(request):
 
 @login_required
 def purchase_invoice_detail(request, pk):
-    invoice = get_object_or_404(
-        PurchaseInvoice.objects.select_related("supplier", "work_session"),
-        pk=pk,
-    )
-    lines = invoice.lines.select_related("product").order_by("pk")
-    tpl = _purchasing_tpl(request, "shell/purchase_detail.html", "purchasing/purchase_detail.html")
-    return render(request, tpl, _purchasing_ctx(request, invoice=invoice, lines=lines))
+    """الرابط القديم — يعيد التوجيه لفتح النافذة المنبثقة."""
+    invoice = get_object_or_404(_purchase_invoice_detail_queryset(), pk=pk)
+    dest = _purchase_detail_back_url(request, invoice)
+    return _redirect_open_purchase_invoice_to(dest, pk)
+
+
+@login_required
+@require_GET
+def purchase_invoice_detail_panel(request, pk):
+    """HTML جزئي لعرض فاتورة الشراء داخل النافذة المنبثقة."""
+    invoice = get_object_or_404(_purchase_invoice_detail_queryset(), pk=pk)
+    ctx = _purchase_invoice_detail_context(request, invoice)
+    return render(request, "shell/_purchase_invoice_detail_modal_fragment.html", ctx)
 
 
 @login_required
@@ -989,7 +1040,7 @@ def purchase_invoice_delete(request, pk):
         fallback = (request.POST.get("next") or "").strip()
         if fallback.startswith("/") and not fallback.startswith("//") and "\n" not in fallback and "\r" not in fallback:
             return redirect(fallback)
-        return _purchasing_redirect(request, "purchase_detail", pk=pk)
+        return _redirect_open_purchase_invoice(request, pk)
 
 
 @login_required
@@ -1077,7 +1128,7 @@ def purchase_return_create(request, pk):
 
                 log_audit(request.user, "purchase.return.created", "purchasing.PurchaseReturn", ret.pk, {"total": str(total)})
                 messages.success(request, f"تم تسجيل مرتجع {ret.return_number} بمبلغ {total}")
-                return redirect("shell:purchase_detail", pk=invoice.pk)
+                return _redirect_open_purchase_invoice(request, invoice.pk)
 
     return render(request, "purchasing/purchase_return_form.html", {
         "invoice": invoice,

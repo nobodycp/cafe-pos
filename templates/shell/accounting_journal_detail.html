@@ -25,9 +25,13 @@
       {% if entry.reference_type %}
       <div><strong>المرجع:</strong>
         {% if entry.reference_type == "billing.SaleInvoice" and entry.reference_pk %}
-        <a href="{% url 'shell:invoice_detail' entry.reference_pk %}">فاتورة بيع #{{ entry.reference_pk }}</a>
+        <button type="button" class="shell-invoice-load-view font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+          data-detail-panel-url="{% url 'shell:sale_invoice_detail_panel' entry.reference_pk %}"
+          data-detail-title="فاتورة بيع #{{ entry.reference_pk }}">فاتورة بيع #{{ entry.reference_pk }}</button>
         {% elif entry.reference_type == "purchasing.PurchaseInvoice" and entry.reference_pk %}
-        <a href="{% url 'shell:purchase_detail' entry.reference_pk %}">فاتورة شراء #{{ entry.reference_pk }}</a>
+        <button type="button" class="shell-purchase-load-view font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+          data-purchase-detail-panel-url="{% url 'shell:purchase_invoice_detail_panel' entry.reference_pk %}"
+          data-purchase-detail-title="فاتورة شراء #{{ entry.reference_pk }}">فاتورة شراء #{{ entry.reference_pk }}</button>
         {% else %}{{ entry.reference_type }} #{{ entry.reference_pk }}{% endif %}
       </div>
       {% endif %}

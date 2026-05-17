@@ -146,7 +146,7 @@
           </td>
           <td class="text-xs max-w-[20rem]">
             {% if row.invoice_pk %}
-            <a href="{% url 'shell:invoice_detail' row.invoice_pk %}" class="text-primary font-bold hover:underline">{{ row.detail }}</a>
+            {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=row.invoice_pk label=row.detail btn_class="text-primary font-bold hover:underline bg-transparent border-0 p-0 cursor-pointer" %}
             {% elif row.expense_pk %}
             <a href="{% url 'shell:expense_edit' row.expense_pk %}" class="text-primary hover:underline">{{ row.detail }}</a>
             {% else %}

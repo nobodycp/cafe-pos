@@ -121,6 +121,7 @@
   </div>
 
   {% include "shell/_sale_invoice_edit_overlay.html" %}
+  <script type="application/json" id="shell-invoice-panel-routes">{"detail":"{% url 'shell:sale_invoice_detail_panel' 0 %}","edit":"{% url 'shell:sale_invoice_edit_panel' 0 %}","purchase_detail":"{% url 'shell:purchase_invoice_detail_panel' 0 %}"}</script>
   {% block cashier_scripts %}{% endblock %}
   <script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
   <script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>

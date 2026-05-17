@@ -1,0 +1,135 @@
+{% load humanize core_extras %}
+<div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
+  <span>{{ invoice.invoice_number }}</span>
+  {% if invoice.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% endif %}
+  <span class="text-muted font-normal">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
+  {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
+  <span class="text-muted font-normal">طاولة {{ invoice.order.table_session.dining_table.name_ar }}</span>
+  {% endif %}
+  {% if invoice.customer %}
+  <span class="text-muted font-normal">{{ invoice.customer.name_ar }}</span>
+  {% endif %}
+</div>
+
+{% if invoice.is_cancelled and invoice.cancel_reason %}
+<div class="rounded border border-danger/30 bg-danger/5 px-2 py-1 text-[10px] text-danger mb-1.5">
+  <span class="font-bold">سبب الإلغاء:</span> {{ invoice.cancel_reason }}
+  {% if invoice.cancelled_at %}<span class="text-muted">({{ invoice.cancelled_at|date:"Y-m-d H:i" }})</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="sale-invoice-detail-table-region overflow-x-auto mb-1.5 max-h-[min(42vh,300px)] overflow-y-auto">
+  <table class="pos-cart-lines pos-cart-lines--excel sale-detail-lines-table w-full">
+    <colgroup>
+      <col class="sale-detail-col-num">
+      <col class="sale-detail-col-name">
+      <col class="sale-detail-col-qty">
+      <col class="sale-detail-col-price">
+      <col class="sale-detail-col-total">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="text-center">#</th>
+        <th class="text-start min-w-0">الصنف</th>
+        <th class="text-center">كم</th>
+        <th class="text-center">سعر</th>
+        <th class="text-end">مجموع</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td class="text-center text-muted">{{ forloop.counter }}</td>
+        <td class="sale-detail-col-name-cell truncate font-semibold" title="{{ line.product.name_ar }}">{{ line.product.name_ar }}</td>
+        <td class="text-center tabular-nums">{{ line.quantity|floatformat:"0" }}</td>
+        <td class="text-center tabular-nums">{{ line.unit_price|floatformat:2|intcomma }}</td>
+        <td class="text-end tabular-nums font-semibold">{{ line.line_subtotal|floatformat:2|intcomma }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center text-muted py-2">لا توجد أصناف</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="text-[10px] leading-snug space-y-0.5 mb-1.5 max-w-xs ms-auto">
+  <div class="flex justify-between gap-2">
+    <span class="text-muted">قبل الخصم</span>
+    <span class="tabular-nums font-semibold">{{ invoice.subtotal|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+  {% if invoice.discount_total > 0 %}
+  <div class="flex justify-between gap-2 text-danger">
+    <span>خصم</span>
+    <span class="tabular-nums font-semibold">-{{ invoice.discount_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+  {% endif %}
+  {% if invoice.service_charge_total > 0 %}
+  <div class="flex justify-between gap-2 text-muted">
+    <span>خدمة</span>
+    <span class="tabular-nums">{{ invoice.service_charge_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+  {% endif %}
+  {% if invoice.tax_total > 0 %}
+  <div class="flex justify-between gap-2 text-muted">
+    <span>ضريبة</span>
+    <span class="tabular-nums">{{ invoice.tax_total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+  {% endif %}
+  <div class="flex justify-between gap-2 pt-0.5 border-t border-gray-300 dark:border-gray-600 font-extrabold text-[11px]">
+    <span>الإجمالي</span>
+    <span class="tabular-nums text-primary">{{ invoice.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+</div>
+
+{% if payments %}
+<div class="text-[10px] mb-1.5 border-t border-gray-200 dark:border-gray-700 pt-1">
+  <div class="font-bold text-muted mb-0.5">الدفع</div>
+  {% for pay in payments %}
+  <div class="flex justify-between gap-2 py-0.5">
+    <span>{{ pay.method|payment_method_label }}</span>
+    <span class="tabular-nums font-semibold">{{ pay.amount|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if sale_returns %}
+<div class="text-[10px] rounded border border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30 px-2 py-1.5 mb-1.5 text-amber-900 dark:text-amber-100">
+  <div class="font-bold mb-1">مرتجعات البيع</div>
+  <ul class="space-y-1">
+    {% for ret in sale_returns %}
+    <li class="flex flex-wrap items-center justify-between gap-1">
+      <span>
+        <strong>{{ ret.return_number }}</strong>
+        <span class="text-muted">({{ ret.total_refund|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }})</span>
+      </span>
+      {% if user.is_staff %}
+      <form method="post" action="{% url 'shell:sale_return_delete' invoice.pk ret.pk %}" class="m-0 flex items-center gap-1" onsubmit="return confirm('حذف هذا المرتجع نهائياً؟');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="text" name="reason" required minlength="3" maxlength="120" placeholder="سبب" class="h-6 min-w-[5rem] rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-950 px-1 text-[10px]" dir="rtl">
+        <button type="submit" class="h-6 px-1.5 rounded border border-danger/40 text-[10px] font-bold text-danger">حذف</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="flex flex-wrap gap-1.5 items-center pt-1 border-t border-gray-200 dark:border-gray-700">
+  {% if not invoice.is_cancelled and not has_sale_returns and POS_SETTINGS.allow_sale_invoice_edit %}
+  <button type="button" class="shell-invoice-load-edit h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk"
+    data-edit-panel-url="{% url 'shell:sale_invoice_edit_panel' invoice.pk %}"
+    data-edit-title="تعديل {{ invoice.invoice_number }}">تعديل</button>
+  {% endif %}
+  <button type="button" onclick="window.print()" class="h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">طباعة</button>
+  <form method="post" action="{% url 'shell:sale_invoice_delete' invoice.pk %}" class="m-0 inline">
+    {% csrf_token %}
+    <input type="hidden" name="reason" value="حذف نهائي من نافذة العرض">
+    <input type="hidden" name="next" value="{% url 'shell:invoice_list' %}">
+    <input type="hidden" name="next_success" value="{% url 'shell:invoice_list' %}">
+    <button type="submit" class="h-7 px-2.5 rounded border border-danger/40 text-[11px] font-bold text-danger hover:bg-danger/10">حذف</button>
+  </form>
+  <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">إغلاق</button>
+</div>

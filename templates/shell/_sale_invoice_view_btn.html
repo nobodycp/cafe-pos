@@ -1,0 +1,5 @@
+{# زر فتح فاتورة بيع في النافذة المنبثقة — invoice_pk + label مطلوبان #}
+<button type="button"
+  class="shell-invoice-load-view {% if btn_class %}{{ btn_class }}{% else %}font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-start{% endif %}"
+  data-detail-panel-url="{% url 'shell:sale_invoice_detail_panel' invoice_pk %}"
+  data-detail-title="{{ label }}">{{ label }}</button>

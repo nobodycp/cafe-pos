@@ -1,0 +1,80 @@
+{% load humanize %}
+<div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
+  <span>{{ invoice.invoice_number }}</span>
+  {% if invoice.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% endif %}
+  <span class="text-muted font-normal">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
+  <span class="text-muted font-normal">{{ invoice.supplier.name_ar }}</span>
+  <span class="inline-flex px-1.5 py-0 rounded text-[10px] font-bold {% if invoice.payment_status == 'paid' %}bg-success/15 text-success{% elif invoice.payment_status == 'partial' %}bg-warning/20 text-yellow-800 dark:text-warning{% else %}bg-danger/15 text-danger{% endif %}">{{ invoice.get_payment_status_display }}</span>
+</div>
+
+{% if invoice.is_cancelled and invoice.cancel_reason %}
+<div class="rounded border border-danger/30 bg-danger/5 px-2 py-1 text-[10px] text-danger mb-1.5">
+  <span class="font-bold">سبب الإلغاء:</span> {{ invoice.cancel_reason }}
+  {% if invoice.cancelled_at %}<span class="text-muted">({{ invoice.cancelled_at|date:"Y-m-d H:i" }})</span>{% endif %}
+</div>
+{% endif %}
+
+<div class="purchase-invoice-detail-table-region overflow-x-auto mb-1.5 max-h-[min(42vh,300px)] overflow-y-auto">
+  <table class="pos-cart-lines pos-cart-lines--excel purchase-detail-lines-table w-full">
+    <colgroup>
+      <col class="purchase-detail-col-num">
+      <col class="purchase-detail-col-name">
+      <col class="purchase-detail-col-qty">
+      <col class="purchase-detail-col-price">
+      <col class="purchase-detail-col-total">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="text-center">#</th>
+        <th class="text-start min-w-0">الصنف</th>
+        <th class="text-center">كم</th>
+        <th class="text-center">تكلفة</th>
+        <th class="text-end">مجموع</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td class="text-center text-muted">{{ forloop.counter }}</td>
+        <td class="purchase-detail-col-name-cell truncate font-semibold" title="{{ line.product.name_ar }}">{{ line.product.name_ar }}</td>
+        <td class="text-center tabular-nums">{{ line.quantity|floatformat:2 }}</td>
+        <td class="text-center tabular-nums">{{ line.unit_cost|floatformat:2|intcomma }}</td>
+        <td class="text-end tabular-nums font-semibold">{{ line.line_total|floatformat:2|intcomma }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center text-muted py-2">لا توجد أصناف</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="flex justify-between gap-2 pt-0.5 border-t border-gray-300 dark:border-gray-600 text-[11px] font-extrabold mb-1.5 max-w-xs ms-auto">
+  <span>الإجمالي</span>
+  <span class="tabular-nums text-primary">{{ invoice.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</span>
+</div>
+
+{% if purchase_returns %}
+<div class="text-[10px] rounded border border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30 px-2 py-1.5 mb-1.5 text-amber-900 dark:text-amber-100">
+  <div class="font-bold mb-1">مرتجعات الشراء</div>
+  <ul class="space-y-1">
+    {% for ret in purchase_returns %}
+    <li>
+      <strong>{{ ret.return_number }}</strong>
+      <span class="text-muted">({{ ret.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }})</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="flex flex-wrap gap-1.5 items-center pt-1 border-t border-gray-200 dark:border-gray-700">
+  <button type="button" onclick="window.print()" class="h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">طباعة</button>
+  <form method="post" action="{% url 'shell:purchase_delete' invoice.pk %}" class="m-0 inline">
+    {% csrf_token %}
+    <input type="hidden" name="reason" value="حذف نهائي من نافذة العرض">
+    <input type="hidden" name="next" value="{% url 'shell:invoice_list' %}">
+    <input type="hidden" name="next_success" value="{% url 'shell:invoice_list' %}">
+    <button type="submit" class="h-7 px-2.5 rounded border border-danger/40 text-[11px] font-bold text-danger hover:bg-danger/10">حذف</button>
+  </form>
+  <button type="button" class="shell-invoice-edit-close h-7 px-2.5 rounded border border-gray-300 text-[11px] font-bold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200">إغلاق</button>
+</div>

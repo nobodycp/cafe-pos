@@ -7,7 +7,7 @@
     <span class="pos-shell-toolbar-title">تعديل فاتورة {{ invoice.invoice_number }}</span>
     <span class="flex-1"></span>
     <div class="shell-toolbar-actions">
-      <a href="{% url 'shell:invoice_detail' invoice.pk %}" class="shell-toolbar-link">← تفاصيل الفاتورة</a>
+      {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=invoice.pk label="← عرض الفاتورة" btn_class="shell-toolbar-link bg-transparent border-0 p-0 cursor-pointer" %}
       <a href="{% url 'pos:main' %}" class="shell-toolbar-link">← الكاشير</a>
     </div>
   </div>

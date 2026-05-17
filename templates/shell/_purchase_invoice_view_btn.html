@@ -1,0 +1,5 @@
+{# زر فتح فاتورة شراء في النافذة المنبثقة #}
+<button type="button"
+  class="shell-purchase-load-view {% if btn_class %}{{ btn_class }}{% else %}font-bold text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-start{% endif %}"
+  data-purchase-detail-panel-url="{% url 'shell:purchase_invoice_detail_panel' invoice_pk %}"
+  data-purchase-detail-title="{{ label }}">{{ label }}</button>

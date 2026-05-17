@@ -1,0 +1,42 @@
+{% load humanize %}
+<div id="purchase-invoice-detail-compact" class="purchase-invoice-detail-modal p-2 sm:p-2.5" dir="rtl">
+  {% include "shell/_purchase_invoice_detail_compact_body.html" %}
+</div>
+
+<style>
+.purchase-invoice-detail-modal .purchase-invoice-detail-table-region,
+#purchase-invoice-detail-compact .purchase-invoice-detail-table-region{
+  border:1px solid #cbd5e1;border-radius:4px;background:#fff;
+}
+.dark .purchase-invoice-detail-modal .purchase-invoice-detail-table-region,
+.dark #purchase-invoice-detail-compact .purchase-invoice-detail-table-region{border-color:#475569;background:#111827}
+.purchase-invoice-detail-modal .pos-cart-lines--excel,
+#purchase-invoice-detail-compact .pos-cart-lines--excel{
+  border-collapse:collapse;width:100%;table-layout:fixed;
+  font-size:11px;line-height:1.2;font-variant-numeric:tabular-nums;
+}
+.purchase-invoice-detail-modal .purchase-detail-lines-table col.purchase-detail-col-num{width:1.6rem}
+.purchase-invoice-detail-modal .purchase-detail-lines-table col.purchase-detail-col-qty{width:4.75rem}
+.purchase-invoice-detail-modal .purchase-detail-lines-table col.purchase-detail-col-price{width:4.75rem}
+.purchase-invoice-detail-modal .purchase-detail-lines-table col.purchase-detail-col-total{width:5rem}
+.purchase-invoice-detail-modal .purchase-detail-col-name-cell{max-width:0;overflow:hidden}
+.purchase-invoice-detail-modal .pos-cart-lines--excel thead th,
+#purchase-invoice-detail-compact .pos-cart-lines--excel thead th{
+  position:sticky;top:0;z-index:2;background:#e2e8f0;color:#334155;font-weight:800;
+  padding:3px 4px;border:1px solid #cbd5e1;font-size:10px;
+}
+.dark .purchase-invoice-detail-modal .pos-cart-lines--excel thead th,
+.dark #purchase-invoice-detail-compact .pos-cart-lines--excel thead th{
+  background:#334155;color:#e2e8f0;border-color:#475569;
+}
+.purchase-invoice-detail-modal .pos-cart-lines--excel tbody td,
+#purchase-invoice-detail-compact .pos-cart-lines--excel tbody td{
+  border:1px solid #cbd5e1;padding:2px 4px;vertical-align:middle;font-size:11px;
+}
+.dark .purchase-invoice-detail-modal .pos-cart-lines--excel tbody td,
+.dark #purchase-invoice-detail-compact .pos-cart-lines--excel tbody td{border-color:#475569}
+.purchase-invoice-detail-modal .pos-cart-lines--excel tbody tr:nth-child(even),
+#purchase-invoice-detail-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:#f8fafc}
+.dark .purchase-invoice-detail-modal .pos-cart-lines--excel tbody tr:nth-child(even),
+.dark #purchase-invoice-detail-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:rgba(30,41,59,.45)}
+</style>

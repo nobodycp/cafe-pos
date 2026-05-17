@@ -1,0 +1,42 @@
+{% load humanize core_extras %}
+<div id="sale-invoice-detail-compact" class="sale-invoice-detail-modal p-2 sm:p-2.5" dir="rtl">
+  {% include "shell/_sale_invoice_detail_compact_body.html" %}
+</div>
+
+<style>
+.sale-invoice-detail-modal .sale-invoice-detail-table-region,
+#sale-invoice-detail-compact .sale-invoice-detail-table-region{
+  border:1px solid #cbd5e1;border-radius:4px;background:#fff;
+}
+.dark .sale-invoice-detail-modal .sale-invoice-detail-table-region,
+.dark #sale-invoice-detail-compact .sale-invoice-detail-table-region{border-color:#475569;background:#111827}
+.sale-invoice-detail-modal .pos-cart-lines--excel,
+#sale-invoice-detail-compact .pos-cart-lines--excel{
+  border-collapse:collapse;width:100%;table-layout:fixed;
+  font-size:11px;line-height:1.2;font-variant-numeric:tabular-nums;
+}
+.sale-invoice-detail-modal .sale-detail-lines-table col.sale-detail-col-num{width:1.6rem}
+.sale-invoice-detail-modal .sale-detail-lines-table col.sale-detail-col-qty{width:4.75rem}
+.sale-invoice-detail-modal .sale-detail-lines-table col.sale-detail-col-price{width:4.75rem}
+.sale-invoice-detail-modal .sale-detail-lines-table col.sale-detail-col-total{width:5rem}
+.sale-invoice-detail-modal .sale-detail-col-name-cell{max-width:0;overflow:hidden}
+.sale-invoice-detail-modal .pos-cart-lines--excel thead th,
+#sale-invoice-detail-compact .pos-cart-lines--excel thead th{
+  position:sticky;top:0;z-index:2;background:#e2e8f0;color:#334155;font-weight:800;
+  padding:3px 4px;border:1px solid #cbd5e1;font-size:10px;
+}
+.dark .sale-invoice-detail-modal .pos-cart-lines--excel thead th,
+.dark #sale-invoice-detail-compact .pos-cart-lines--excel thead th{
+  background:#334155;color:#e2e8f0;border-color:#475569;
+}
+.sale-invoice-detail-modal .pos-cart-lines--excel tbody td,
+#sale-invoice-detail-compact .pos-cart-lines--excel tbody td{
+  border:1px solid #cbd5e1;padding:2px 4px;vertical-align:middle;font-size:11px;
+}
+.dark .sale-invoice-detail-modal .pos-cart-lines--excel tbody td,
+.dark #sale-invoice-detail-compact .pos-cart-lines--excel tbody td{border-color:#475569}
+.sale-invoice-detail-modal .pos-cart-lines--excel tbody tr:nth-child(even),
+#sale-invoice-detail-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:#f8fafc}
+.dark .sale-invoice-detail-modal .pos-cart-lines--excel tbody tr:nth-child(even),
+.dark #sale-invoice-detail-compact .pos-cart-lines--excel tbody tr:nth-child(even){background:rgba(30,41,59,.45)}
+</style>
