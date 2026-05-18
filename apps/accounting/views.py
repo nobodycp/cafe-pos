@@ -133,7 +133,8 @@ def account_ledger_view(request, pk):
 
     pag = paginate_queryset(request, lines_qs)
     page = pag["page_obj"]
-    prior_n = max(0, page.start_index - 1) if page.object_list else 0
+    start_idx = page.start_index() if callable(page.start_index) else page.start_index
+    prior_n = max(0, start_idx - 1) if page.object_list else 0
     running = opening_at_period
     if prior_n:
         for line in lines_qs[:prior_n]:

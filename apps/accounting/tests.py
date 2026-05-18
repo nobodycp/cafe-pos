@@ -1,11 +1,13 @@
+from datetime import date
 from decimal import Decimal
 import uuid
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 
 from apps.accounting.chart_defaults import DEFAULT_SYSTEM_ACCOUNTS, ensure_default_chart_accounts
-from apps.accounting.models import Account, JournalEntry
+from apps.accounting.models import Account, JournalEntry, JournalLine
 from apps.accounting.services import post_purchase_invoice_journal
 from apps.purchasing.models import PurchaseInvoice, Supplier
 
@@ -56,3 +58,29 @@ class PurchaseJournalSelfHealTests(TestCase):
                 reference_pk=str(inv.pk),
             ).exists()
         )
+
+
+class AccountLedgerViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="ledger_t", password="x")
+        self.client = Client()
+        self.client.force_login(self.user)
+        ensure_default_chart_accounts()
+        self.account = Account.objects.filter(is_active=True).first()
+        entry = JournalEntry.objects.create(
+            entry_number="JE-LEDGER-1",
+            date=date.today(),
+            description="اختبار كشف",
+        )
+        JournalLine.objects.create(
+            entry=entry,
+            account=self.account,
+            debit=Decimal("10.00"),
+            credit=Decimal("0"),
+        )
+
+    def test_account_ledger_page_renders_with_pagination(self):
+        url = reverse("shell:account_ledger", args=[self.account.pk])
+        response = self.client.get(url, {"per_page": 25})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "JE-LEDGER-1")
