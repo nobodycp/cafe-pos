@@ -151,6 +151,8 @@ def _sale_invoice_edit_error_message(code: str) -> str:
     if code.startswith("PAYMENT_SUM_MISMATCH:"):
         parts = code.split(":")
         return f"مجموع الدفعات ({parts[1] if len(parts) > 1 else '?'}) لا يساوي الإجمالي ({parts[2] if len(parts) > 2 else '?'})."
+    if code == "INVALID_INVOICE_DATE":
+        return "تاريخ الفاتورة غير صالح — أدخل تاريخاً صحيحاً."
     return code.replace("_", " ")
 
 
@@ -189,8 +191,20 @@ def _sale_edit_pay_boot(invoice, payments) -> dict:
 
 
 def _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, has_returns):
+    from django.utils import timezone as _tz
+    from apps.billing.sale_invoice_edit import format_discount_input_value
+
     slots = len(lines) + 2
     line_edit_rows = [{"idx": i, "line": lines[i] if i < len(lines) else None} for i in range(slots)]
+    inv_dt = invoice.created_at
+    if inv_dt is not None and _tz.is_aware(inv_dt):
+        inv_dt = _tz.localtime(inv_dt)
+    invoice_date_input_value = inv_dt.strftime("%Y-%m-%d") if inv_dt else ""
+    order = getattr(invoice, "order", None)
+    discount_input_value = format_discount_input_value(
+        discount_amount=getattr(order, "discount_amount", 0) if order else 0,
+        discount_percent=getattr(order, "discount_percent", 0) if order else 0,
+    )
     return {
         "invoice": invoice,
         "lines": lines,
@@ -206,6 +220,8 @@ def _sale_invoice_edit_form_context(invoice, lines, payments, can_edit, reason, 
         "sale_edit_pay_boot_json": json.dumps(
             _sale_edit_pay_boot(invoice, payments), ensure_ascii=False
         ),
+        "invoice_date_input_value": invoice_date_input_value,
+        "discount_input_value": discount_input_value,
     }
 
 
@@ -456,17 +472,10 @@ def customer_invoices(request, customer_id):
 
 @login_required
 def sale_return_create(request, invoice_pk):
-    from decimal import Decimal, InvalidOperation
-    from django.db import transaction
-    from apps.core.sequences import next_int
-    from apps.core.models import log_audit
-    from apps.core.services import SessionService
-    from apps.inventory.services import adjust_stock
-    from apps.inventory.models import StockMovement
+    from apps.billing.sale_return_service import create_sale_return, parse_sale_return_lines_from_post
 
     invoice = get_object_or_404(SaleInvoice.objects.prefetch_related("lines__product"), pk=invoice_pk)
     if invoice.is_cancelled:
-        from django.contrib import messages
         messages.error(request, "لا يمكن إرجاع فاتورة ملغاة")
         return _redirect_open_sale_invoice(request, invoice.pk)
 
@@ -476,83 +485,23 @@ def sale_return_create(request, invoice_pk):
     if request.method == "POST":
         reason = request.POST.get("reason", "")
         refund_method = request.POST.get("refund_method", "cash")
-        return_lines = []
-
-        for line in inv_lines:
-            qty_str = request.POST.get(f"qty_{line.pk}", "").strip()
-            if not qty_str:
-                continue
-            try:
-                qty = Decimal(qty_str)
-                if qty <= 0:
-                    continue
-                if qty > line.quantity:
-                    errors.append(f"الكمية المرتجعة لـ {line.product.name_ar} أكبر من المباعة")
-                    continue
-                return_lines.append((line, qty))
-            except (InvalidOperation, ValueError):
-                errors.append(f"كمية غير صالحة لـ {line.product.name_ar}")
-
-        if not return_lines and not errors:
-            errors.append("يرجى تحديد كمية مرتجعة واحدة على الأقل")
+        return_lines, errors = parse_sale_return_lines_from_post(invoice, request.POST)
 
         if not errors:
-            with transaction.atomic():
-                total_refund = Decimal("0")
-                ret = SaleReturn.objects.create(
-                    invoice=invoice,
-                    return_number=f"RET-{next_int('sale_return'):06d}",
-                    reason=reason,
-                    refund_method=refund_method,
-                )
+            ret = create_sale_return(
+                invoice=invoice,
+                return_lines=return_lines,
+                reason=reason,
+                refund_method=refund_method,
+                user=request.user,
+            )
+            messages.success(
+                request,
+                f"تم تسجيل مرتجع {ret.return_number} بمبلغ {ret.total_refund}",
+            )
+            return _redirect_open_sale_invoice(request, invoice.pk)
 
-                session = SessionService.get_open_session()
-                for inv_line, qty in return_lines:
-                    line_total = (qty * inv_line.unit_price).quantize(Decimal("0.01"))
-                    SaleReturnLine.objects.create(
-                        sale_return=ret,
-                        product=inv_line.product,
-                        quantity=qty,
-                        unit_price=inv_line.unit_price,
-                        line_total=line_total,
-                    )
-                    total_refund += line_total
-
-                    if inv_line.product.is_stock_tracked:
-                        adjust_stock(
-                            product=inv_line.product,
-                            quantity_delta=qty,
-                            movement_type=StockMovement.MovementType.ADJUSTMENT,
-                            session=session,
-                            reference_model="billing.SaleReturn",
-                            reference_pk=str(ret.pk),
-                            note=f"مرتجع بيع {ret.return_number}",
-                        )
-
-                ret.total_refund = total_refund
-                ret.save(update_fields=["total_refund", "updated_at"])
-
-                if refund_method == "credit" and invoice.customer:
-                    cust = invoice.customer
-                    cust.balance = (cust.balance - total_refund).quantize(Decimal("0.01"))
-                    cust.save(update_fields=["balance", "updated_at"])
-                    from apps.contacts.models import CustomerLedgerEntry
-                    CustomerLedgerEntry.objects.create(
-                        customer=cust,
-                        entry_type=CustomerLedgerEntry.EntryType.ADJUSTMENT,
-                        amount=-total_refund,
-                        note=f"مرتجع بيع {ret.return_number}",
-                        reference_model="billing.SaleReturn",
-                        reference_pk=str(ret.pk),
-                    )
-
-                log_audit(request.user, "sale.return.created", "billing.SaleReturn", ret.pk, {"total": str(total_refund)})
-
-                from django.contrib import messages
-                messages.success(request, f"تم تسجيل مرتجع {ret.return_number} بمبلغ {total_refund}")
-                return _redirect_open_sale_invoice(request, invoice.pk)
-
-    return render(request, "billing/sale_return_form.html", {
+    return render(request, "shell/sale_return_form.html", {
         "invoice": invoice,
         "inv_lines": inv_lines,
         "errors": errors,

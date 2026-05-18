@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from django.db import transaction
+from django.utils import timezone
 
 from apps.contacts.services import apply_customer_balance_sync_from_employee_store_repayment
 from apps.core.decimalutil import as_decimal
@@ -162,3 +163,130 @@ def record_employee_debt_repayment(
         },
     )
     return rep
+
+
+@transaction.atomic
+def record_employee_advance(
+    *,
+    employee: Employee,
+    amount: Decimal,
+    note: str,
+    salaries_category,
+    work_session,
+    user,
+) -> "EmployeeAdvance":
+    from apps.expenses.services import create_expense
+    from apps.payroll.models import EmployeeAdvance
+
+    exp = create_expense(
+        category=salaries_category,
+        amount=amount,
+        payment_method="cash",
+        expense_date=timezone.localdate(),
+        notes=f"سلفة موظف: {employee.name_ar}" + (f" — {note}" if note else ""),
+        work_session=work_session,
+        user=user,
+        allow_salary_category=True,
+    )
+    adv = EmployeeAdvance.objects.create(
+        employee=employee,
+        work_session=work_session,
+        amount=amount,
+        note=note,
+        linked_expense=exp,
+    )
+    employee.advance_balance = (as_decimal(employee.advance_balance) + amount).quantize(Decimal("0.01"))
+    employee.save(update_fields=["advance_balance", "updated_at"])
+    recalc_employee_net_balance(employee)
+    return adv
+
+
+@transaction.atomic
+def delete_employee_advance(*, employee: Employee, advance: "EmployeeAdvance", user) -> None:
+    from apps.expenses.services import delete_expense_permanent
+    from apps.payroll.models import EmployeeAdvance
+
+    amt = as_decimal(advance.amount)
+    if advance.linked_expense_id:
+        delete_expense_permanent(expense=advance.linked_expense, user=user)
+    employee.advance_balance = (as_decimal(employee.advance_balance) - amt).quantize(Decimal("0.01"))
+    if employee.advance_balance < 0 and employee.advance_balance > Decimal("-0.01"):
+        employee.advance_balance = Decimal("0")
+    employee.save(update_fields=["advance_balance", "updated_at"])
+    advance.delete()
+    recalc_employee_net_balance(employee)
+
+
+@transaction.atomic
+def record_employee_payout(
+    *,
+    employee: Employee,
+    days: Decimal,
+    hours: Decimal,
+    amount: Decimal,
+    advance_deduction: Decimal,
+    note: str,
+    salaries_category,
+    work_session,
+    user,
+) -> "EmployeeSalaryPayout":
+    from apps.expenses.services import create_expense
+    from apps.payroll.models import EmployeeSalaryPayout
+
+    if employee.pay_type == Employee.PayType.DAILY:
+        employee.work_days_balance = (as_decimal(employee.work_days_balance) - days).quantize(Decimal("0.01"))
+    elif employee.pay_type == Employee.PayType.HOURLY:
+        employee.work_hours_balance = (as_decimal(employee.work_hours_balance) - hours).quantize(Decimal("0.01"))
+    if advance_deduction > 0:
+        employee.advance_balance = (as_decimal(employee.advance_balance) - advance_deduction).quantize(Decimal("0.01"))
+    employee.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
+    recalc_employee_net_balance(employee)
+
+    net_cash = (amount - advance_deduction).quantize(Decimal("0.01"))
+    linked = None
+    if net_cash > 0:
+        parts = []
+        if days > 0:
+            parts.append(f"{days} يوم")
+        if hours > 0:
+            parts.append(f"{hours} ساعة")
+        linked = create_expense(
+            category=salaries_category,
+            amount=net_cash,
+            payment_method="cash",
+            expense_date=timezone.localdate(),
+            notes=f"صرف راتب: {employee.name_ar} ({' + '.join(parts)})" + (f" — {note}" if note else ""),
+            work_session=work_session,
+            user=user,
+            allow_salary_category=True,
+        )
+    return EmployeeSalaryPayout.objects.create(
+        employee=employee,
+        work_session=work_session,
+        days_count=days,
+        hours_count=hours,
+        amount=amount,
+        advance_applied=advance_deduction,
+        note=note,
+        linked_expense=linked,
+    )
+
+
+@transaction.atomic
+def delete_employee_payout(*, employee: Employee, payout: "EmployeeSalaryPayout", user) -> None:
+    from apps.expenses.services import delete_expense_permanent
+
+    if payout.linked_expense_id:
+        delete_expense_permanent(expense=payout.linked_expense, user=user)
+    employee.work_days_balance = (as_decimal(employee.work_days_balance) + as_decimal(payout.days_count)).quantize(
+        Decimal("0.01")
+    )
+    employee.work_hours_balance = (as_decimal(employee.work_hours_balance) + as_decimal(payout.hours_count)).quantize(
+        Decimal("0.01")
+    )
+    employee.advance_balance = (as_decimal(employee.advance_balance) + as_decimal(payout.advance_applied)).quantize(
+        Decimal("0.01")
+    )
+    employee.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
+    payout.delete()
+    recalc_employee_net_balance(employee)

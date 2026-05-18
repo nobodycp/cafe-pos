@@ -83,10 +83,12 @@ def post_sale_invoice_journal(
     invoice,
     pay_by_method: Dict[str, Decimal],
     user=None,
+    entry_date=None,
 ) -> JournalEntry:
     """
     قيد بيع: مدين صندوق/بنك/ذمم = الإجمالي، دائن إيرادات + خدمة + ضريبة.
     قيد تكلفة: مدين تكلفة بضاعة مباعة، دائن مخزون.
+    تاريخ القيد: يأخذ ``entry_date`` إن مُرّر، وإلا تاريخ إنشاء الفاتورة، وإلا اليوم.
     """
     if JournalEntry.objects.filter(
         reference_type="billing.SaleInvoice",
@@ -106,12 +108,18 @@ def post_sale_invoice_journal(
     tax = as_decimal(invoice.tax_total)
     total_cost = as_decimal(invoice.total_cost)
 
+    if entry_date is None:
+        inv_created = getattr(invoice, "created_at", None)
+        if inv_created is not None:
+            entry_date = timezone.localtime(inv_created).date() if timezone.is_aware(inv_created) else inv_created.date()
+
     entry = _build_entry(
         description=f"فاتورة بيع {invoice.invoice_number}",
         reference_type="billing.SaleInvoice",
         reference_pk=invoice.pk,
         work_session=invoice.work_session,
         user=user,
+        date=entry_date,
     )
     entry.save()
 
@@ -163,6 +171,7 @@ def post_sale_invoice_journal(
             reference_pk=invoice.pk,
             work_session=invoice.work_session,
             user=user,
+            date=entry_date,
         )
         cogs_entry.save()
         _add_line(cogs_entry, _get_account("COGS"), debit=total_cost, desc="تكلفة مبيعات")
@@ -642,6 +651,70 @@ def profit_and_loss(date_from=None, date_to=None) -> dict:
     net = (revenue - expenses).quantize(Decimal("0.01"))
 
     return {"revenue": revenue, "expenses": expenses, "net_income": net}
+
+
+def journal_line_delta(line: JournalLine, *, is_debit_normal: bool) -> Decimal:
+    if is_debit_normal:
+        return as_decimal(line.debit) - as_decimal(line.credit)
+    return as_decimal(line.credit) - as_decimal(line.debit)
+
+
+def paginated_account_ledger_context(
+    account: Account,
+    *,
+    lines_qs,
+    date_from,
+    date_to,
+    page,
+    start_idx: int,
+) -> dict:
+    """
+    يبني صفوف كشف الحساب مع رصيد جاري للصفحة الحالية (نفس منطق account_ledger_view).
+    """
+    is_debit_normal = account.account_type in (Account.AccountType.ASSET, Account.AccountType.EXPENSE)
+
+    opening_at_period = Decimal("0")
+    if date_from:
+        prior = (
+            JournalLine.objects.filter(account=account, entry__date__lt=date_from)
+            .select_related("entry")
+            .order_by("entry__date", "entry__created_at", "pk")
+        )
+        for line in prior:
+            opening_at_period += journal_line_delta(line, is_debit_normal=is_debit_normal)
+        opening_at_period = opening_at_period.quantize(Decimal("0.01"))
+
+    prior_n = max(0, start_idx - 1) if page.object_list else 0
+    running = opening_at_period
+    if prior_n:
+        for line in lines_qs[:prior_n]:
+            running += journal_line_delta(line, is_debit_normal=is_debit_normal)
+        running = running.quantize(Decimal("0.01"))
+
+    rows = []
+    for line in page:
+        running = (running + journal_line_delta(line, is_debit_normal=is_debit_normal)).quantize(Decimal("0.01"))
+        rows.append({
+            "date": line.entry.date,
+            "entry_pk": line.entry.pk,
+            "entry_number": line.entry.entry_number,
+            "description": line.description or line.entry.description,
+            "debit": line.debit,
+            "credit": line.credit,
+            "balance": running,
+        })
+
+    closing = opening_at_period
+    for line in lines_qs:
+        closing += journal_line_delta(line, is_debit_normal=is_debit_normal)
+    closing = closing.quantize(Decimal("0.01"))
+
+    return {
+        "rows": rows,
+        "opening_balance": opening_at_period,
+        "closing_balance": closing,
+        "page_opening_balance": running if page.object_list else opening_at_period,
+    }
 
 
 def account_ledger(account: Account, date_from=None, date_to=None) -> List[dict]:

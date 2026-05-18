@@ -19,6 +19,8 @@ environ.Env.read_env(BASE_DIR / ".env", overwrite=True)
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=True)
 # السماح بتفريغ بيانات التشغيل من الإعدادات (سوبر يوزر + عبارة تأكيد). الافتراضي يتبع DEBUG.
+# تحذير: في الإنتاج اضبط ALLOW_TEST_DATABASE_WIPE=0 صراحةً — لا تعتمد على DEBUG=False فقط
+# إذا كان ملف .env يُعيد تفعيل القيمة؛ التفريغ يحذف كل بيانات التشغيل بلا استرجاع.
 ALLOW_TEST_DATABASE_WIPE = env.bool("ALLOW_TEST_DATABASE_WIPE", default=DEBUG)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
 # بدون هذا، الافتراضي في Django هو DENY ويُمنع عرض معاينة الإيصال داخل iframe في الكاشير (نفس المنشأ).

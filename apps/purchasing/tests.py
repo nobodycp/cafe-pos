@@ -12,7 +12,7 @@ from apps.purchasing.supplier_list_filters import (
     parse_supplier_filters,
     supplier_list_base_queryset,
 )
-from apps.purchasing.views import _purchase_lines_from_request
+from apps.purchasing.request_parsers import purchase_lines_from_request as _purchase_lines_from_request
 
 
 class PurchaseLinesFromRequestTests(TestCase):

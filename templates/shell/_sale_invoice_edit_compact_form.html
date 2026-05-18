@@ -16,15 +16,26 @@
     عدّل الأصناف والكميات والأسعار وطرق الدفع — مجموع الدفعات = الإجمالي.
   </p>
 
-  <div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
-    <span>{{ invoice.invoice_number }}</span>
-    <span class="text-muted font-normal">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
-    {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
-    <span class="text-muted font-normal">طاولة {{ invoice.order.table_session.dining_table.name_ar }}</span>
-    {% endif %}
-    {% if invoice.customer %}
-    <span class="text-muted font-normal">{{ invoice.customer.name_ar }}</span>
-    {% endif %}
+  <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-gray-700 dark:text-gray-200 mb-1.5">
+    <div class="flex items-center gap-1 min-w-0">
+      <span class="text-muted">رقم الفاتورة:</span>
+      <span class="font-bold tabular-nums truncate text-[11px]">{{ invoice.invoice_number }}</span>
+    </div>
+    <div class="flex items-center gap-1 min-w-0 justify-self-end">
+      <label class="flex items-center gap-1 min-w-0 text-[11px] leading-tight">
+        <span class="text-muted text-[11px] leading-tight">التاريخ:</span>
+        <input type="date" name="invoice_date" value="{{ invoice_date_input_value }}"
+          class="sale-edit-invoice-date w-auto min-w-0 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-0.5 py-0 text-[11px] leading-tight tabular-nums" dir="ltr">
+      </label>
+    </div>
+    <div class="flex items-center gap-1 min-w-0">
+      <span class="text-muted">الزبون:</span>
+      <span class="font-semibold truncate text-[11px]">{% if invoice.customer %}{{ invoice.customer.name_ar }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="flex items-center gap-1 min-w-0 justify-self-end">
+      <span class="text-muted">الطاولة:</span>
+      <span class="font-semibold truncate text-[11px]">{% if invoice.order.table_session and invoice.order.table_session.dining_table %}{{ invoice.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</span>
+    </div>
   </div>
 
   <div class="sale-invoice-edit-table-region overflow-x-auto mb-1.5">
@@ -92,21 +103,33 @@
     </tr>
   </template>
 
-  <div class="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5 text-[10px] mb-1.5 tabular-nums">
-    <span><span class="text-muted">فرعي</span> <strong id="sale-edit-live-subtotal">—</strong></span>
-    {% if invoice.discount_total > 0 %}
-    <span class="text-danger"><span class="text-muted">خصم</span> -{{ invoice.discount_total|floatformat:2 }}</span>
-    {% endif %}
-    {% if invoice.service_charge_total > 0 %}
-    <span><span class="text-muted">خدمة</span> {{ invoice.service_charge_total|floatformat:2 }}</span>
-    {% endif %}
-    {% if invoice.tax_total > 0 %}
-    <span><span class="text-muted">ضريبة</span> {{ invoice.tax_total|floatformat:2 }}</span>
-    {% endif %}
-    <span class="font-extrabold text-[11px]"><span class="text-muted font-semibold">إجمالي</span> <span id="sale-edit-live-total">—</span></span>
+  <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[10px] mb-1.5 tabular-nums">
+    <label class="flex items-center gap-1 text-[11px]">
+      <span class="text-muted font-semibold">خصم:</span>
+      <input type="text" name="discount" id="sale-edit-discount-input" inputmode="decimal" autocomplete="off" lang="en" dir="ltr"
+        title="مبلغ ثابت، أو نسبة مع % مثل 10%"
+        placeholder="0 أو 10%"
+        value="{{ discount_input_value }}"
+        class="sale-edit-discount w-20 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-0 text-[11px] tabular-nums leading-tight text-center">
+    </label>
+    <div class="flex flex-wrap items-baseline justify-end gap-x-3 gap-y-0.5 text-[10px] tabular-nums">
+      <span class="text-danger"><span class="text-muted">خصم</span> -<span id="sale-edit-live-discount">{{ invoice.discount_total|floatformat:2 }}</span></span>
+      {% if invoice.service_charge_total > 0 %}
+      <span><span class="text-muted">خدمة</span> {{ invoice.service_charge_total|floatformat:2 }}</span>
+      {% endif %}
+      {% if invoice.tax_total > 0 %}
+      <span><span class="text-muted">ضريبة</span> {{ invoice.tax_total|floatformat:2 }}</span>
+      {% endif %}
+      <span class="font-extrabold text-[11px]"><span class="text-muted font-semibold">إجمالي</span> <span id="sale-edit-live-total">—</span></span>
+    </div>
   </div>
 
   {% include "shell/_sale_invoice_edit_pay_section.html" %}
+
+  <details class="sale-edit-notes-details mb-1.5"{% if invoice.order.order_note %} open{% endif %}>
+    <summary class="cursor-pointer select-none text-[10px] font-bold text-muted hover:text-gray-700 dark:hover:text-gray-200 py-0.5">ملاحظات</summary>
+    <textarea name="notes" rows="2" class="sale-edit-notes mt-1 w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-1 py-0.5 text-[11px] leading-tight" placeholder="ملاحظات الفاتورة (اختياري)">{{ invoice.order.order_note|default_if_none:"" }}</textarea>
+  </details>
 
   <div class="flex flex-wrap gap-1.5 items-center pt-1 border-t border-gray-200 dark:border-gray-700">
     <button type="submit" class="h-7 px-2.5 rounded bg-primary text-white text-[11px] font-bold hover:bg-primary-dk">حفظ</button>
@@ -158,25 +181,59 @@
 .sale-invoice-edit-compact-form .sale-edit-qty,
 .sale-invoice-edit-compact-form .sale-edit-price,
 .sale-invoice-edit-compact-form .sale-edit-pay-amt,
+.sale-invoice-edit-compact-form .sale-edit-discount,
+.sale-invoice-edit-compact-form .sale-edit-invoice-date,
 .sale-invoice-edit-compact-form select,
 #sale-invoice-edit-compact .sale-edit-product-search,
 #sale-invoice-edit-compact .sale-edit-qty,
 #sale-invoice-edit-compact .sale-edit-price,
 #sale-invoice-edit-compact .sale-edit-pay-amt,
+#sale-invoice-edit-compact .sale-edit-discount,
+#sale-invoice-edit-compact .sale-edit-invoice-date,
 #sale-invoice-edit-compact select{
   min-height:1.35rem!important;height:1.35rem!important;font-size:11px!important;
+  line-height:1.2!important;
   border:1px solid #cbd5e1!important;border-radius:2px!important;box-sizing:border-box!important;
 }
 .dark .sale-invoice-edit-compact-form .sale-edit-product-search,
 .dark .sale-invoice-edit-compact-form .sale-edit-qty,
 .dark .sale-invoice-edit-compact-form .sale-edit-price,
 .dark .sale-invoice-edit-compact-form .sale-edit-pay-amt,
+.dark .sale-invoice-edit-compact-form .sale-edit-discount,
+.dark .sale-invoice-edit-compact-form .sale-edit-invoice-date,
 .dark .sale-invoice-edit-compact-form select,
 .dark #sale-invoice-edit-compact .sale-edit-product-search,
 .dark #sale-invoice-edit-compact .sale-edit-qty,
 .dark #sale-invoice-edit-compact .sale-edit-price,
 .dark #sale-invoice-edit-compact .sale-edit-pay-amt,
+.dark #sale-invoice-edit-compact .sale-edit-discount,
+.dark #sale-invoice-edit-compact .sale-edit-invoice-date,
 .dark #sale-invoice-edit-compact select{
   border-color:#475569!important;background:#0f172a!important;color:#e2e8f0!important;
+}
+.sale-invoice-edit-compact-form .sale-edit-invoice-date,
+#sale-invoice-edit-compact .sale-edit-invoice-date{
+  padding-inline:2px!important;padding-block:0!important;font-family:inherit!important;
+  font-variant-numeric:tabular-nums;-moz-appearance:textfield;
+  width:5.75rem!important;min-width:5.75rem!important;max-width:5.75rem!important;
+}
+.sale-invoice-edit-compact-form .sale-edit-invoice-date::-webkit-datetime-edit,
+#sale-invoice-edit-compact .sale-edit-invoice-date::-webkit-datetime-edit{
+  padding:0!important;margin:0!important;font-size:11px!important;line-height:1.2!important;
+}
+.sale-invoice-edit-compact-form .sale-edit-invoice-date::-webkit-datetime-edit-fields-wrapper,
+#sale-invoice-edit-compact .sale-edit-invoice-date::-webkit-datetime-edit-fields-wrapper{
+  padding:0!important;margin:0!important;
+}
+.sale-invoice-edit-compact-form .sale-edit-invoice-date::-webkit-calendar-picker-indicator,
+#sale-invoice-edit-compact .sale-edit-invoice-date::-webkit-calendar-picker-indicator{
+  padding:0!important;margin:0!important;margin-inline-start:0!important;
+  transform:scale(0.72);transform-origin:center;opacity:0.7;cursor:pointer;
+}
+.sale-invoice-edit-compact-form .sale-edit-invoice-date::-webkit-inner-spin-button,
+.sale-invoice-edit-compact-form .sale-edit-invoice-date::-webkit-clear-button,
+#sale-invoice-edit-compact .sale-edit-invoice-date::-webkit-inner-spin-button,
+#sale-invoice-edit-compact .sale-edit-invoice-date::-webkit-clear-button{
+  display:none;-webkit-appearance:none;margin:0;
 }
 </style>

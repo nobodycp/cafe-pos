@@ -92,7 +92,7 @@ def pnl_view(request):
 def account_ledger_view(request, pk):
     from django.db.models import Q
 
-    from apps.core.decimalutil import as_decimal
+    from apps.accounting.services import paginated_account_ledger_context
     from apps.core.list_filters import parse_iso_date
     from apps.core.pagination import paginate_queryset
 
@@ -113,60 +113,24 @@ def account_ledger_view(request, pk):
         .select_related("entry")
         .order_by("entry__date", "entry__created_at", "pk")
     )
-    is_debit_normal = acc.account_type in (Account.AccountType.ASSET, Account.AccountType.EXPENSE)
-
-    def _line_delta(line: JournalLine) -> Decimal:
-        if is_debit_normal:
-            return as_decimal(line.debit) - as_decimal(line.credit)
-        return as_decimal(line.credit) - as_decimal(line.debit)
-
-    opening_at_period = Decimal("0")
-    if date_from:
-        prior = (
-            JournalLine.objects.filter(account=acc, entry__date__lt=date_from)
-            .select_related("entry")
-            .order_by("entry__date", "entry__created_at", "pk")
-        )
-        for line in prior:
-            opening_at_period += _line_delta(line)
-        opening_at_period = opening_at_period.quantize(Decimal("0.01"))
 
     pag = paginate_queryset(request, lines_qs)
     page = pag["page_obj"]
     start_idx = page.start_index() if callable(page.start_index) else page.start_index
-    prior_n = max(0, start_idx - 1) if page.object_list else 0
-    running = opening_at_period
-    if prior_n:
-        for line in lines_qs[:prior_n]:
-            running += _line_delta(line)
-        running = running.quantize(Decimal("0.01"))
-
-    rows = []
-    for line in page:
-        running = (running + _line_delta(line)).quantize(Decimal("0.01"))
-        rows.append({
-            "date": line.entry.date,
-            "entry_pk": line.entry.pk,
-            "entry_number": line.entry.entry_number,
-            "description": line.description or line.entry.description,
-            "debit": line.debit,
-            "credit": line.credit,
-            "balance": running,
-        })
-
-    closing = opening_at_period
-    for line in lines_qs:
-        closing += _line_delta(line)
-    closing = closing.quantize(Decimal("0.01"))
+    ledger = paginated_account_ledger_context(
+        acc,
+        lines_qs=lines_qs,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        start_idx=start_idx,
+    )
 
     ctx = {
         "account": acc,
-        "rows": rows,
         "date_from": date_from.isoformat() if date_from else "",
         "date_to": date_to.isoformat() if date_to else "",
-        "opening_balance": opening_at_period,
-        "closing_balance": closing,
-        "page_opening_balance": running if page.object_list else opening_at_period,
+        **ledger,
     }
     ctx.update(pag)
     return render(request, "shell/accounting_ledger.html", ctx)

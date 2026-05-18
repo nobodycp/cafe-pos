@@ -1,0 +1,60 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}مرتجع بيع — {{ invoice.invoice_number }}{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  {% url 'shell:invoice_detail' invoice.pk as invoice_detail_url %}
+  {% include "shell/_shell_toolbar.html" with toolbar_title="مرتجع بيع" toolbar_hint=invoice.invoice_number toolbar_back_url=invoice_detail_url toolbar_back_label="← الفاتورة" toolbar_back_title="تفاصيل الفاتورة" %}
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% if errors %}
+    <div class="mb-3 rounded-sm border border-danger/30 bg-danger/5 dark:bg-danger/10 px-3 py-2">
+      {% for err in errors %}<p class="text-danger text-sm font-semibold m-0">{{ err }}</p>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="ds-panel max-w-3xl">
+      <div class="ds-panel-header">فاتورة {{ invoice.invoice_number }}</div>
+      <div class="ds-panel-body">
+        <form method="post" class="space-y-4 m-0">
+          {% csrf_token %}
+          <div>
+            <label class="block text-sm font-semibold mb-1">سبب المرتجع</label>
+            <input type="text" name="reason" class="ds-input w-full" placeholder="اختياري" dir="rtl">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">طريقة الاسترداد</label>
+            <select name="refund_method" class="ds-input w-full max-w-xs">
+              <option value="cash">نقدي</option>
+              <option value="credit">رصيد عميل</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-sm">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="text-start p-2">الصنف</th>
+                  <th class="text-end p-2">المباع</th>
+                  <th class="text-end p-2 w-32">كمية المرتجع</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for line in inv_lines %}
+                <tr class="border-t border-gray-100 dark:border-gray-700">
+                  <td class="p-2 font-medium">{{ line.product.name_ar }}</td>
+                  <td class="p-2 text-end tabular-nums">{{ line.quantity|floatformat:3 }}</td>
+                  <td class="p-2">
+                    <input type="number" name="qty_{{ line.pk }}" step="0.001" min="0" max="{{ line.quantity }}" class="ds-input w-full text-end" placeholder="0">
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="p-4 text-center text-muted">لا توجد أصناف</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <button type="submit" class="ds-btn ds-btn-primary w-full justify-center h-11">تسجيل المرتجع</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

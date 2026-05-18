@@ -32,9 +32,6 @@ def _contacts_redirect(request, viewname, *args, **kwargs):
     return redirect(_contacts_reverse(request, viewname, *args, **kwargs))
 
 
-def _contacts_tpl(request, shell_tpl, classic_tpl):
-    return shell_tpl
-
 
 def _customer_list_hide_zero_balance(request) -> bool:
     """
@@ -74,7 +71,7 @@ def customer_list(request):
         "sum_balance": (totals_agg["sum_balance"] or Decimal("0")).quantize(Decimal("0.01")),
     }
 
-    tpl = _contacts_tpl(request, "shell/customers_list.html", "contacts/customers.html")
+    tpl = "shell/customers_list.html"
     ctx = _contacts_ctx(
         request,
         q=q,
@@ -89,7 +86,7 @@ def customer_list(request):
 def customer_detail(request, pk):
     c = get_object_or_404(Customer.objects.select_related("linked_supplier"), pk=pk)
     led = c.ledger_entries.order_by("-created_at")[:200]
-    tpl = _contacts_tpl(request, "shell/customers_detail.html", "contacts/customer_detail.html")
+    tpl = "shell/customers_detail.html"
     return render(request, tpl, _contacts_ctx(request, customer=c, ledger=led))
 
 
@@ -108,7 +105,7 @@ def customer_create(request):
             return _contacts_redirect(request, "customer_detail", pk=customer.pk)
     else:
         form = CustomerForm()
-    tpl = _contacts_tpl(request, "shell/customers_form.html", "contacts/customer_form.html")
+    tpl = "shell/customers_form.html"
     return render(
         request,
         tpl,
@@ -132,7 +129,7 @@ def customer_edit(request, pk):
             return _contacts_redirect(request, "customer_detail", pk=cust.pk)
     else:
         form = CustomerForm(instance=customer)
-    tpl = _contacts_tpl(request, "shell/customers_form.html", "contacts/customer_form.html")
+    tpl = "shell/customers_form.html"
     return render(
         request,
         tpl,
@@ -188,12 +185,11 @@ def customer_payment(request, pk):
                 messages.error(request, f"حدث خطأ: {e}")
     else:
         form = CustomerPaymentForm()
-    tpl = _contacts_tpl(
+    return render(
         request,
         "shell/customers_payment.html",
-        "contacts/customer_payment_form.html",
+        _contacts_ctx(request, form=form, customer=customer),
     )
-    return render(request, tpl, _contacts_ctx(request, form=form, customer=customer))
 
 
 @login_required
@@ -244,11 +240,6 @@ def customer_statement(request, pk):
         build_row=_statement_row,
     )
 
-    tpl = _contacts_tpl(
-        request,
-        "shell/customers_statement.html",
-        "contacts/customer_statement.html",
-    )
     ctx = _contacts_ctx(
         request,
         customer=customer,
@@ -260,7 +251,7 @@ def customer_statement(request, pk):
         date_to=date_to,
     )
     ctx.update(stmt_pag)
-    return render(request, tpl, ctx)
+    return render(request, "shell/customers_statement.html", ctx)
 
 
 @login_required
@@ -278,11 +269,6 @@ def customer_balances(request):
     grand_agg = qs.aggregate(s=Sum("balance"))
     grand_total = (grand_agg["s"] or Decimal("0")).quantize(Decimal("0.01"))
 
-    tpl = _contacts_tpl(
-        request,
-        "shell/customers_balances.html",
-        "contacts/customer_balances.html",
-    )
     ctx = _contacts_ctx(request, q=q, grand_total=grand_total)
     pag = paginate_queryset(request, qs)
     ctx["results"] = [
@@ -290,7 +276,7 @@ def customer_balances(request):
         for c in pag["page_obj"]
     ]
     ctx.update(pag)
-    return render(request, tpl, ctx)
+    return render(request, "shell/customers_balances.html", ctx)
 
 
 @login_required

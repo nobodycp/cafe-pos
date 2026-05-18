@@ -1,5 +1,4 @@
-{# Unified shell page toolbar (title + optional hint + back to POS). #}
-{# Params: toolbar_title (required), toolbar_hint (optional), toolbar_no_back (optional truthy), toolbar_back_url (optional), toolbar_back_label (optional), toolbar_back_title (optional) #}
+{% comment %}Unified shell page toolbar (title + optional hint + back to POS).{% endcomment %}
 <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
   <span class="pos-shell-toolbar-title">{{ toolbar_title }}</span>
   {% if toolbar_hint %}

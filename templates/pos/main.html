@@ -344,6 +344,7 @@
 
 {% block cashier_scripts %}
 <script src="{% static 'js/money_parse.js' %}"></script>
+<script src="{% static 'js/payment_splits_ui.js' %}"></script>
 <script src="{% static 'js/customer_search_autocomplete.js' %}"></script>
 <script src="{% static 'js/sale_invoice_receipt_edit.js' %}"></script>
 <script src="{% static 'js/sale_invoice_edit_pay.js' %}"></script>
@@ -1354,9 +1355,9 @@
     for (var i = 0; i < rows.length; i++) if (rows[i].code === c) return rows[i];
     return { code: c, label_ar: c, ledger: '', needsPayer: false };
   }
+  var checkoutSplitsApi = null;
   function coSplitModeOn() {
-    var x = document.getElementById('pos-co-split-chk');
-    return !!(x && x.checked);
+    return checkoutSplitsApi ? checkoutSplitsApi.splitMode() : false;
   }
   function coAnySplitNeedsPayer() {
     if (!coSplitModeOn()) return false;
@@ -1394,105 +1395,20 @@
     p.classList.toggle('hidden', !coSingleNeedsPayer() && !coAnySplitNeedsPayer());
   }
   function serializeCheckoutSplits() {
-    var tb = document.getElementById('pos-co-split-tbody');
-    if (!tb) return '';
-    var pairs = [];
-    tb.querySelectorAll('tr').forEach(function (tr) {
-      var sel = tr.querySelector('select.pos-co-split-m');
-      var am = tr.querySelector('input.pos-co-split-amt');
-      if (!sel || !am) return;
-      var c = (sel.value || '').trim().toLowerCase();
-      var v = coMoneyParse(am.value);
-      if (c && !isNaN(v) && v > 0) pairs.push([c, v]);
-    });
-    return pairs.length ? JSON.stringify(pairs) : '';
+    if (!checkoutSplitsApi) return '';
+    checkoutSplitsApi.serialize();
+    var hid = document.querySelector('#checkout-splits-json');
+    return hid ? String(hid.value || '') : '';
   }
   function checkoutSplitRowsSum() {
-    var tb = document.getElementById('pos-co-split-tbody');
-    if (!tb) return 0;
-    var s = 0;
-    tb.querySelectorAll('input.pos-co-split-amt').forEach(function (inp) {
-      var v = coMoneyParse(inp.value);
-      if (!isNaN(v)) s += v;
-    });
-    return Math.round((s + Number.EPSILON) * 100) / 100;
+    return checkoutSplitsApi ? checkoutSplitsApi.rowsSum() : 0;
   }
   function syncCheckoutSplitHint() {
-    var el = document.getElementById('pos-co-split-hint');
-    if (!el) return;
-    var tgt = coMoneyParse(document.getElementById('pos-co-pay-amt') && document.getElementById('pos-co-pay-amt').value);
-    if (isNaN(tgt)) tgt = 0;
-    var sum = checkoutSplitRowsSum();
-    var r = tgt - sum;
-    el.textContent =
-      'مجموع الأسطر: ' +
-      sum.toFixed(2) +
-      ' — المستهدف: ' +
-      tgt.toFixed(2) +
-      (r > 0.02 ? ' — فرق: ' + r.toFixed(2) : r < -0.02 ? ' — يتجاوز المستهدف' : '');
-  }
-  function addCheckoutSplitRow(code, amtStr) {
-    var tb = document.getElementById('pos-co-split-tbody');
-    if (!tb) return;
-    var rows = typeof CHECKOUT_PM_ROWS !== 'undefined' ? CHECKOUT_PM_ROWS : [];
-    var tr = document.createElement('tr');
-    var sel = document.createElement('select');
-    sel.className = 'pos-co-split-m w-full rounded border border-gray-300 bg-white text-[10px] dark:border-gray-600 dark:bg-gray-800';
-    rows.forEach(function (r) {
-      var o = document.createElement('option');
-      o.value = r.code;
-      o.textContent = r.label_ar;
-      if (code && r.code === code) o.selected = true;
-      sel.appendChild(o);
-    });
-    var am = document.createElement('input');
-    am.type = 'number';
-    am.step = '0.01';
-    am.className =
-      'pos-co-split-amt w-full rounded border border-gray-300 bg-white px-1 py-0.5 text-end text-[10px] tabular-nums dark:border-gray-600 dark:bg-gray-800';
-    am.value = amtStr || '';
-    var rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'text-rose-600 font-bold text-sm leading-none';
-    rm.textContent = '×';
-    rm.addEventListener('click', function () {
-      tr.remove();
-      syncCheckoutSplitHint();
-      syncCheckoutPayerPanel();
-    });
-    var td1 = document.createElement('td');
-    td1.className = 'p-1';
-    td1.appendChild(sel);
-    var td2 = document.createElement('td');
-    td2.className = 'p-1';
-    td2.appendChild(am);
-    var td3 = document.createElement('td');
-    td3.className = 'p-1 text-center';
-    td3.appendChild(rm);
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    tr.appendChild(td3);
-    tb.appendChild(tr);
-    sel.addEventListener('change', function () {
-      syncCheckoutPayerPanel();
-    });
-    am.addEventListener('input', function () {
-      syncCheckoutSplitHint();
-    });
+    if (checkoutSplitsApi) checkoutSplitsApi.syncHint();
   }
   function syncCheckoutSplitMode(on) {
-    var sw = document.getElementById('pos-co-single-wrap');
-    var sp = document.getElementById('pos-co-split-wrap');
-    if (sw) sw.classList.toggle('hidden', !!on);
-    if (sp) sp.classList.toggle('hidden', !on);
-    if (on) {
-      var tb = document.getElementById('pos-co-split-tbody');
-      if (tb && !tb.children.length) {
-        var def = CHECKOUT_PM_ROWS && CHECKOUT_PM_ROWS[0] ? CHECKOUT_PM_ROWS[0].code : '';
-        addCheckoutSplitRow(def, '');
-      }
-      syncCheckoutSplitHint();
-    }
+    var chk = document.getElementById('pos-co-split-chk');
+    if (chk) chk.checked = !!on;
     syncCheckoutPayerPanel();
   }
   function openPosCheckoutOverlay(action) {
@@ -1771,6 +1687,41 @@
     var ov = document.getElementById('pos-checkout-overlay');
     if (!ov || ov.getAttribute('data-bound') === '1') return;
     ov.setAttribute('data-bound', '1');
+    if (!checkoutSplitsApi && typeof PaymentSplitsUI !== 'undefined') {
+      var coRows =
+        typeof CHECKOUT_PM_ROWS !== 'undefined'
+          ? CHECKOUT_PM_ROWS.map(function (r) {
+              return { code: r.code, label_ar: r.label_ar, ledger: r.ledger || '' };
+            })
+          : [];
+      checkoutSplitsApi = PaymentSplitsUI.bind({
+        form: document.getElementById('checkout-form'),
+        amountInput: document.getElementById('pos-co-pay-amt'),
+        splitToggle: document.getElementById('pos-co-split-chk'),
+        paySingleWrap: document.getElementById('pos-co-single-wrap'),
+        splitsWrap: document.getElementById('pos-co-split-wrap'),
+        splitsTbody: document.getElementById('pos-co-split-tbody'),
+        splitsJson: document.querySelector('#checkout-splits-json'),
+        splitAddBtn: document.getElementById('pos-co-split-add'),
+        splitSumHint: document.getElementById('pos-co-split-hint'),
+        pmRows: coRows,
+        splitMethodSelectClass: 'pos-co-split-m',
+        splitAmountInputClass: 'pos-co-split-amt',
+        disableSubmitValidation: true,
+        onChange: syncCheckoutPayerPanel,
+        syncHintCustom: function (ctx) {
+          var el = document.getElementById('pos-co-split-hint');
+          if (!el) return;
+          var r = ctx.target - ctx.sum;
+          el.textContent =
+            'مجموع الأسطر: ' +
+            ctx.sum.toFixed(2) +
+            ' — المستهدف: ' +
+            ctx.target.toFixed(2) +
+            (r > 0.02 ? ' — فرق: ' + r.toFixed(2) : r < -0.02 ? ' — يتجاوز المستهدف' : '');
+        },
+      });
+    }
     var bd = document.getElementById('pos-checkout-backdrop');
     var cl = document.getElementById('pos-checkout-close');
     var ca = document.getElementById('pos-checkout-cancel');
@@ -1786,19 +1737,6 @@
         closePosCheckoutOverlay();
         runCheckoutFetch(act);
       });
-    var schk = document.getElementById('pos-co-split-chk');
-    if (schk)
-      schk.addEventListener('change', function () {
-        syncCheckoutSplitMode(!!schk.checked);
-      });
-    var sadd = document.getElementById('pos-co-split-add');
-    if (sadd)
-      sadd.addEventListener('click', function () {
-        var def = CHECKOUT_PM_ROWS && CHECKOUT_PM_ROWS[0] ? CHECKOUT_PM_ROWS[0].code : '';
-        addCheckoutSplitRow(def, '');
-        syncCheckoutSplitHint();
-        syncCheckoutPayerPanel();
-      });
     var pmStrip = document.getElementById('pos-co-methods');
     if (pmStrip)
       pmStrip.addEventListener('click', function (e) {
@@ -1813,8 +1751,6 @@
         if (pmVal) pmVal.value = b.getAttribute('data-m') || '';
         syncCheckoutPayerPanel();
       });
-    var payAmtEl = document.getElementById('pos-co-pay-amt');
-    if (payAmtEl) payAmtEl.addEventListener('input', syncCheckoutSplitHint);
     setupCoPayerHints();
     initCoCustAutocompleteOnce();
   })();

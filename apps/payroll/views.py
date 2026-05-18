@@ -26,7 +26,13 @@ from apps.payroll.forms import (
     EmployeeWorkHoursForm,
 )
 from apps.payroll.models import Employee, EmployeeAdvance, EmployeeCafePurchase, EmployeeSalaryPayout
-from apps.payroll.services import recalc_employee_net_balance
+from apps.payroll.services import (
+    delete_employee_advance,
+    delete_employee_payout,
+    recalc_employee_net_balance,
+    record_employee_advance,
+    record_employee_payout,
+)
 
 
 def _payroll_ns(request):
@@ -142,26 +148,14 @@ def employee_advance_create(request, pk):
             amount = as_decimal(form.cleaned_data["amount"])
             note = form.cleaned_data["note"] or ""
             ws = SessionService.get_open_session()
-            exp = create_expense(
-                category=_salaries_category(),
-                amount=amount,
-                payment_method="cash",
-                expense_date=timezone.localdate(),
-                notes=f"سلفة موظف: {emp.name_ar}" + (f" — {note}" if note else ""),
-                work_session=ws,
-                user=request.user,
-                allow_salary_category=True,
-            )
-            adv = EmployeeAdvance.objects.create(
+            record_employee_advance(
                 employee=emp,
-                work_session=ws,
                 amount=amount,
                 note=note,
-                linked_expense=exp,
+                salaries_category=_salaries_category(),
+                work_session=ws,
+                user=request.user,
             )
-            emp.advance_balance = (as_decimal(emp.advance_balance) + amount).quantize(Decimal("0.01"))
-            emp.save(update_fields=["advance_balance", "updated_at"])
-            recalc_employee_net_balance(emp)
             messages.success(request, "تم تسجيل السلفة وإدراجها ضمن مصروفات «رواتب».")
             return _payroll_redirect(request, "employee_detail", pk=emp.pk)
     else:
@@ -175,15 +169,7 @@ def employee_advance_create(request, pk):
 def employee_advance_delete(request, pk, advance_id):
     emp = get_object_or_404(Employee, pk=pk)
     adv = get_object_or_404(EmployeeAdvance, pk=advance_id, employee=emp)
-    amt = as_decimal(adv.amount)
-    if adv.linked_expense_id:
-        delete_expense_permanent(expense=adv.linked_expense, user=request.user)
-    emp.advance_balance = (as_decimal(emp.advance_balance) - amt).quantize(Decimal("0.01"))
-    if emp.advance_balance < 0 and emp.advance_balance > Decimal("-0.01"):
-        emp.advance_balance = Decimal("0")
-    emp.save(update_fields=["advance_balance", "updated_at"])
-    adv.delete()
-    recalc_employee_net_balance(emp)
+    delete_employee_advance(employee=emp, advance=adv, user=request.user)
     messages.success(request, "تم حذف السلفة والمصروف المرتبط.")
     return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 
@@ -215,43 +201,17 @@ def employee_payout_create(request, pk):
                 advance_deduction = Decimal("0")
                 if emp.advance_balance > 0:
                     advance_deduction = min(as_decimal(emp.advance_balance), amount)
-                    emp.advance_balance = (as_decimal(emp.advance_balance) - advance_deduction).quantize(Decimal("0.01"))
-                if emp.pay_type == Employee.PayType.DAILY:
-                    emp.work_days_balance = (as_decimal(emp.work_days_balance) - days).quantize(Decimal("0.01"))
-                elif emp.pay_type == Employee.PayType.HOURLY:
-                    emp.work_hours_balance = (as_decimal(emp.work_hours_balance) - hours).quantize(Decimal("0.01"))
-                emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
-                recalc_employee_net_balance(emp)
-                net_cash = (amount - advance_deduction).quantize(Decimal("0.01"))
-                linked = None
                 ws = SessionService.get_open_session()
-                if net_cash > 0:
-                    parts = []
-                    if days > 0:
-                        parts.append(f"{days} يوم")
-                    if hours > 0:
-                        parts.append(f"{hours} ساعة")
-                    linked = create_expense(
-                        category=_salaries_category(),
-                        amount=net_cash,
-                        payment_method="cash",
-                        expense_date=timezone.localdate(),
-                        notes=f"صرف راتب: {emp.name_ar} ({' + '.join(parts)})" + (
-                            f" — {form.cleaned_data['note']}" if form.cleaned_data.get("note") else ""
-                        ),
-                        work_session=ws,
-                        user=request.user,
-                        allow_salary_category=True,
-                    )
-                EmployeeSalaryPayout.objects.create(
+                record_employee_payout(
                     employee=emp,
-                    work_session=ws,
-                    days_count=days,
-                    hours_count=hours,
+                    days=days,
+                    hours=hours,
                     amount=amount,
-                    advance_applied=advance_deduction,
+                    advance_deduction=advance_deduction,
                     note=form.cleaned_data.get("note") or "",
-                    linked_expense=linked,
+                    salaries_category=_salaries_category(),
+                    work_session=ws,
+                    user=request.user,
                 )
                 messages.success(request, f"تم صرف راتب {amount} بنجاح.")
                 return _payroll_redirect(request, "employee_detail", pk=emp.pk)
@@ -275,14 +235,7 @@ def employee_payout_create(request, pk):
 def employee_payout_delete(request, pk, payout_id):
     emp = get_object_or_404(Employee, pk=pk)
     po = get_object_or_404(EmployeeSalaryPayout, pk=payout_id, employee=emp)
-    if po.linked_expense_id:
-        delete_expense_permanent(expense=po.linked_expense, user=request.user)
-    emp.work_days_balance = (as_decimal(emp.work_days_balance) + as_decimal(po.days_count)).quantize(Decimal("0.01"))
-    emp.work_hours_balance = (as_decimal(emp.work_hours_balance) + as_decimal(po.hours_count)).quantize(Decimal("0.01"))
-    emp.advance_balance = (as_decimal(emp.advance_balance) + as_decimal(po.advance_applied)).quantize(Decimal("0.01"))
-    emp.save(update_fields=["work_days_balance", "work_hours_balance", "advance_balance", "updated_at"])
-    po.delete()
-    recalc_employee_net_balance(emp)
+    delete_employee_payout(employee=emp, payout=po, user=request.user)
     messages.success(request, "تم حذف صرف الراتب واسترجاع الأرصدة والمصروف.")
     return _payroll_redirect(request, "employee_detail", pk=emp.pk)
 

@@ -1,14 +1,22 @@
 {% load humanize core_extras %}
-<div class="text-[10px] text-gray-700 dark:text-gray-200 flex flex-wrap gap-x-2 gap-y-0.5 mb-1.5 font-semibold">
-  <span>{{ invoice.invoice_number }}</span>
-  {% if invoice.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% endif %}
-  <span class="text-muted font-normal">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
-  {% if invoice.order.table_session and invoice.order.table_session.dining_table %}
-  <span class="text-muted font-normal">طاولة {{ invoice.order.table_session.dining_table.name_ar }}</span>
-  {% endif %}
-  {% if invoice.customer %}
-  <span class="text-muted font-normal">{{ invoice.customer.name_ar }}</span>
-  {% endif %}
+<div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-gray-700 dark:text-gray-200 mb-1.5">
+  <div class="flex items-center gap-1 min-w-0">
+    <span class="text-muted">رقم الفاتورة:</span>
+    <span class="font-bold tabular-nums truncate text-[11px]">{{ invoice.invoice_number }}</span>
+    {% if invoice.is_cancelled %}<span class="text-danger font-bold text-[10px]">ملغاة</span>{% endif %}
+  </div>
+  <div class="flex items-center gap-1 min-w-0 justify-self-end">
+    <span class="text-muted">التاريخ:</span>
+    <span class="font-semibold tabular-nums truncate text-[11px]" dir="ltr">{{ invoice.created_at|date:"Y-m-d H:i" }}</span>
+  </div>
+  <div class="flex items-center gap-1 min-w-0">
+    <span class="text-muted">الزبون:</span>
+    <span class="font-semibold truncate text-[11px]">{% if invoice.customer %}{{ invoice.customer.name_ar }}{% else %}—{% endif %}</span>
+  </div>
+  <div class="flex items-center gap-1 min-w-0 justify-self-end">
+    <span class="text-muted">الطاولة:</span>
+    <span class="font-semibold truncate text-[11px]">{% if invoice.order.table_session and invoice.order.table_session.dining_table %}{{ invoice.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</span>
+  </div>
 </div>
 
 {% if invoice.is_cancelled and invoice.cancel_reason %}

@@ -44,6 +44,8 @@
 .purchase-line.purchase-line-popover-open-unit>td.purchase-col-unit{z-index:70}
 .purchase-line.purchase-line-popover-open-unit>td.purchase-col-product{z-index:0}
 </style>
+{% load static %}
+<script src="{% static 'js/payment_splits_ui.js' %}"></script>
 <script>
 (function() {
   var cfg = document.getElementById('purchase-api-config');
@@ -553,31 +555,6 @@
     });
     if (generalDiscount && initialState.general_discount) generalDiscount.value = initialState.general_discount;
     if (paidInput && initialState.pay_amount) paidInput.value = initialState.pay_amount;
-    if (initialState.pay_method) {
-      var btn = Array.prototype.find.call(payBtns, function(b) { return b.dataset.code === initialState.pay_method; });
-      if (btn) selectPay(btn);
-    }
-    if (
-      splitToggle &&
-      initialState.use_payment_splits === '1' &&
-      initialState.payment_splits_json &&
-      splitsTbody
-    ) {
-      splitToggle.checked = true;
-      if (paySingleWrap) paySingleWrap.classList.add('hidden');
-      if (splitsWrap) splitsWrap.classList.remove('hidden');
-      splitsTbody.innerHTML = '';
-      try {
-        var sp = JSON.parse(initialState.payment_splits_json);
-        if (Array.isArray(sp)) {
-          sp.forEach(function(item) {
-            var c = Array.isArray(item) ? item[0] : item && item.method;
-            var a = Array.isArray(item) ? item[1] : item && item.amount;
-            if (c) addPurchaseSplitRow(String(c).toLowerCase(), a != null && a !== '' ? String(a) : '');
-          });
-        }
-      } catch (e3) {}
-    }
     recalcTotal();
   }
 
@@ -686,115 +663,12 @@
     });
   });
 
-  function purchaseSplitMode() {
-    return !!(splitToggle && splitToggle.checked);
-  }
-
   function purchaseNetFromDom() {
     var el = document.getElementById('purchase-net-total');
     return money(el && el.textContent);
   }
 
-  function purchasePayRowsSum() {
-    if (!splitsTbody) return 0;
-    var s = 0;
-    splitsTbody.querySelectorAll('input.purchase-split-amt').forEach(function(inp) {
-      s += money(inp.value);
-    });
-    return Math.round((s + Number.EPSILON) * 100) / 100;
-  }
-
-  function serializePurchaseSplits() {
-    if (!splitsJson) return;
-    if (!purchaseSplitMode()) {
-      splitsJson.value = '';
-      return;
-    }
-    var pairs = [];
-    if (splitsTbody) {
-      splitsTbody.querySelectorAll('tr').forEach(function(tr) {
-        var sel = tr.querySelector('select.purchase-split-m');
-        var am = tr.querySelector('input.purchase-split-amt');
-        if (!sel || !am) return;
-        var c = (sel.value || '').trim().toLowerCase();
-        var v = money(am.value);
-        if (c && v > 0) pairs.push([c, v]);
-      });
-    }
-    splitsJson.value = pairs.length ? JSON.stringify(pairs) : '';
-  }
-
-  function syncPurchaseSplitHint() {
-    if (!splitSumHint) return;
-    var net = purchaseNetFromDom();
-    var sum = purchasePayRowsSum();
-    var r = net - sum;
-    splitSumHint.textContent =
-      'المجموع: ' +
-      sum.toFixed(2) +
-      ' — الصافي: ' +
-      net.toFixed(2) +
-      (r > 0.005 ? ' — سيُضاف آجل: ' + r.toFixed(2) : r < -0.005 ? ' — يتجاوز الصافي' : '');
-  }
-
-  function addPurchaseSplitRow(methodCode, amountStr) {
-    if (!splitsTbody || !PURCHASE_PM_ROWS.length) return;
-    var tr = document.createElement('tr');
-    tr.className = 'border-b border-gray-100 dark:border-gray-700';
-    var tdM = document.createElement('td');
-    tdM.className = 'p-1';
-    var sel = document.createElement('select');
-    sel.className =
-      'purchase-split-m w-full min-w-0 rounded border border-gray-300 bg-white px-1 py-0.5 dark:border-gray-600 dark:bg-gray-900';
-    PURCHASE_PM_ROWS.forEach(function(r) {
-      var o = document.createElement('option');
-      o.value = r.code;
-      o.textContent = r.label_ar;
-      if (r.code === (methodCode || '').toLowerCase()) o.selected = true;
-      sel.appendChild(o);
-    });
-    tdM.appendChild(sel);
-    var tdA = document.createElement('td');
-    tdA.className = 'p-1 text-end';
-    var inp = document.createElement('input');
-    inp.type = 'number';
-    inp.step = '0.01';
-    inp.min = '0';
-    inp.className =
-      'purchase-split-amt w-full rounded border border-gray-300 px-1 py-0.5 text-end tabular-nums dark:border-gray-600 dark:bg-gray-900';
-    inp.placeholder = '0.00';
-    if (amountStr != null && amountStr !== '') inp.value = String(amountStr);
-    tdA.appendChild(inp);
-    var tdX = document.createElement('td');
-    tdX.className = 'p-1 text-center';
-    var rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'cursor-pointer border-0 bg-transparent text-[11px] font-bold text-danger';
-    rm.textContent = '×';
-    rm.addEventListener('click', function() {
-      tr.remove();
-      serializePurchaseSplits();
-      syncPurchaseSplitHint();
-      recalcTotal();
-    });
-    tdX.appendChild(rm);
-    tr.appendChild(tdM);
-    tr.appendChild(tdA);
-    tr.appendChild(tdX);
-    splitsTbody.appendChild(tr);
-    sel.addEventListener('change', function() {
-      serializePurchaseSplits();
-      syncPurchaseSplitHint();
-      recalcTotal();
-    });
-    inp.addEventListener('input', function() {
-      serializePurchaseSplits();
-      syncPurchaseSplitHint();
-      recalcTotal();
-    });
-    serializePurchaseSplits();
-    syncPurchaseSplitHint();
-  }
+  var purchaseSplitsApi = null;
 
   function recalcTotal() {
     var subtotal = 0;
@@ -806,11 +680,11 @@
     var net = Math.max(subtotal - discount, 0);
     var paid;
     var rem;
-    if (purchaseSplitMode()) {
-      paid = purchasePayRowsSum();
+    if (purchaseSplitsApi && purchaseSplitsApi.splitMode()) {
+      paid = purchaseSplitsApi.rowsSum();
       rem = Math.max(net - paid, 0);
-      serializePurchaseSplits();
-      syncPurchaseSplitHint();
+      purchaseSplitsApi.serialize();
+      purchaseSplitsApi.syncHint();
     } else {
       paid = money(paidInput && paidInput.value);
       rem = Math.max(net - paid, 0);
@@ -826,66 +700,42 @@
   if (generalDiscount) generalDiscount.addEventListener('input', recalcTotal);
   if (paidInput) paidInput.addEventListener('input', recalcTotal);
 
-  if (splitToggle) {
-    splitToggle.addEventListener('change', function() {
-      if (splitToggle.checked) {
-        if (paySingleWrap) paySingleWrap.classList.add('hidden');
-        if (splitsWrap) splitsWrap.classList.remove('hidden');
-        if (splitsTbody && !splitsTbody.children.length) {
-          var m =
-            (methodHidden && methodHidden.value) ||
-            (PURCHASE_PM_ROWS[0] && PURCHASE_PM_ROWS[0].code) ||
-            'cash';
-          var net = purchaseNetFromDom();
-          addPurchaseSplitRow(m, net > 0 ? net.toFixed(2) : '');
-        }
-      } else {
-        if (splitsWrap) splitsWrap.classList.add('hidden');
-        if (paySingleWrap) paySingleWrap.classList.remove('hidden');
-        if (splitsTbody) splitsTbody.innerHTML = '';
-        if (splitsJson) splitsJson.value = '';
-      }
-      recalcTotal();
-    });
-  }
-  if (splitAddBtn) {
-    splitAddBtn.addEventListener('click', function() {
-      if (!purchaseSplitMode()) return;
-      var m =
-        (methodHidden && methodHidden.value) ||
-        (PURCHASE_PM_ROWS[0] && PURCHASE_PM_ROWS[0].code) ||
-        'cash';
-      addPurchaseSplitRow(m, '');
-      recalcTotal();
-    });
-  }
-
-  var purchaseFormEl = document.getElementById('purchase-form');
-  if (purchaseFormEl) {
-    purchaseFormEl.addEventListener('submit', function(ev) {
-      if (purchaseSplitMode()) {
-        serializePurchaseSplits();
-        var net = purchaseNetFromDom();
-        var sum = purchasePayRowsSum();
-        if (sum - net > 0.005) {
-          ev.preventDefault();
-          (window.shellToast || function(m) {
-            alert(m);
-          })('مجموع أسطر الدفع أكبر من صافي الفاتورة.', 'error');
-          return;
-        }
-        if (!splitsTbody || !splitsTbody.querySelector('tr')) {
-          ev.preventDefault();
-          (window.shellToast || function(m) {
-            alert(m);
-          })('أضف سطر دفع واحداً على الأقل.', 'error');
-          return;
-        }
-      } else if (splitsJson) {
-        splitsJson.value = '';
-      }
-    });
-  }
+  purchaseSplitsApi = PaymentSplitsUI.bind({
+    form: document.getElementById('purchase-form'),
+    getTargetAmount: purchaseNetFromDom,
+    splitToggle: splitToggle,
+    paySingleWrap: paySingleWrap,
+    splitsWrap: splitsWrap,
+    splitsTbody: splitsTbody,
+    splitsJson: splitsJson,
+    splitAddBtn: splitAddBtn,
+    splitSumHint: splitSumHint,
+    methodHidden: methodHidden,
+    payBtns: payBtns,
+    stateNode: stateNode,
+    pmRows: PURCHASE_PM_ROWS,
+    requireExactSum: false,
+    rejectOverTarget: true,
+    splitMethodSelectClass: 'purchase-split-m',
+    splitAmountInputClass: 'purchase-split-amt',
+    sumOverMsg: 'مجموع أسطر الدفع أكبر من صافي الفاتورة.',
+    onChange: recalcTotal,
+    onPayMethodSelect: function(btn) {
+      if (btn && btn.dataset.ledger === 'ar' && paidInput) paidInput.value = '0.00';
+    },
+    syncHintCustom: function(ctx) {
+      if (!splitSumHint) return;
+      var net = ctx.target;
+      var sum = ctx.sum;
+      var r = net - sum;
+      splitSumHint.textContent =
+        'المجموع: ' +
+        sum.toFixed(2) +
+        ' — الصافي: ' +
+        net.toFixed(2) +
+        (r > 0.005 ? ' — سيُضاف آجل: ' + r.toFixed(2) : r < -0.005 ? ' — يتجاوز الصافي' : '');
+    },
+  });
 
   // Supplier search / create
   (function attachSupplierPicker() {
@@ -974,16 +824,6 @@
     });
   })();
 
-  // Payment methods from system settings
-  function selectPay(btn) {
-    if (!btn || !methodHidden) return;
-    methodHidden.value = btn.dataset.code || '';
-    payBtns.forEach(function(b) { b.classList.toggle('pay-on', b === btn); });
-    if (btn.dataset.ledger === 'ar' && paidInput) paidInput.value = '0.00';
-    recalcTotal();
-  }
-  payBtns.forEach(function(btn) { btn.addEventListener('click', function() { selectPay(btn); }); });
-  if (payBtns.length) selectPay(payBtns[0]);
   hydrateInitialState();
   focusFirstInvalidAfterError();
   recalcTotal();

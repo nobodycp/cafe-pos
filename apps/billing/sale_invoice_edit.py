@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Tuple
 
 from django.db import transaction
+from django.utils import timezone
 from apps.billing.models import InvoicePayment, SaleInvoice, SaleInvoiceLine
 from apps.catalog.models import Product
 from apps.contacts.models import Customer
@@ -31,6 +33,87 @@ def _line_gross(qty: Decimal, unit_price: Decimal) -> Decimal:
     return (as_decimal(qty) * as_decimal(unit_price)).quantize(Decimal("0.01"))
 
 
+def parse_invoice_date_from_post(post, *, fallback=None) -> Optional[datetime]:
+    """يحلّل قيمة ``invoice_date`` من نموذج التعديل.
+
+    يقبل ``YYYY-MM-DDTHH:MM`` (datetime-local) أو ``YYYY-MM-DD`` فقط.
+    في حالة YYYY-MM-DD يحافظ على جزء الوقت من ``fallback`` إن وُجد، وإلا منتصف اليوم.
+    يعيد ``None`` إذا لم تُرسل القيمة.
+    """
+    if post is None:
+        return None
+    raw = (post.get("invoice_date") or "").strip()
+    if not raw:
+        return None
+    parsed = None
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            parsed = datetime.strptime(raw, fmt)
+            break
+        except ValueError:
+            continue
+    if parsed is None:
+        raise ValueError("INVALID_INVOICE_DATE")
+    if fmt == "%Y-%m-%d" and fallback is not None:
+        local_fb = timezone.localtime(fallback) if timezone.is_aware(fallback) else fallback
+        parsed = parsed.replace(hour=local_fb.hour, minute=local_fb.minute, second=local_fb.second, microsecond=local_fb.microsecond)
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
+def parse_discount_from_post(post, *, subtotal) -> Tuple[Decimal, Decimal, Decimal]:
+    """يحلّل حقل ``discount`` بنفس آلية سلة الكاشير.
+
+    - بدون ``%``: مبلغ ثابت.
+    - مع ``%`` أو ``٪``: نسبة تُطبَّق على ``subtotal``.
+
+    يُعيد ``(discount_amount, discount_percent, discount_total)`` حيث
+    ``discount_total`` هو قيمة الخصم النهائية بالعملة، مقيَّدة بألا تتجاوز
+    المجموع الفرعي. يُصفّر الحقل الآخر دائماً (إما ثابت أو نسبة).
+    """
+    sub = as_decimal(subtotal)
+    raw = "" if post is None else (post.get("discount") or "")
+    t = str(raw).strip().replace("\u066a", "%").replace("٪", "%")
+    if not t:
+        return Decimal("0"), Decimal("0"), Decimal("0")
+    is_percent = "%" in t
+    core = t.replace("%", "").strip()
+    if not core:
+        return Decimal("0"), Decimal("0"), Decimal("0")
+    try:
+        val = Decimal(str(core).replace(",", "."))
+    except (InvalidOperation, ValueError):
+        return Decimal("0"), Decimal("0"), Decimal("0")
+    if val < 0:
+        val = Decimal("0")
+    if is_percent:
+        if val > Decimal("100"):
+            val = Decimal("100")
+        total = (sub * val / Decimal("100")).quantize(Decimal("0.01"))
+        if total > sub:
+            total = sub
+        return Decimal("0"), val, total
+    total = val.quantize(Decimal("0.01"))
+    if total > sub:
+        total = sub
+    return val, Decimal("0"), total
+
+
+def format_discount_input_value(*, discount_amount, discount_percent) -> str:
+    """تنسيق القيمة الحالية للخصم لعرضها في حقل الإدخال (``5%`` أو ``3.00``)."""
+    pct = as_decimal(discount_percent)
+    amt = as_decimal(discount_amount)
+    if pct > 0:
+        s = format(pct, "f")
+        if "." in s:
+            s = s.rstrip("0").rstrip(".")
+        return f"{s}%"
+    if amt > 0:
+        return f"{amt:.2f}"
+    return ""
+
+
 PaymentEditRow = Tuple[str, Decimal, str, str]  # method, amount, payer_name, payer_phone
 
 
@@ -43,33 +126,23 @@ def _payments_from_sale_edit_post(post) -> List[PaymentEditRow]:
     raw_json = (post.get("payment_splits_json") or "").strip()
 
     if use_splits:
+        from apps.core.payment_splits import PaymentSplitsParseError, parse_payment_splits_json
+
         if not raw_json:
             raise ValueError("INVALID_PAYMENT_SPLITS")
         try:
-            data = json.loads(raw_json)
-        except json.JSONDecodeError:
-            raise ValueError("INVALID_PAYMENT_SPLITS") from None
-        if not isinstance(data, list) or len(data) > 24:
-            raise ValueError("INVALID_PAYMENT_SPLITS")
-        out: List[PaymentEditRow] = []
-        for item in data:
-            if isinstance(item, dict):
-                method = str(item.get("method") or "").strip().lower()
-                amt_raw = item.get("amount")
-            elif isinstance(item, (list, tuple)) and len(item) >= 2:
-                method = str(item[0] or "").strip().lower()
-                amt_raw = item[1]
-            else:
-                continue
-            if method not in codes:
-                continue
-            try:
-                a = as_decimal(amt_raw)
-            except (InvalidOperation, ValueError, TypeError):
-                raise ValueError("BAD_NUMBER") from None
-            if a <= 0:
-                continue
-            out.append((method, a, payer_name, payer_phone))
+            split_lines = parse_payment_splits_json(
+                raw_json,
+                allowed_codes=frozenset(codes),
+                skip_invalid_methods=True,
+            )
+        except PaymentSplitsParseError as exc:
+            if exc.code == "INVALID_AMOUNT":
+                raise ValueError("BAD_NUMBER") from exc
+            raise ValueError("INVALID_PAYMENT_SPLITS") from exc
+        out: List[PaymentEditRow] = [
+            (method, amount, payer_name, payer_phone) for method, amount in split_lines
+        ]
         if not out:
             raise ValueError("NO_PAYMENTS_ON_INVOICE")
         return out
@@ -342,6 +415,7 @@ def apply_sale_invoice_full_edit(
     line_rows: List[Tuple[Product, Decimal, Decimal]],
     payment_rows: List[PaymentEditRow],
     post=None,
+    invoice_date: Optional[datetime] = None,
 ) -> None:
     """
     إعادة بناء فاتورة البيع بالكامل: أسطر جديدة (منتج + كمية + سعر) ودفعات جديدة.
@@ -379,7 +453,6 @@ def apply_sale_invoice_full_edit(
     if not session:
         raise ValueError("NO_SESSION")
 
-    discount_total = as_decimal(inv.discount_total)
     svc = as_decimal(inv.service_charge_total)
     tax = as_decimal(inv.tax_total)
 
@@ -396,6 +469,16 @@ def apply_sale_invoice_full_edit(
     gross_sum = sum((x[3] for x in gross_by_idx), Decimal("0")).quantize(Decimal("0.01"))
     if gross_sum <= 0:
         raise ValueError("INVALID_TOTALS")
+
+    discount_input_provided = post is not None and "discount" in post
+    if discount_input_provided:
+        new_discount_amount, new_discount_percent, discount_total = parse_discount_from_post(
+            post, subtotal=gross_sum
+        )
+    else:
+        new_discount_amount = Decimal("0")
+        new_discount_percent = Decimal("0")
+        discount_total = as_decimal(inv.discount_total)
 
     new_total = (gross_sum - discount_total + svc + tax).quantize(Decimal("0.01"))
     pay_sum = sum((as_decimal(a) for _, a, _, _ in payment_rows), Decimal("0")).quantize(Decimal("0.01"))
@@ -474,6 +557,7 @@ def apply_sale_invoice_full_edit(
 
     inv.subtotal = gross_sum
     inv.total = new_total
+    inv.discount_total = discount_total
     inv.total_cost = total_cost.quantize(Decimal("0.01"))
     inv.total_profit = total_profit.quantize(Decimal("0.01"))
 
@@ -490,12 +574,36 @@ def apply_sale_invoice_full_edit(
         update_fields=[
             "subtotal",
             "total",
+            "discount_total",
             "total_cost",
             "total_profit",
             "supplier_buyer",
             "updated_at",
         ]
     )
+
+    if discount_input_provided:
+        order = inv.order
+        order.discount_amount = new_discount_amount
+        order.discount_percent = new_discount_percent
+        order.save(update_fields=["discount_amount", "discount_percent", "updated_at"])
+
+    new_invoice_date = invoice_date
+    if new_invoice_date is None and post is not None:
+        new_invoice_date = parse_invoice_date_from_post(post, fallback=inv.created_at)
+    if new_invoice_date is not None:
+        if timezone.is_naive(new_invoice_date):
+            new_invoice_date = timezone.make_aware(new_invoice_date, timezone.get_current_timezone())
+        # ``created_at`` معلَّم ``auto_now_add=True`` لذا نلتفّ عليه بـ update المباشر.
+        SaleInvoice.objects.filter(pk=inv.pk).update(created_at=new_invoice_date)
+        inv.created_at = new_invoice_date
+
+    if post is not None and "notes" in post:
+        new_notes = (post.get("notes") or "").strip()
+        order = inv.order
+        if (order.order_note or "") != new_notes:
+            order.order_note = new_notes
+            order.save(update_fields=["order_note", "updated_at"])
 
     for method, amount, payer_name, payer_phone in payment_rows:
         amt = as_decimal(amount)

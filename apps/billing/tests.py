@@ -1,10 +1,17 @@
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
+from django.utils import timezone
 
-from apps.billing.sale_invoice_edit import _payments_from_sale_edit_post
+from apps.billing.sale_invoice_edit import (
+    _payments_from_sale_edit_post,
+    format_discount_input_value,
+    parse_discount_from_post,
+    parse_invoice_date_from_post,
+)
 
 
 class SaleEditMixedPaymentParseTests(SimpleTestCase):
@@ -35,6 +42,93 @@ class SaleEditMixedPaymentParseTests(SimpleTestCase):
                 {"use_payment_splits": "1", "payment_splits_json": ""}
             )
         self.assertEqual(str(ctx.exception), "INVALID_PAYMENT_SPLITS")
+
+
+class SaleInvoiceEditDateParseTests(SimpleTestCase):
+    def test_returns_none_when_no_value(self):
+        self.assertIsNone(parse_invoice_date_from_post({}))
+        self.assertIsNone(parse_invoice_date_from_post({"invoice_date": "   "}))
+
+    def test_parses_datetime_local_format(self):
+        dt = parse_invoice_date_from_post({"invoice_date": "2025-03-15T09:30"})
+        self.assertIsNotNone(dt)
+        self.assertTrue(timezone.is_aware(dt))
+        local = timezone.localtime(dt)
+        self.assertEqual((local.year, local.month, local.day, local.hour, local.minute), (2025, 3, 15, 9, 30))
+
+    def test_parses_date_only_preserves_fallback_time(self):
+        fallback = timezone.make_aware(datetime(2025, 1, 2, 14, 25, 7))
+        dt = parse_invoice_date_from_post({"invoice_date": "2025-04-10"}, fallback=fallback)
+        local = timezone.localtime(dt)
+        self.assertEqual(local.date().isoformat(), "2025-04-10")
+        self.assertEqual((local.hour, local.minute, local.second), (14, 25, 7))
+
+    def test_rejects_invalid_format(self):
+        with self.assertRaises(ValueError) as ctx:
+            parse_invoice_date_from_post({"invoice_date": "15-03-2025"})
+        self.assertEqual(str(ctx.exception), "INVALID_INVOICE_DATE")
+
+
+class SaleEditDiscountParseTests(SimpleTestCase):
+    def test_empty_returns_zero(self):
+        a, p, t = parse_discount_from_post({}, subtotal=Decimal("100"))
+        self.assertEqual((a, p, t), (Decimal("0"), Decimal("0"), Decimal("0")))
+        a, p, t = parse_discount_from_post({"discount": "   "}, subtotal=Decimal("100"))
+        self.assertEqual((a, p, t), (Decimal("0"), Decimal("0"), Decimal("0")))
+
+    def test_fixed_amount(self):
+        a, p, t = parse_discount_from_post({"discount": "3.50"}, subtotal=Decimal("100"))
+        self.assertEqual(a, Decimal("3.50"))
+        self.assertEqual(p, Decimal("0"))
+        self.assertEqual(t, Decimal("3.50"))
+
+    def test_percent_with_latin_sign(self):
+        a, p, t = parse_discount_from_post({"discount": "10%"}, subtotal=Decimal("80"))
+        self.assertEqual(a, Decimal("0"))
+        self.assertEqual(p, Decimal("10"))
+        self.assertEqual(t, Decimal("8.00"))
+
+    def test_percent_with_arabic_sign(self):
+        a, p, t = parse_discount_from_post({"discount": "5٪"}, subtotal=Decimal("200"))
+        self.assertEqual(p, Decimal("5"))
+        self.assertEqual(t, Decimal("10.00"))
+
+    def test_invalid_returns_zero(self):
+        a, p, t = parse_discount_from_post({"discount": "abc"}, subtotal=Decimal("100"))
+        self.assertEqual((a, p, t), (Decimal("0"), Decimal("0"), Decimal("0")))
+
+    def test_percent_clamped_to_subtotal(self):
+        a, p, t = parse_discount_from_post({"discount": "200%"}, subtotal=Decimal("50"))
+        self.assertEqual(p, Decimal("100"))
+        self.assertEqual(t, Decimal("50.00"))
+
+    def test_fixed_clamped_to_subtotal(self):
+        _, _, t = parse_discount_from_post({"discount": "999"}, subtotal=Decimal("40"))
+        self.assertEqual(t, Decimal("40.00"))
+
+    def test_negative_treated_as_zero(self):
+        a, p, t = parse_discount_from_post({"discount": "-5"}, subtotal=Decimal("100"))
+        self.assertEqual((a, p, t), (Decimal("0"), Decimal("0"), Decimal("0")))
+
+
+class SaleEditDiscountFormatTests(SimpleTestCase):
+    def test_format_percent_drops_trailing_zeros(self):
+        self.assertEqual(
+            format_discount_input_value(discount_amount=Decimal("0"), discount_percent=Decimal("10.00")),
+            "10%",
+        )
+
+    def test_format_amount_two_decimals(self):
+        self.assertEqual(
+            format_discount_input_value(discount_amount=Decimal("3"), discount_percent=Decimal("0")),
+            "3.00",
+        )
+
+    def test_format_empty_when_zero(self):
+        self.assertEqual(
+            format_discount_input_value(discount_amount=Decimal("0"), discount_percent=Decimal("0")),
+            "",
+        )
 
 
 class SaleEditPaymentRowsJournalPrepTests(SimpleTestCase):

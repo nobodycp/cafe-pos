@@ -257,6 +257,8 @@
   grid-column: 1 / -1;
 }
 </style>
+{% load static %}
+<script src="{% static 'js/payment_splits_ui.js' %}"></script>
 <script>
 (function() {
   var form = document.getElementById("treasury-voucher-form");
@@ -333,6 +335,99 @@
     return np;
   }
 
+  var tvPmRowsForSplits = PM_ROWS.map(function (r) {
+    return { code: r.code, label_ar: r.label_ar, ledger: r.ledger || "" };
+  });
+  var tvSplitsApi = PaymentSplitsUI.bind({
+    form: form,
+    amountInput: amountInput,
+    splitsTbody: splitsTbody,
+    splitsJson: splitsJson,
+    splitSumHint: splitSumEl,
+    methodHidden: methodHidden,
+    pmRows: tvPmRowsForSplits,
+    splitMethodSelectClass: "tv-split-m",
+    splitAmountInputClass: "tv-split-a",
+    minRows: 1,
+    requireExactSum: false,
+    disableSubmitValidation: true,
+    onChange: function () {
+      if (!useSplitRows() || !splitsJson || !tvSplitsApi) return;
+      var pairs = tvSplitsApi.readPairs();
+      splitsJson.value = pairs.length ? JSON.stringify(pairs) : "";
+      if (pairs.length && methodHidden) methodHidden.value = pairs[0][0];
+      syncTvMethodUi();
+      syncTvPayerPanel();
+    },
+    syncHintCustom: function (ctx) {
+      if (!splitSumEl) return;
+      splitSumEl.textContent =
+        "المجموع: " + ctx.sum.toFixed(2) + " — المبلغ: " + ctx.target.toFixed(2);
+      splitSumEl.classList.toggle(
+        "text-danger",
+        Math.abs(ctx.sum - ctx.target) > 0.009 && ctx.target > 0
+      );
+      splitSumEl.classList.toggle(
+        "text-muted",
+        Math.abs(ctx.sum - ctx.target) <= 0.009 || !ctx.target
+      );
+    },
+  });
+
+  function readSplitPairsFromDom() {
+    return tvSplitsApi ? tvSplitsApi.readPairs() : [];
+  }
+
+  function serializeSplitsToHidden() {
+    if (!useSplitRows() || !splitsJson || !tvSplitsApi) return;
+    var pairs = tvSplitsApi.readPairs();
+    splitsJson.value = pairs.length ? JSON.stringify(pairs) : "";
+    if (pairs.length && methodHidden) methodHidden.value = pairs[0][0];
+  }
+
+  function updateSplitSumHint() {
+    if (tvSplitsApi) tvSplitsApi.syncHint();
+  }
+
+  function addSplitRow(methodCode, amountStr) {
+    if (tvSplitsApi) tvSplitsApi.addRow(methodCode, amountStr);
+  }
+
+  function initSplitRowsFromState() {
+    if (!splitsTbody || !tvSplitsApi) return;
+    splitsTbody.innerHTML = "";
+    var raw = splitsJson && splitsJson.value.trim();
+    var pairs = [];
+    if (raw) {
+      try {
+        var data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          data.forEach(function (item) {
+            var c, a;
+            if (Array.isArray(item) && item.length >= 2) {
+              c = String(item[0] || "");
+              a = item[1];
+            } else if (item && typeof item === "object") {
+              c = String(item.method || "");
+              a = item.amount;
+            }
+            if (c) pairs.push({ code: c, amount: a });
+          });
+        }
+      } catch (e) {}
+    }
+    if (!pairs.length) {
+      var mv = methodHidden ? methodHidden.value : "cash";
+      var tot = amountInput && amountInput.value ? String(amountInput.value).replace(",", ".") : "";
+      pairs.push({ code: mv || "cash", amount: tot });
+    }
+    pairs.forEach(function (p) {
+      addSplitRow(p.code, p.amount != null && p.amount !== "" ? String(p.amount) : "");
+    });
+    if (!splitsTbody.children.length) addSplitRow("cash", "");
+    updateSplitSumHint();
+  }
+
   function syncSplitPaymentMode() {
     var eligible = treasurySplitPayEligible();
     var on = useSplitRows();
@@ -356,136 +451,6 @@
       serializeSplitsToHidden();
     }
     syncTvMethodUi();
-  }
-
-  function initSplitRowsFromState() {
-    if (!splitsTbody) return;
-    splitsTbody.innerHTML = "";
-    var raw = splitsJson && splitsJson.value.trim();
-    var pairs = [];
-    if (raw) {
-      try {
-        var data = JSON.parse(raw);
-        if (Array.isArray(data)) {
-          data.forEach(function(item) {
-            var c, a;
-            if (Array.isArray(item) && item.length >= 2) {
-              c = String(item[0] || "");
-              a = item[1];
-            } else if (item && typeof item === "object") {
-              c = String(item.method || "");
-              a = item.amount;
-            }
-            if (c) pairs.push({ code: c, amount: a });
-          });
-        }
-      } catch (e) {}
-    }
-    if (!pairs.length) {
-      var mv = methodHidden ? methodHidden.value : "cash";
-      var tot = amountInput && amountInput.value ? String(amountInput.value).replace(",", ".") : "";
-      pairs.push({ code: mv || "cash", amount: tot });
-    }
-    pairs.forEach(function(p) {
-      addSplitRow(p.code, p.amount != null && p.amount !== "" ? String(p.amount) : "");
-    });
-    if (!splitsTbody.children.length) addSplitRow("cash", "");
-    updateSplitSumHint();
-  }
-
-  function addSplitRow(methodCode, amountStr) {
-    if (!splitsTbody) return;
-    var tr = document.createElement("tr");
-    tr.className = "border-b border-gray-100 dark:border-gray-700";
-    var td1 = document.createElement("td");
-    td1.className = "p-1 align-middle";
-    var sel = document.createElement("select");
-    sel.className = "tv-split-m w-full min-w-0 rounded-sm border border-gray-300 bg-white px-1 py-0.5 text-[10px] dark:border-gray-600 dark:bg-gray-900";
-    PM_ROWS.forEach(function(r) {
-      var o = document.createElement("option");
-      o.value = r.code;
-      o.textContent = r.label_ar;
-      if (r.code === methodCode) o.selected = true;
-      sel.appendChild(o);
-    });
-    td1.appendChild(sel);
-    var td2 = document.createElement("td");
-    td2.className = "p-1 align-middle";
-    var inp = document.createElement("input");
-    inp.type = "number";
-    inp.step = "0.01";
-    inp.min = "0";
-    inp.className = "tv-split-a w-full rounded-sm border border-gray-300 bg-white px-1 py-0.5 text-[10px] tabular-nums dark:border-gray-600 dark:bg-gray-900";
-    inp.value = amountStr != null ? amountStr : "";
-    td2.appendChild(inp);
-    var td3 = document.createElement("td");
-    td3.className = "p-1 align-middle text-center";
-    var rm = document.createElement("button");
-    rm.type = "button";
-    rm.className = "text-danger text-[10px] font-bold px-1";
-    rm.textContent = "×";
-    rm.addEventListener("click", function() {
-      if (splitsTbody.rows.length <= 1) return;
-      tr.remove();
-      serializeSplitsToHidden();
-      updateSplitSumHint();
-      syncTvPayerPanel();
-    });
-    td3.appendChild(rm);
-    tr.appendChild(td1);
-    tr.appendChild(td2);
-    tr.appendChild(td3);
-    splitsTbody.appendChild(tr);
-    sel.addEventListener("change", function() {
-      serializeSplitsToHidden();
-      syncTvMethodUi();
-      syncTvPayerPanel();
-    });
-    inp.addEventListener("input", function() {
-      serializeSplitsToHidden();
-      updateSplitSumHint();
-      syncTvPayerPanel();
-    });
-  }
-
-  function readSplitPairsFromDom() {
-    var out = [];
-    if (!splitsTbody) return out;
-    var rows = splitsTbody.querySelectorAll("tr");
-    rows.forEach(function(tr) {
-      var sel = tr.querySelector("select.tv-split-m");
-      var am = tr.querySelector("input.tv-split-a");
-      if (!sel || !am) return;
-      var code = sel.value;
-      var raw = String(am.value || "").replace(",", ".").trim();
-      if (!raw) return;
-      var v = parseFloat(raw);
-      if (!(v > 0)) return;
-      out.push([code, v]);
-    });
-    return out;
-  }
-
-  function serializeSplitsToHidden() {
-    if (!useSplitRows() || !splitsJson) return;
-    var pairs = readSplitPairsFromDom();
-    splitsJson.value = pairs.length ? JSON.stringify(pairs) : "";
-    if (pairs.length && methodHidden) methodHidden.value = pairs[0][0];
-  }
-
-  function updateSplitSumHint() {
-    if (!splitSumEl) return;
-    var pairs = readSplitPairsFromDom();
-    var sum = 0;
-    pairs.forEach(function(p) { sum += p[1]; });
-    var target = 0;
-    if (amountInput && amountInput.value) {
-      var t = parseFloat(String(amountInput.value).replace(",", "."));
-      if (!isNaN(t)) target = t;
-    }
-    splitSumEl.textContent = "المجموع: " + sum.toFixed(2) + " — المبلغ: " + target.toFixed(2);
-    splitSumEl.classList.toggle("text-danger", Math.abs(sum - target) > 0.009 && target > 0);
-    splitSumEl.classList.toggle("text-muted", Math.abs(sum - target) <= 0.009 || !target);
   }
 
   function receiptMode() {

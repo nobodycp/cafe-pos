@@ -76,32 +76,23 @@ class ExpenseForm(forms.Form):
             raw = (cd.get("payment_splits_json") or "").strip()
             if not raw:
                 raise ValidationError({"payment_splits_json": "أدخل أسطر تقسيم الدفع أو ألغِ «دفع مختلط»."})
-            try:
-                data = json.loads(raw)
-            except json.JSONDecodeError:
-                raise ValidationError({"payment_splits_json": "بيانات تقسيم الدفع غير صالحة."})
-            if not isinstance(data, list) or len(data) > 16:
-                raise ValidationError({"payment_splits_json": "عدد أسطر الدفع غير صالح."})
+            from apps.core.payment_splits import PaymentSplitsParseError, parse_payment_splits_json
 
-            lines: list[tuple[str, Decimal]] = []
-            for item in data:
-                if isinstance(item, (list, tuple)) and len(item) >= 2:
-                    code = str(item[0] or "").strip().lower()
-                    amt_raw = item[1]
-                elif isinstance(item, dict):
-                    code = str(item.get("method") or "").strip().lower()
-                    amt_raw = item.get("amount")
-                else:
-                    continue
-                if not code or code not in codes:
+            try:
+                lines = parse_payment_splits_json(
+                    raw,
+                    allowed_codes=frozenset(codes),
+                    max_rows=16,
+                    quantize=True,
+                )
+            except PaymentSplitsParseError as exc:
+                if exc.code == "INVALID_JSON":
+                    raise ValidationError({"payment_splits_json": "بيانات تقسيم الدفع غير صالحة."})
+                if exc.code in ("INVALID_SHAPE", "TOO_MANY_ROWS"):
+                    raise ValidationError({"payment_splits_json": "عدد أسطر الدفع غير صالح."})
+                if exc.code == "INVALID_METHOD":
                     raise ValidationError({"payment_splits_json": "طريقة دفع غير صالحة في التقسيم."})
-                try:
-                    a = Decimal(str(amt_raw).replace(",", ".")).quantize(Decimal("0.01"))
-                except Exception:
-                    raise ValidationError({"payment_splits_json": "مبلغ غير صالح في التقسيم."})
-                if a <= 0:
-                    continue
-                lines.append((code, a))
+                raise ValidationError({"payment_splits_json": "مبلغ غير صالح في التقسيم."})
 
             if not lines:
                 raise ValidationError({"payment_splits_json": "أضف سطر دفع واحداً على الأقل بمبلغ أكبر من صفر."})

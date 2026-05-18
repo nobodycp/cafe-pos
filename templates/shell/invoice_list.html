@@ -11,7 +11,7 @@
     <div class="ds-panel">
       <div class="ds-table-wrap border-0 rounded-none">
         <table class="w-full text-sm ds-table">
-          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل / المورد</th><th>الإجمالي</th><th>الحالة</th><th class="text-center whitespace-nowrap min-w-[11rem] w-[11rem]">إجراءات</th></tr></thead>
+          <thead><tr><th>النوع</th><th>رقم الفاتورة</th><th>التاريخ</th><th>الطاولة</th><th>العميل / المورد</th><th>الإجمالي</th><th class="max-w-[16rem]">ملاحظات</th><th class="text-center whitespace-nowrap min-w-[11rem] w-[11rem]">إجراءات</th></tr></thead>
           <tbody>
             {% for row in page_obj %}
             {% if row.kind == "sale" %}
@@ -23,7 +23,7 @@
               <td>{% if inv.order.table_session and inv.order.table_session.dining_table %}{{ inv.order.table_session.dining_table.name_ar }}{% else %}—{% endif %}</td>
               <td>{% if inv.customer %}<a href="{% url 'shell:customer_detail' inv.customer.pk %}" class="text-primary hover:underline">{{ inv.customer.name_ar }}</a>{% else %}—{% endif %}</td>
               <td class="font-bold">{{ inv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
-              <td>{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
+              <td class="max-w-[16rem] text-xs text-gray-700 dark:text-gray-200 truncate" title="{{ inv.order.order_note|default_if_none:'' }}">{% if inv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% if inv.order.order_note %} — {% endif %}{% endif %}{{ inv.order.order_note|default_if_none:""|truncatechars:80 }}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
                   {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=inv.pk label="عرض" btn_class="ds-btn" %}
@@ -52,7 +52,7 @@
               <td>—</td>
               <td><a href="{% url 'shell:supplier_detail' pinv.supplier.pk %}" class="text-primary hover:underline">{{ pinv.supplier.name_ar }}</a></td>
               <td class="font-bold">{{ pinv.total|floatformat:2|intcomma }} {{ POS_SETTINGS.currency_symbol }}</td>
-              <td>{% if pinv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% else %}<span class="text-success font-bold">نشطة</span>{% endif %}</td>
+              <td class="max-w-[16rem] text-xs text-gray-700 dark:text-gray-200 truncate" title="{{ pinv.note|default_if_none:'' }}">{% if pinv.is_cancelled %}<span class="text-danger font-bold">ملغاة</span>{% if pinv.note %} — {% endif %}{% endif %}{{ pinv.note|default_if_none:""|truncatechars:80 }}</td>
               <td class="text-end align-middle">
                 <div class="ds-table-actions">
                   {% include "shell/_purchase_invoice_view_btn.html" with invoice_pk=pinv.pk label="عرض" btn_class="ds-btn" %}

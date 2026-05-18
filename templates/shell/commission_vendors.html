@@ -1,0 +1,67 @@
+{% extends "shell/base.html" %}
+{% load humanize %}
+{% block title %}بائعو النسبة{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-2 px-3 py-2">
+    <span class="pos-shell-toolbar-title">بائعو النسبة</span>
+    <span class="pos-shell-toolbar-hint hidden lg:inline">مبيعات وعمولات الموردين</span>
+    <span class="flex-1"></span>
+    {% include "shell/_shell_toolbar_back.html" %}
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    <form method="get" class="mb-3 flex flex-wrap gap-2 items-end">
+      <div class="flex-1 min-w-[12rem]">
+        <label class="block text-[11px] font-bold text-muted mb-0.5">بحث</label>
+        <input type="search" name="q" value="{{ q }}" class="ds-input h-8 text-xs w-full" placeholder="اسم المورد…">
+      </div>
+      <button type="submit" class="ds-btn ds-btn-primary h-8">بحث</button>
+    </form>
+    <div class="ds-panel">
+      <div class="ds-table-wrap overflow-x-auto">
+        <table class="w-full text-sm ds-table">
+          <thead>
+            <tr>
+              <th>المورد</th>
+              <th>المنتجات</th>
+              <th>إجمالي المبيعات</th>
+              <th>العمولة</th>
+              <th>المستحق للبائع</th>
+              <th>المدفوع</th>
+              <th>المتبقي (رصيد)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td class="font-semibold"><a href="{% url 'shell:supplier_detail' row.vendor.pk %}" class="hover:text-primary">{{ row.vendor.name_ar }}</a></td>
+              <td class="text-xs text-muted">{{ row.products|join:", " }}</td>
+              <td class="tabular-nums">{{ row.total_sales|floatformat:2|intcomma }}</td>
+              <td class="tabular-nums">{{ row.total_commission|floatformat:2|intcomma }}</td>
+              <td class="tabular-nums font-semibold">{{ row.vendor_due_total|floatformat:2|intcomma }}</td>
+              <td class="tabular-nums">{{ row.paid|floatformat:2|intcomma }}</td>
+              <td class="tabular-nums font-bold {% if row.remaining > 0 %}text-danger{% elif row.remaining < 0 %}text-success{% endif %}">{{ row.remaining|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="p-8 text-center text-muted">لا يوجد بائعو نسبة</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if rows %}
+          <tfoot>
+            <tr class="font-extrabold border-t-2 border-gray-200 dark:border-gray-600">
+              <td colspan="2" class="p-2">الإجمالي</td>
+              <td class="p-2 tabular-nums">{{ grand_sales|floatformat:2|intcomma }}</td>
+              <td class="p-2 tabular-nums">{{ grand_commission|floatformat:2|intcomma }}</td>
+              <td class="p-2 tabular-nums">{{ grand_vendor_due|floatformat:2|intcomma }}</td>
+              <td class="p-2 tabular-nums">{{ grand_paid|floatformat:2|intcomma }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+      {% include "shell/_shell_pagination.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

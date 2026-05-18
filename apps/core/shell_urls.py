@@ -1,6 +1,6 @@
 """مسارات الغلاف الموحّدة تحت /app/ — الإعدادات (/app/settings/…) والعملاء (/app/customers/…)."""
 
-from django.urls import path
+from django.urls import include, path
 
 from apps.billing import views as billing_views
 from apps.catalog import views as catalog_views
@@ -16,10 +16,12 @@ from apps.purchasing import views as purchasing_views
 from apps.reports import views as reports_views
 
 from apps.core.shell_url_patterns_accounting import urlpatterns_accounting
+from apps.core.shell_url_patterns_api import urlpatterns as urlpatterns_api
 
 app_name = "shell"
 
 urlpatterns = [
+    path("api/v1/", include((urlpatterns_api, "shell_api"))),
     path("settings/", shell_views.settings_page, name="settings"),
     path("settings/receipt-preview/", pos_views.receipt_live_preview, name="receipt_preview_live"),
     path(
