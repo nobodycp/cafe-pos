@@ -22,16 +22,15 @@ class EmployeeForm(forms.ModelForm):
             "name_en": forms.TextInput(attrs={"class": "form-input", "placeholder": "Name in English"}),
             "pay_type": forms.Select(attrs={"class": "form-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check"}),
-            "linked_customer": forms.Select(attrs={"class": "form-input"}),
+            "linked_customer": forms.HiddenInput(),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and self.instance.pk and not self.is_bound:
             self.fields["salary_amount"].initial = self.instance.pay_amount
-        self.fields["linked_customer"].queryset = Customer.objects.filter(is_active=True).order_by("name_ar")
+        self.fields["linked_customer"].queryset = Customer.objects.filter(is_active=True)
         self.fields["linked_customer"].required = False
-        self.fields["linked_customer"].empty_label = "— بدون ربط —"
         self.fields["linked_customer"].label = "عميل مرتبط (آجل / طاولة)"
         self.fields["linked_customer"].help_text = (
             "عند اختيار عميل: أي فاتورة بيع بالآجل على هذا العميل تُسجَّل في «مشتريات المقهى» للموظف."

@@ -12,3 +12,42 @@
   sync();
 })();
 </script>
+<script>
+(function () {
+  if (typeof CafeCustomerAutocomplete === 'undefined') return;
+  var hidden = document.getElementById('id_linked_customer');
+  var input = document.getElementById('panel-employee-linked-customer-search');
+  var hits = document.getElementById('panel-employee-linked-customer-hits');
+  var clearBtn = document.getElementById('panel-employee-linked-customer-clear');
+  if (!hidden || !input || !hits) return;
+  if (input.getAttribute('data-emp-ac-bound') === '1') return;
+  input.setAttribute('data-emp-ac-bound', '1');
+  function toggleClear() {
+    if (!clearBtn) return;
+    if (hidden.value) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+  }
+  CafeCustomerAutocomplete.bind({
+    searchUrl: '{% url "pos:customers_search" %}',
+    input: input,
+    hits: hits,
+    hidden: hidden,
+    debounce: 200,
+    nameOnlyHits: true,
+    hitClass: 'cust-ac-hit',
+    arrowNav: true,
+    useDisplayNone: true,
+    useFixedPanel: true,
+    onPick: function () { toggleClear(); }
+  });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      hidden.value = '';
+      input.value = '';
+      toggleClear();
+      input.focus();
+    });
+  }
+  toggleClear();
+})();
+</script>

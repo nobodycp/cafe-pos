@@ -26,9 +26,15 @@ def active_customers_search_qs(q: str, *, limit: int = 20) -> "QuerySet[Customer
     return qs.order_by("name_ar")[:limit]
 
 
-def customer_balance_search_fields(balance: Decimal | None) -> dict[str, str]:
+def customer_balance_search_fields(balance: Decimal | int | float | None) -> dict[str, str]:
     """حقول الرصيد لنتائج البحث (موجب = عليه، سالب = له)."""
-    bal = (balance if balance is not None else Decimal("0")).quantize(Decimal("0.01"))
+    if balance is None:
+        bal = Decimal("0")
+    elif isinstance(balance, Decimal):
+        bal = balance
+    else:
+        bal = Decimal(str(balance))
+    bal = bal.quantize(Decimal("0.01"))
     if bal > 0:
         return {"balance": str(bal), "balance_hint": "عليه", "balance_kind": "debit"}
     if bal < 0:

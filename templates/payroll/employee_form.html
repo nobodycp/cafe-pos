@@ -36,10 +36,20 @@
           </div>
         </div>
         <div class="grid grid-cols-1 gap-4 mb-4">
-          <div>
+          <div class="relative">
             <label>عميل مرتبط (آجل / طاولة)</label>
             {{ form.linked_customer }}
-            <p class="text-[11px] text-muted mt-1 leading-snug">اختياري: يربط فواتير البيع بالآجل على هذا العميل بذمة «مشتريات المقهى» للموظف.</p>
+            <input type="text" id="employee-linked-customer-search" autocomplete="off"
+                   placeholder="ابحث باسم العميل أو الهاتف…"
+                   value="{{ form.instance.linked_customer.name_ar|default:'' }}"
+                   class="form-input w-full">
+            <div id="employee-linked-customer-hits"
+                 class="absolute start-0 end-0 top-full mt-px z-40 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
+            <div class="mt-1 flex items-center gap-2">
+              <button type="button" id="employee-linked-customer-clear"
+                      class="text-[11px] font-bold text-muted hover:text-danger {% if not form.instance.linked_customer %}hidden{% endif %}">× إزالة الربط</button>
+              <p class="text-[11px] text-muted leading-snug m-0">اختياري: يربط فواتير البيع بالآجل على هذا العميل بذمة «مشتريات المقهى» للموظف.</p>
+            </div>
             {% if form.linked_customer.errors %}<p class="text-danger text-xs font-semibold mt-1">{{ form.linked_customer.errors.0 }}</p>{% endif %}
           </div>
         </div>
@@ -63,6 +73,48 @@
   }
   payType.addEventListener("change", syncLabel);
   syncLabel();
+})();
+</script>
+<script>
+(function () {
+  function init() {
+    if (typeof CafeCustomerAutocomplete === 'undefined') return;
+    var hidden = document.getElementById('id_linked_customer');
+    var input = document.getElementById('employee-linked-customer-search');
+    var hits = document.getElementById('employee-linked-customer-hits');
+    var clearBtn = document.getElementById('employee-linked-customer-clear');
+    if (!hidden || !input || !hits) return;
+    if (input.getAttribute('data-emp-ac-bound') === '1') return;
+    input.setAttribute('data-emp-ac-bound', '1');
+    function toggleClear() {
+      if (!clearBtn) return;
+      if (hidden.value) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+    }
+    CafeCustomerAutocomplete.bind({
+      searchUrl: '{% url "pos:customers_search" %}',
+      input: input,
+      hits: hits,
+      hidden: hidden,
+      debounce: 200,
+      nameOnlyHits: true,
+      hitClass: 'cust-ac-hit',
+      arrowNav: true,
+      useDisplayNone: true,
+      onPick: function () { toggleClear(); }
+    });
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        hidden.value = '';
+        input.value = '';
+        toggleClear();
+        input.focus();
+      });
+    }
+    toggleClear();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 </script>
 {% endblock %}

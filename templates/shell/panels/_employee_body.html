@@ -6,5 +6,20 @@
   <div><label class="block text-[10px] font-bold text-muted mb-0.5">آلية العمل</label>{{ form.pay_type }}{% if form.pay_type.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.pay_type.errors.0 }}</p>{% endif %}</div>
   <div><label id="panel-salary-amount-label" class="block text-[10px] font-bold text-muted mb-0.5">قيمة الراتب</label>{{ form.salary_amount }}{% if form.salary_amount.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.salary_amount.errors.0 }}</p>{% endif %}</div>
 </div>
-<div><label class="block text-[10px] font-bold text-muted mb-0.5">عميل مرتبط</label>{{ form.linked_customer }}{% if form.linked_customer.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.linked_customer.errors.0 }}</p>{% endif %}</div>
+<div class="relative">
+  <label class="block text-[10px] font-bold text-muted mb-0.5">عميل مرتبط (آجل / طاولة)</label>
+  {{ form.linked_customer }}
+  <input type="text" id="panel-employee-linked-customer-search" autocomplete="off"
+         placeholder="ابحث باسم العميل أو الهاتف…"
+         value="{{ form.instance.linked_customer.name_ar|default:'' }}"
+         class="ds-input w-full text-[11px]">
+  <div id="panel-employee-linked-customer-hits"
+       class="absolute start-0 end-0 top-full mt-px z-40 rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hidden"></div>
+  <div class="mt-1 flex items-center gap-2">
+    <button type="button" id="panel-employee-linked-customer-clear"
+            class="text-[10px] font-bold text-muted hover:text-danger {% if not form.instance.linked_customer %}hidden{% endif %}">× إزالة الربط</button>
+    <span class="text-[10px] text-muted leading-snug">اختياري — يربط فواتير البيع بالآجل بذمة «مشتريات المقهى» للموظف.</span>
+  </div>
+  {% if form.linked_customer.errors %}<p class="text-danger text-[10px] mt-0.5">{{ form.linked_customer.errors.0 }}</p>{% endif %}
+</div>
 {% if form.is_active %}<label class="flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer">{{ form.is_active }}<span>نشط</span></label>{% endif %}
