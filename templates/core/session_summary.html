@@ -136,8 +136,26 @@
         <tr>
           <td class="col-label font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
           <td class="col-num text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
-          <td class="col-num font-semibold text-success">{{ row.sales|floatformat:2|intcomma }}</td>
-          <td class="col-num font-semibold text-danger">{{ row.expenses|floatformat:2|intcomma }}</td>
+          <td class="col-num">
+            <button type="button"
+                    class="shell-panel-open w-full text-end font-semibold text-success hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
+                    data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=sales"
+                    data-panel-title="مبيعات — {{ row.label }}"
+                    data-panel-wide="1"
+                    title="عرض تفاصيل المبيعات">
+              {{ row.sales|floatformat:2|intcomma }}
+            </button>
+          </td>
+          <td class="col-num">
+            <button type="button"
+                    class="shell-panel-open w-full text-end font-semibold text-danger hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
+                    data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=expenses"
+                    data-panel-title="مصروفات — {{ row.label }}"
+                    data-panel-wide="1"
+                    title="عرض تفاصيل المصروفات">
+              {{ row.expenses|floatformat:2|intcomma }}
+            </button>
+          </td>
           <td class="col-num font-extrabold text-primary">{{ row.expected|floatformat:2|intcomma }}</td>
         </tr>
         {% empty %}

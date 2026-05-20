@@ -1,6 +1,7 @@
 import json
 import logging
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from typing import Optional, Tuple
 
@@ -611,6 +612,143 @@ def table_toggle(request, pk):
     status = "تفعيل" if table.is_active else "إلغاء تفعيل"
     messages.success(request, f"تم {status} الطاولة «{table.name_ar}».")
     return redirect("shell:tables_list")
+
+
+def _reconcile_method_q_expense(code: str) -> Q:
+    if code == "cash":
+        return Q(payment_method="cash") | Q(payment_method="") | Q(payment_method__isnull=True)
+    return Q(payment_method=code)
+
+
+def _reconcile_method_q_supplier(code: str) -> Q:
+    if code == "cash":
+        return Q(method="cash") | Q(method="")
+    return Q(method=code)
+
+
+def _session_reconcile_detail_payload(ws, code: str, kind: str) -> dict:
+    """تفاصيل حركات مطابقة الصناديق — نفس فلاتر التجميع في session_summary."""
+    q = Decimal("0.01")
+    lines: list[dict] = []
+    total = Decimal("0")
+
+    if kind == "expenses":
+        for exp in (
+            Expense.objects.filter(work_session=ws)
+            .filter(_reconcile_method_q_expense(code))
+            .select_related("category")
+            .order_by("-expense_date", "-pk")
+        ):
+            amt = (exp.amount or Decimal("0")).quantize(q)
+            desc = (exp.category.name_ar if exp.category_id else "") or "—"
+            if (exp.notes or "").strip():
+                desc = f"{desc} — {exp.notes.strip()}" if desc != "—" else exp.notes.strip()
+            lines.append(
+                {
+                    "line_type": "expense",
+                    "line_type_label": "مصروف",
+                    "date": exp.expense_date,
+                    "description": desc,
+                    "amount": amt,
+                    "reference": f"#{exp.pk}",
+                }
+            )
+            total += amt
+        for sp in (
+            SupplierPayment.objects.filter(work_session=ws)
+            .filter(_reconcile_method_q_supplier(code))
+            .select_related("supplier")
+            .order_by("-created_at", "-pk")
+        ):
+            amt = (sp.amount or Decimal("0")).quantize(q)
+            ref = f"سند #{sp.pk}"
+            if (sp.note or "").strip():
+                ref = f"{ref} — {sp.note.strip()}"
+            lines.append(
+                {
+                    "line_type": "supplier_payment",
+                    "line_type_label": "سند صرف",
+                    "date": sp.created_at.date() if sp.created_at else None,
+                    "description": (sp.supplier.name_ar if sp.supplier_id else "") or "—",
+                    "amount": amt,
+                    "reference": ref,
+                }
+            )
+            total += amt
+        lines.sort(key=lambda r: (r["date"] or date.min, r["line_type"]), reverse=True)
+    else:
+        for pay in (
+            InvoicePayment.objects.filter(
+                invoice__work_session=ws,
+                invoice__is_cancelled=False,
+                method=code,
+            )
+            .select_related("invoice", "invoice__customer")
+            .order_by("-created_at", "-pk")
+        ):
+            amt = (pay.amount or Decimal("0")).quantize(q)
+            inv = pay.invoice
+            cust = ""
+            if inv.customer_id:
+                cust = inv.customer.name_ar or ""
+            lines.append(
+                {
+                    "line_type": "sale",
+                    "line_type_label": "تحصيل",
+                    "date": pay.created_at.date() if pay.created_at else None,
+                    "description": inv.invoice_number if inv else "—",
+                    "customer": cust or "—",
+                    "amount": amt,
+                    "reference": inv.invoice_number if inv else "—",
+                }
+            )
+            total += amt
+
+    total = total.quantize(q)
+    labels = payment_method_label_map()
+    return {
+        "kind": kind,
+        "kind_label": "مبيعات" if kind == "sales" else "مصروفات",
+        "payment_method_code": code,
+        "payment_method_label": labels.get(code, code),
+        "lines": lines,
+        "total": total,
+    }
+
+
+@login_required
+@require_GET
+def session_reconcile_detail(request):
+    ws = SessionService.get_open_session()
+    if not ws:
+        return render(
+            request,
+            "core/_session_reconcile_detail.html",
+            {"error": "لا توجد وردية مفتوحة.", "lines": [], "total": Decimal("0")},
+            status=404,
+        )
+
+    kind = (request.GET.get("kind") or "").strip().lower()
+    if kind not in ("sales", "expenses"):
+        return render(
+            request,
+            "core/_session_reconcile_detail.html",
+            {"error": "نوع غير صالح.", "lines": [], "total": Decimal("0")},
+            status=400,
+        )
+
+    code = (request.GET.get("payment_method") or "").strip().lower()
+    if not code:
+        return render(
+            request,
+            "core/_session_reconcile_detail.html",
+            {"error": "طريقة الدفع مطلوبة.", "lines": [], "total": Decimal("0")},
+            status=400,
+        )
+
+    ctx = _session_reconcile_detail_payload(ws, code, kind)
+    ctx["error"] = None
+    return render(request, "core/_session_reconcile_detail.html", ctx)
 
 
 @login_required

@@ -9,4 +9,5 @@ urlpatterns = [
     path("session/open/", views.open_session_view, name="session_open"),
     path("session/close/", views.close_session_view, name="session_close"),
     path("session/summary/", views.session_summary, name="session_summary"),
+    path("session/reconcile-detail/", views.session_reconcile_detail, name="session_reconcile_detail"),
 ]

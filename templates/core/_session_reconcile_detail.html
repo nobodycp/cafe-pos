@@ -1,0 +1,55 @@
+{% load humanize %}
+<div class="shell-panel-root p-3 sm:p-4 text-sm tabular-nums" dir="rtl" data-shell-panel-root>
+  {% if error %}
+  <p class="text-center text-danger font-bold py-4">{{ error }}</p>
+  {% else %}
+  <p class="text-xs text-muted mb-3">
+    {{ kind_label }} — <span class="font-bold text-gray-800 dark:text-gray-100">{{ payment_method_label }}</span>
+  </p>
+  {% if lines %}
+  <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 max-h-[min(50vh,420px)]">
+    <table class="w-full text-xs">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <th class="text-start p-2 font-bold text-muted uppercase">التاريخ</th>
+          {% if kind == "expenses" %}
+          <th class="text-start p-2 font-bold text-muted uppercase">النوع</th>
+          {% endif %}
+          <th class="text-start p-2 font-bold text-muted uppercase">{% if kind == "sales" %}الفاتورة{% else %}الوصف{% endif %}</th>
+          {% if kind == "sales" %}
+          <th class="text-start p-2 font-bold text-muted uppercase">العميل</th>
+          {% endif %}
+          <th class="text-end p-2 font-bold text-muted uppercase">المبلغ</th>
+          <th class="text-start p-2 font-bold text-muted uppercase">المرجع</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for line in lines %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <td class="p-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ line.date|default:"—" }}</td>
+          {% if kind == "expenses" %}
+          <td class="p-2 text-muted whitespace-nowrap">{{ line.line_type_label }}</td>
+          {% endif %}
+          <td class="p-2 font-semibold text-gray-800 dark:text-gray-200">{{ line.description }}</td>
+          {% if kind == "sales" %}
+          <td class="p-2 text-gray-600 dark:text-gray-400">{{ line.customer }}</td>
+          {% endif %}
+          <td class="p-2 text-end font-bold {% if kind == 'sales' %}text-success{% else %}text-danger{% endif %}">{{ line.amount|floatformat:2|intcomma }}</td>
+          <td class="p-2 text-muted text-[11px]">{{ line.reference }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-primary/5">
+          <td colspan="3" class="p-2.5 text-start font-extrabold text-gray-800 dark:text-gray-100">المجموع</td>
+          <td class="p-2.5 text-end font-extrabold text-primary">{{ total|floatformat:2|intcomma }}</td>
+          <td class="p-2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-center text-muted py-6 text-sm">لا حركات لهذه الطريقة في الوردية.</p>
+  {% endif %}
+  {% endif %}
+</div>

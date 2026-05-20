@@ -6,9 +6,11 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.billing.models import InvoicePayment, SaleInvoice
 from apps.core.decimalutil import as_decimal
 from apps.core.models import WorkSession
 from apps.expenses.models import Expense, ExpenseCategory
+from apps.pos.models import Order
 from apps.purchasing.models import Supplier, SupplierPayment
 
 
@@ -165,3 +167,52 @@ class SessionSummarySupplierPaymentTests(TestCase):
         self.assertGreaterEqual(len(td_classes), 5)
         self.assertTrue(td_classes[0].startswith("col-label"))
         self.assertTrue(all(c.startswith("col-num") for c in td_classes[1:5]))
+        self.assertIn("shell-panel-open", table_html)
+        self.assertIn("session/reconcile-detail/", table_html)
+
+    def test_reconcile_detail_expenses_total_matches_row(self):
+        Expense.objects.create(
+            work_session=self.ws,
+            category=self.category,
+            expense_date=date.today(),
+            amount=Decimal("86"),
+            payment_method="bank_ps",
+        )
+        SupplierPayment.objects.create(
+            supplier=self.supplier,
+            work_session=self.ws,
+            amount=Decimal("1600"),
+            method="bank_ps",
+            note="سند صرف",
+        )
+        self.client.login(username="shift_close", password="pass-12345")
+        url = reverse("core:session_reconcile_detail") + "?payment_method=bank_ps&kind=expenses"
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["total"], Decimal("1686.00"))
+        summary = self.client.get(reverse("core:session_summary"))
+        row = next(r for r in summary.context["desk_reconcile_rows"] if r["code"] == "bank_ps")
+        self.assertEqual(resp.context["total"], row["expenses"])
+
+    def test_reconcile_detail_sales_total_matches_row(self):
+        order = Order.objects.create(
+            work_session=self.ws,
+            order_type=Order.OrderType.TAKEAWAY,
+            status=Order.Status.CHECKED_OUT,
+        )
+        inv = SaleInvoice.objects.create(
+            work_session=self.ws,
+            order=order,
+            invoice_number="TST-RECON-1",
+            total=Decimal("250"),
+            subtotal=Decimal("250"),
+        )
+        InvoicePayment.objects.create(invoice=inv, method="bank_ps", amount=Decimal("250"))
+        self.client.login(username="shift_close", password="pass-12345")
+        url = reverse("core:session_reconcile_detail") + "?payment_method=bank_ps&kind=sales"
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["total"], Decimal("250.00"))
+        summary = self.client.get(reverse("core:session_summary"))
+        row = next(r for r in summary.context["desk_reconcile_rows"] if r["code"] == "bank_ps")
+        self.assertEqual(resp.context["total"], row["sales"])
