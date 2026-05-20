@@ -1,0 +1,72 @@
+<style>
+  /* أقوى من .pos-shell-content th { text-align: start !important; } في app.css */
+  .pos-shell-content #session-reconcile-table.session-reconcile-table,
+  #session-reconcile-table.session-reconcile-table,
+  table.reconcile-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table th,
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td,
+  #session-reconcile-table.session-reconcile-table th,
+  #session-reconcile-table.session-reconcile-table td,
+  table.reconcile-table th,
+  table.reconcile-table td {
+    padding: 0.5rem 0.625rem;
+    vertical-align: middle;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table th.col-label,
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-label,
+  #session-reconcile-table.session-reconcile-table th.col-label,
+  #session-reconcile-table.session-reconcile-table td.col-label,
+  table.reconcile-table th.col-label,
+  table.reconcile-table td.col-label {
+    text-align: start !important;
+    min-width: 7rem;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table th.col-num,
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num,
+  #session-reconcile-table.session-reconcile-table th.col-num,
+  #session-reconcile-table.session-reconcile-table td.col-num,
+  table.reconcile-table th.col-num,
+  table.reconcile-table td.col-num {
+    text-align: end !important;
+    white-space: nowrap;
+    min-width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table tfoot td.col-num,
+  #session-reconcile-table.session-reconcile-table tfoot td.col-num,
+  table.reconcile-table tfoot td.col-num {
+    text-align: end !important;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner,
+  #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner,
+  table.reconcile-table td.col-num .reconcile-num-inner {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num > a,
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num > button,
+  #session-reconcile-table.session-reconcile-table td.col-num > a,
+  #session-reconcile-table.session-reconcile-table td.col-num > button,
+  table.reconcile-table td.col-num > a,
+  table.reconcile-table td.col-num > button {
+    text-align: end !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner > a,
+  .pos-shell-content #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner > button,
+  #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner > a,
+  #session-reconcile-table.session-reconcile-table td.col-num .reconcile-num-inner > button,
+  table.reconcile-table td.col-num .reconcile-num-inner > a,
+  table.reconcile-table td.col-num .reconcile-num-inner > button {
+    display: inline-block;
+    text-align: end !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+</style>

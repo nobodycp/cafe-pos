@@ -93,30 +93,7 @@
 </div>
 
 {# ── Per-channel expected (cash + bank rails) ── #}
-<style>
-  /* أقوى من .pos-shell-content th { text-align: start !important; } في app.css */
-  #session-reconcile-table.session-reconcile-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-variant-numeric: tabular-nums;
-  }
-  #session-reconcile-table.session-reconcile-table th,
-  #session-reconcile-table.session-reconcile-table td {
-    padding: 0.5rem 0.625rem;
-    vertical-align: middle;
-  }
-  #session-reconcile-table.session-reconcile-table th.col-label,
-  #session-reconcile-table.session-reconcile-table td.col-label {
-    text-align: start !important;
-    min-width: 7rem;
-  }
-  #session-reconcile-table.session-reconcile-table th.col-num,
-  #session-reconcile-table.session-reconcile-table td.col-num {
-    text-align: end !important;
-    white-space: nowrap;
-    min-width: 5.5rem;
-  }
-</style>
+{% include "includes/_reconcile_table_styles.html" %}
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
   <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-2">مطابقة الصناديق (افتتاح + مبيعات − مصروفات)</h3>
   <p class="text-xs text-muted mb-4">لكل طريقة دفع نقدية أو بنكية: الرصيد الذي أدخلته عند فتح الوردية + تحصيل الفواتير − مصروفات نفس الطريقة.</p>
@@ -137,24 +114,28 @@
           <td class="col-label font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
           <td class="col-num text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
           <td class="col-num">
-            <button type="button"
-                    class="shell-panel-open w-full text-end font-semibold text-success hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
-                    data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=sales"
-                    data-panel-title="مبيعات — {{ row.label }}"
-                    data-panel-wide="1"
-                    title="عرض تفاصيل المبيعات">
-              {{ row.sales|floatformat:2|intcomma }}
-            </button>
+            <span class="reconcile-num-inner">
+              <button type="button"
+                      class="shell-panel-open font-semibold text-success hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
+                      data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=sales"
+                      data-panel-title="مبيعات — {{ row.label }}"
+                      data-panel-wide="1"
+                      title="عرض تفاصيل المبيعات">
+                {{ row.sales|floatformat:2|intcomma }}
+              </button>
+            </span>
           </td>
           <td class="col-num">
-            <button type="button"
-                    class="shell-panel-open w-full text-end font-semibold text-danger hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
-                    data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=expenses"
-                    data-panel-title="مصروفات — {{ row.label }}"
-                    data-panel-wide="1"
-                    title="عرض تفاصيل المصروفات">
-              {{ row.expenses|floatformat:2|intcomma }}
-            </button>
+            <span class="reconcile-num-inner">
+              <button type="button"
+                      class="shell-panel-open font-semibold text-danger hover:underline cursor-pointer bg-transparent border-0 p-0 tabular-nums"
+                      data-panel-url="{% url 'core:session_reconcile_detail' %}?payment_method={{ row.code|urlencode }}&kind=expenses"
+                      data-panel-title="مصروفات — {{ row.label }}"
+                      data-panel-wide="1"
+                      title="عرض تفاصيل المصروفات">
+                {{ row.expenses|floatformat:2|intcomma }}
+              </button>
+            </span>
           </td>
           <td class="col-num font-extrabold text-primary">{{ row.expected|floatformat:2|intcomma }}</td>
         </tr>

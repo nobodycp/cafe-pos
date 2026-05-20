@@ -64,8 +64,9 @@
     {% if has_opening_session %}افتتاحي (أول وردية في الفترة) +{% endif %}
     وارد (تحصيل فواتير + سندات قبض) − صادر (مصروفات + سداد موردين) = المتبقي.
   </p>
+  {% include "includes/_reconcile_table_styles.html" %}
   <div class="overflow-x-auto">
-    <table id="session-reconcile-table" class="session-reconcile-table w-full text-sm tabular-nums">
+    <table id="session-reconcile-table" class="session-reconcile-table reconcile-table w-full text-sm tabular-nums">
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-700">
           <th class="col-label font-bold text-muted text-xs uppercase">طريقة الدفع</th>
@@ -81,18 +82,22 @@
           <td class="col-label font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
           <td class="col-num text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
           <td class="col-num">
-            <a href="{{ row.inflow_url }}"
-               class="block w-full text-end font-semibold text-success hover:underline tabular-nums no-underline"
-               title="كشف الوارد — {{ row.label }}">
-              {{ row.inflow|floatformat:2|intcomma }}
-            </a>
+            <span class="reconcile-num-inner">
+              <a href="{{ row.inflow_url }}"
+                 class="font-semibold text-success hover:underline tabular-nums no-underline"
+                 title="كشف الوارد — {{ row.label }}">
+                {{ row.inflow|floatformat:2|intcomma }}
+              </a>
+            </span>
           </td>
           <td class="col-num">
-            <a href="{{ row.outflow_url }}"
-               class="block w-full text-end font-semibold text-danger hover:underline tabular-nums no-underline"
-               title="كشف الصادر — {{ row.label }}">
-              {{ row.outflow|floatformat:2|intcomma }}
-            </a>
+            <span class="reconcile-num-inner">
+              <a href="{{ row.outflow_url }}"
+                 class="font-semibold text-danger hover:underline tabular-nums no-underline"
+                 title="كشف الصادر — {{ row.label }}">
+                {{ row.outflow|floatformat:2|intcomma }}
+              </a>
+            </span>
           </td>
           <td class="col-num font-extrabold text-primary">{{ row.balance|floatformat:2|intcomma }}</td>
         </tr>
