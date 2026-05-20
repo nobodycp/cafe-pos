@@ -1,8 +1,11 @@
 """تاب الطاولة، ضريبة وخدمة، تسوية فاتورة."""
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+from django.utils import timezone
 
 PaymentLineTuple = Union[
     Tuple[str, Decimal],
@@ -123,6 +126,37 @@ def sum_tab_payments(order: Order) -> Decimal:
     return as_decimal(s)
 
 
+def entry_date_from_transaction_at(at: Optional[datetime]):
+    """تاريخ قيد اليومية من وقت المعاملة المختار."""
+    if at is None:
+        return None
+    if timezone.is_naive(at):
+        at = timezone.make_aware(at, timezone.get_current_timezone())
+    return timezone.localtime(at).date()
+
+
+def apply_pos_transaction_datetime(
+    *,
+    order: Order,
+    at: Optional[datetime],
+    invoice: Optional[SaleInvoice] = None,
+    order_payment_pks: Optional[List[int]] = None,
+) -> None:
+    """يضبط ``created_at`` للطلب والفاتورة/الدفعات عند الدفع بتاريخ يختاره الكاشير."""
+    if at is None:
+        return
+    if timezone.is_naive(at):
+        at = timezone.make_aware(at, timezone.get_current_timezone())
+    Order.objects.filter(pk=order.pk).update(created_at=at)
+    order.created_at = at
+    if invoice is not None:
+        SaleInvoice.objects.filter(pk=invoice.pk).update(created_at=at)
+        invoice.created_at = at
+        InvoicePayment.objects.filter(invoice_id=invoice.pk).update(created_at=at)
+    if order_payment_pks:
+        OrderPayment.objects.filter(pk__in=order_payment_pks).update(created_at=at)
+
+
 def order_payment_source(order: Order) -> str:
     mapping = {
         Order.OrderType.DINE_IN: "table",
@@ -142,8 +176,15 @@ def _aggregate_tab_payments(order: Order) -> Dict[str, Decimal]:
     return d
 
 
-def record_tab_payments(*, order: Order, user, payments: List[PaymentLineTuple]) -> None:
+def record_tab_payments(
+    *,
+    order: Order,
+    user,
+    payments: List[PaymentLineTuple],
+    transaction_at: Optional[datetime] = None,
+) -> List[int]:
     src = order_payment_source(order)
+    new_pks: List[int] = []
     for item in payments:
         if not item:
             continue
@@ -153,7 +194,7 @@ def record_tab_payments(*, order: Order, user, payments: List[PaymentLineTuple])
         payer_phone = str(item[3]).strip()[:40] if len(item) > 3 else ""
         if a <= 0:
             continue
-        OrderPayment.objects.create(
+        op = OrderPayment.objects.create(
             order=order,
             method=method,
             amount=a,
@@ -161,7 +202,11 @@ def record_tab_payments(*, order: Order, user, payments: List[PaymentLineTuple])
             payer_phone=payer_phone,
             payment_source=src,
         )
+        new_pks.append(op.pk)
+    if transaction_at and new_pks:
+        OrderPayment.objects.filter(pk__in=new_pks).update(created_at=transaction_at)
     log_audit(user, "pos.tab.payment", "pos.Order", order.pk, {"payments": str(payments)})
+    return new_pks
 
 
 @transaction.atomic
@@ -172,6 +217,7 @@ def create_sale_invoice_core(
     pay_by_method: Dict[str, Decimal],
     customer: Optional[Customer] = None,
     payment_rows: Optional[List[Dict[str, Any]]] = None,
+    transaction_at: Optional[datetime] = None,
 ) -> SaleInvoice:
     """يُنشئ فاتورة + دفعات فاتورة + مخزون + قيد ائتمان. لا يغيّر حالة الطلب."""
     if SaleInvoice.objects.filter(order=order).exists():
@@ -339,7 +385,11 @@ def create_sale_invoice_core(
 
     from apps.accounting.services import post_sale_invoice_journal
 
-    post_sale_invoice_journal(invoice=inv, pay_by_method=pay_by_method, user=user)
+    apply_pos_transaction_datetime(order=order, at=transaction_at, invoice=inv)
+    entry_date = entry_date_from_transaction_at(transaction_at)
+    post_sale_invoice_journal(
+        invoice=inv, pay_by_method=pay_by_method, user=user, entry_date=entry_date
+    )
 
     _record_commission_vendor_payables(inv)
 
@@ -368,7 +418,11 @@ def _close_table_session_if_no_open_orders(*, table_session_id: Optional[int]) -
 
 @transaction.atomic
 def finalize_order_invoice(
-    *, order: Order, user, customer: Optional[Customer] = None
+    *,
+    order: Order,
+    user,
+    customer: Optional[Customer] = None,
+    transaction_at: Optional[datetime] = None,
 ) -> Optional[SaleInvoice]:
     totals = compute_order_totals(order)
     paid = sum_tab_payments(order)
@@ -414,6 +468,7 @@ def finalize_order_invoice(
             customer=customer,
             pay_by_method=pay_by_method,
             payment_rows=payment_rows,
+            transaction_at=transaction_at,
         )
     else:
         inv = create_sale_invoice_core(
@@ -422,6 +477,7 @@ def finalize_order_invoice(
             pay_by_method=pay_by_method,
             customer=customer,
             payment_rows=payment_rows,
+            transaction_at=transaction_at,
         )
     order.tab_payments.filter(sale_invoice__isnull=True).update(sale_invoice=inv)
     order.status = Order.Status.CHECKED_OUT
@@ -433,11 +489,18 @@ def finalize_order_invoice(
 
 @transaction.atomic
 def apply_tab_payments_and_maybe_finalize(
-    *, order: Order, user, payments: List[PaymentLineTuple], customer: Optional[Customer] = None
+    *,
+    order: Order,
+    user,
+    payments: List[PaymentLineTuple],
+    customer: Optional[Customer] = None,
+    transaction_at: Optional[datetime] = None,
 ) -> Optional[SaleInvoice]:
-    record_tab_payments(order=order, user=user, payments=payments)
+    record_tab_payments(order=order, user=user, payments=payments, transaction_at=transaction_at)
     totals = compute_order_totals(order)
     paid = sum_tab_payments(order)
     if paid + Decimal("0.005") >= totals["grand"]:
-        return finalize_order_invoice(order=order, user=user, customer=customer)
+        return finalize_order_invoice(
+            order=order, user=user, customer=customer, transaction_at=transaction_at
+        )
     return None

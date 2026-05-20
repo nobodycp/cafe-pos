@@ -1,16 +1,27 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.contrib.auth import get_user_model
+from django.test import Client, SimpleTestCase, TestCase
+from django.urls import reverse
 from django.utils import timezone
+
+from apps.accounting.chart_defaults import ensure_default_chart_accounts
+from apps.accounting.models import JournalEntry
+from apps.billing.models import SaleInvoice
+from apps.billing.tab_service import compute_order_totals
+from apps.catalog.models import Category, Product, Unit
+from apps.core.models import PaymentMethod, WorkSession
+from apps.pos.models import Order, OrderLine
 
 from apps.billing.sale_invoice_edit import (
     _payments_from_sale_edit_post,
     format_discount_input_value,
     parse_discount_from_post,
     parse_invoice_date_from_post,
+    parse_order_date_from_post,
 )
 
 
@@ -67,6 +78,17 @@ class SaleInvoiceEditDateParseTests(SimpleTestCase):
         with self.assertRaises(ValueError) as ctx:
             parse_invoice_date_from_post({"invoice_date": "15-03-2025"})
         self.assertEqual(str(ctx.exception), "INVALID_INVOICE_DATE")
+
+
+class PosCheckoutOrderDateParseTests(SimpleTestCase):
+    def test_order_date_field(self):
+        dt = parse_order_date_from_post({"order_date": "2024-06-01"})
+        self.assertIsNotNone(dt)
+        self.assertEqual(timezone.localtime(dt).date().isoformat(), "2024-06-01")
+
+    def test_transaction_date_alias(self):
+        dt = parse_order_date_from_post({"transaction_date": "2024-06-02"})
+        self.assertEqual(timezone.localtime(dt).date().isoformat(), "2024-06-02")
 
 
 class SaleEditDiscountParseTests(SimpleTestCase):
@@ -146,3 +168,90 @@ class SaleEditPaymentRowsJournalPrepTests(SimpleTestCase):
             pay_by_method[str(method).strip().lower()] += amt
         self.assertEqual(pay_by_method["credit"], Decimal("6"))
         self.assertEqual(pay_by_method["cash"], Decimal("24"))
+
+
+User = get_user_model()
+
+
+class PosCheckoutOrderDateIntegrationTests(TestCase):
+    """دفع السلة بتاريخ أمس — ``created_at`` للفاتورة و``entry_date`` للقيد."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="pos_co_date", password="pass-12345")
+        PaymentMethod.objects.get_or_create(
+            code="cash",
+            defaults={"label_ar": "كاش", "ledger": "cash", "sort_order": 0, "is_active": True},
+        )
+        ensure_default_chart_accounts()
+        cls.category = Category.objects.create(name_ar="تصنيف")
+        cls.unit = Unit.objects.create(code="u_co", name_ar="وحدة")
+        cls.product = Product.objects.create(
+            name_ar="قهوة",
+            product_type=Product.ProductType.SERVICE,
+            category=cls.category,
+            unit=cls.unit,
+            selling_price=Decimal("25.00"),
+        )
+
+    def setUp(self):
+        WorkSession.objects.filter(status=WorkSession.Status.OPEN).update(status=WorkSession.Status.CLOSED)
+        self.ws = WorkSession.objects.create(
+            opened_by=self.user,
+            opening_cash=Decimal("0"),
+            opening_balances_json={"cash": "0"},
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+        self.yesterday = date.today() - timedelta(days=1)
+        self.yesterday_str = self.yesterday.isoformat()
+
+    def _checkout_order(self, order_type: str):
+        order = Order.objects.create(
+            work_session=self.ws,
+            order_type=order_type,
+            status=Order.Status.OPEN,
+        )
+        OrderLine.objects.create(
+            order=order,
+            product=self.product,
+            quantity=Decimal("1"),
+            unit_price=Decimal("25.00"),
+        )
+        grand = compute_order_totals(order)["grand"]
+        url = reverse("pos:order_checkout", kwargs={"order_id": order.pk})
+        return self.client.post(
+            url,
+            {
+                "payment_mode": "cash",
+                "pay_amount": str(grand),
+                "order_date": self.yesterday_str,
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+    def test_checkout_yesterday_sets_invoice_and_journal_date(self):
+        resp = self._checkout_order(Order.OrderType.TAKEAWAY)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data.get("ok"))
+
+        order = Order.objects.get(order_type=Order.OrderType.TAKEAWAY, status=Order.Status.CHECKED_OUT)
+        inv = SaleInvoice.objects.get(order=order)
+        self.assertEqual(timezone.localtime(order.created_at).date(), self.yesterday)
+        self.assertEqual(timezone.localtime(inv.created_at).date(), self.yesterday)
+
+        entry = JournalEntry.objects.filter(
+            reference_type="billing.SaleInvoice",
+            reference_pk=str(inv.pk),
+        ).exclude(description__startswith="عكس قيد").first()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.date, self.yesterday)
+
+    def test_checkout_date_applies_to_dine_in_and_delivery(self):
+        for otype in (Order.OrderType.DINE_IN, Order.OrderType.DELIVERY):
+            with self.subTest(order_type=otype):
+                resp = self._checkout_order(otype)
+                self.assertEqual(resp.status_code, 200, resp.content)
+                inv = SaleInvoice.objects.filter(order__order_type=otype).latest("pk")
+                self.assertEqual(timezone.localtime(inv.created_at).date(), self.yesterday)

@@ -15,6 +15,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.billing.receipt_escpos import build_invoice_receipt
 from apps.billing.models import OrderPayment, SaleInvoice, SaleInvoiceLine
+from apps.billing.sale_invoice_edit import parse_order_date_from_post
 from apps.billing.tab_service import (
     apply_tab_payments_and_maybe_finalize,
     cart_line_rows_for_template,
@@ -64,6 +65,22 @@ from apps.pos.views._helpers import (
 )
 
 POS_CUSTOMER_FORM_PREFIX = "poscc"
+
+
+def _checkout_transaction_at(request, order: Order):
+    """تاريخ المعاملة من POST؛ ``None`` إذا لم يُرسل. يرفع ValueError عند صيغة غير صالحة."""
+    try:
+        at = parse_order_date_from_post(request.POST, fallback=order.created_at)
+    except ValueError:
+        raise ValueError("INVALID_ORDER_DATE")
+    if at is None:
+        return None
+    if django_timezone.is_naive(at):
+        at = django_timezone.make_aware(at, django_timezone.get_current_timezone())
+    if django_timezone.localtime(at).date() > django_timezone.localdate():
+        raise ValueError("ORDER_DATE_FUTURE")
+    return at
+
 
 def _payments_from_checkout_form(request, remaining: Decimal) -> list:
     """
@@ -163,6 +180,15 @@ def order_checkout(request, order_id):
         return redirect("pos:main")
 
     order = _get_order_for_session(order_id, status=Order.Status.OPEN, is_held=False)
+    try:
+        transaction_at = _checkout_transaction_at(request, order)
+    except ValueError as e:
+        code = str(e)
+        if code == "INVALID_ORDER_DATE":
+            return _err("تاريخ المعاملة غير صالح.")
+        if code == "ORDER_DATE_FUTURE":
+            return _err("لا يمكن اختيار تاريخ بعد اليوم.")
+        return _err(code)
     customer = None
     cid = request.POST.get("customer_id")
     if cid:
@@ -176,7 +202,9 @@ def order_checkout(request, order_id):
 
     if remaining <= Decimal("0.005") and paid_so_far + Decimal("0.005") >= totals["grand"]:
         try:
-            inv = finalize_order_invoice(order=order, user=request.user, customer=customer)
+            inv = finalize_order_invoice(
+                order=order, user=request.user, customer=customer, transaction_at=transaction_at
+            )
         except ValueError as e:
             code = str(e)
             if code == "TAB_PAYMENT_ON_EMPTY_ORDER":
@@ -241,7 +269,11 @@ def order_checkout(request, order_id):
 
     try:
         inv = apply_tab_payments_and_maybe_finalize(
-            order=order, user=request.user, payments=payments, customer=customer
+            order=order,
+            user=request.user,
+            payments=payments,
+            customer=customer,
+            transaction_at=transaction_at,
         )
     except ValueError as e:
         code = str(e)

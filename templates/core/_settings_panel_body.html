@@ -8,6 +8,7 @@
   <a href="#printer" data-tab="printer" class="ds-shell-subtab{% if active_tab == 'printer' %} is-active{% endif %}">الطابعات</a>
   <a href="#receipt" data-tab="receipt" class="ds-shell-subtab{% if active_tab == 'receipt' %} is-active{% endif %}">الإيصال</a>
   <a href="#payment" data-tab="payment" class="ds-shell-subtab{% if active_tab == 'payment' %} is-active{% endif %}">طرق الدفع</a>
+  <a href="#database-backup" data-tab="database-backup" class="ds-shell-subtab{% if active_tab == 'database-backup' %} is-active{% endif %}">نسخ قاعدة البيانات</a>
   <a href="#test-data" data-tab="test-data" class="ds-shell-subtab{% if active_tab == 'test-data' %} is-active{% endif %} text-amber-200">اختبار — تفريغ البيانات</a>
 </nav>
 
@@ -259,6 +260,65 @@
 {# ── طرق الدفع (قائمة داخل التبويب) ── #}
 <div class="settings-section {% if active_tab == 'payment' %}active{% endif %}" id="tab-payment">
   {% include "core/_settings_payment_methods_embed.html" %}
+</div>
+
+{# ── نسخ / استيراد قاعدة البيانات (SQLite) ── #}
+<div class="settings-section {% if active_tab == 'database-backup' %}active{% endif %}" id="tab-database-backup">
+  <div class="rounded-xl border-2 border-primary/40 bg-white dark:bg-gray-800 p-5 shadow-sm">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-2">نسخ قاعدة البيانات — تصدير / استيراد</h2>
+    {% if not database_backup_sqlite %}
+    <p class="text-sm text-amber-800 dark:text-amber-200 leading-relaxed mb-3">
+      الخادم يستخدم محرك <strong>{{ database_backup_vendor }}</strong> وليس SQLite.
+      التصدير والاستيراد من هذه الصفحة غير متاحين.
+    </p>
+    <p class="text-xs text-muted leading-relaxed m-0">
+      لـ PostgreSQL استخدم من الطرفية: <code class="bg-gray-100 dark:bg-gray-900 px-1 rounded" dir="ltr">pg_dump</code>
+      للتصدير و <code class="bg-gray-100 dark:bg-gray-900 px-1 rounded" dir="ltr">pg_restore</code> للاستيراد.
+      لا يُصدَّر ملف <code dir="ltr">.env</code> من هنا.
+    </p>
+    {% elif not user.is_staff %}
+    <p class="text-sm font-bold text-amber-800 dark:text-amber-200 m-0">
+      يتطلب هذا القسم صلاحية <strong>موظف إداري (staff)</strong> أو أعلى.
+    </p>
+    {% else %}
+    <p class="text-sm text-muted leading-relaxed mb-4 max-w-3xl">
+      <strong>التصدير:</strong> تنزيل نسخة كاملة من ملف قاعدة البيانات الحالية (SQLite) باسم يتضمّن التاريخ والوقت.
+      <strong>الاستيراد:</strong> يستبدل الملف بالكامل — يُحفَظ نسخة من الملف الحالي باسم
+      <code class="bg-gray-100 dark:bg-gray-900 px-1 rounded" dir="ltr">db.sqlite3.bak.YYYYMMDD_HHMMSS</code>
+      في نفس مجلد المشروع قبل الاستبدال.
+    </p>
+    <div class="flex flex-wrap items-center gap-3 mb-6 pb-5 border-b border-gray-200 dark:border-gray-600">
+      <a href="{% url 'shell:settings_database_export' %}" class="ds-btn ds-btn-primary font-extrabold text-sm">
+        تصدير قاعدة البيانات
+      </a>
+      <span class="text-xs text-muted">تنزيل ملف .sqlite3 — لا يشمل ملف البيئة (.env)</span>
+    </div>
+    <div class="rounded-lg border-2 border-red-700/50 bg-red-950/15 dark:bg-red-950/25 p-4 max-w-2xl">
+      <h3 class="text-base font-extrabold text-red-100 mb-2">استيراد — استبدال كامل</h3>
+      <p class="text-xs text-red-50/90 leading-relaxed mb-3">
+        <strong class="text-red-200">تحذير:</strong> سيتم استبدال كل بيانات النظام الحالية بمحتوى الملف المرفوع.
+        أي عمل غير محفوظ قد يُفقد. أوقف استخدام النظام من أجهزة أخرى قبل الاستيراد.
+        تأكد أن الملف من نسخة احتياطية لهذا المشروع (نفس إصدار الهجرات قدر الإمكان).
+      </p>
+      <form method="post" action="{% url 'shell:settings_database_import' %}" enctype="multipart/form-data" class="space-y-3"
+            onsubmit="return confirm('تأكيد نهائي: سيتم استبدال قاعدة البيانات بالكامل. هل أنت متأكد؟');">
+        {% csrf_token %}
+        <div>
+          <label class="block text-xs font-bold text-red-100 mb-1">ملف SQLite</label>
+          <input type="file" name="database_file" accept=".sqlite3,.db,.sqlite,application/octet-stream" required
+                 class="block w-full text-xs text-gray-200 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-white/10 file:text-red-50">
+        </div>
+        <label class="flex items-start gap-2 cursor-pointer text-xs text-red-50">
+          <input type="checkbox" name="accept_replace" value="1" required class="mt-0.5">
+          <span>أفهم أن البيانات الحالية ستُستبدَل بالكامل ولا يمكن التراجع إلا باستعادة النسخة الاحتياطية التلقائية.</span>
+        </label>
+        <button type="submit" class="ds-btn bg-red-700 hover:bg-red-800 text-white border border-red-900 font-extrabold text-sm px-4 py-2">
+          استيراد واستبدال قاعدة البيانات
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
 </div>
 
 {# ── تفريغ قاعدة البيانات (اختبار فقط) — التبويب يظهر دائماً؛ التنفيذ يتطلب تفعيل البيئة + سوبر يوزر ── #}

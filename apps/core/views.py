@@ -6,10 +6,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional, Tuple
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.http import JsonResponse
+from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import Resolver404, resolve, reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -963,5 +963,75 @@ def settings_database_wipe(request):
         f"عدد الجداول التي أُفرغت: {result['tables_cleared']}. "
         f"ما أُبقي من البيانات التشغيلية (حسب اختيارك): {kept_ar}. "
         "لإعادة بيانات تجربة شغّل من الطرفية: python manage.py seed_demo",
+    )
+    return redirect(redirect_url)
+
+
+def _user_is_staff(user) -> bool:
+    return user.is_authenticated and user.is_staff
+
+
+@login_required
+@user_passes_test(_user_is_staff)
+@require_GET
+def settings_database_export(request):
+    """تنزيل نسخة من ملف SQLite الحالي."""
+    from apps.core.database_backup import DatabaseBackupError, open_export_file
+
+    redirect_url = reverse("shell:settings") + "?tab=database-backup"
+    try:
+        fh, filename = open_export_file()
+    except NotImplementedError as e:
+        messages.error(request, str(e))
+        return redirect(redirect_url)
+    except DatabaseBackupError as e:
+        messages.error(request, str(e))
+        return redirect(redirect_url)
+    response = FileResponse(fh, as_attachment=True, filename=filename)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    logger.warning("sqlite database export user_id=%s", getattr(request.user, "pk", None))
+    return response
+
+
+@login_required
+@user_passes_test(_user_is_staff)
+@require_POST
+def settings_database_import(request):
+    """استبدال ملف SQLite بملف مرفوع بعد نسخ احتياطي."""
+    from apps.core.database_backup import DatabaseBackupError, import_sqlite_database
+
+    redirect_url = reverse("shell:settings") + "?tab=database-backup"
+    if request.POST.get("accept_replace") != "1":
+        messages.error(request, "فعّل مربع «أفهم أن البيانات الحالية ستُستبدَل».")
+        return redirect(redirect_url)
+    uploaded = request.FILES.get("database_file")
+    if not uploaded:
+        messages.error(request, "اختر ملف قاعدة البيانات (.sqlite3 أو .db).")
+        return redirect(redirect_url)
+    try:
+        result = import_sqlite_database(uploaded)
+    except NotImplementedError as e:
+        messages.error(request, str(e))
+        return redirect(redirect_url)
+    except DatabaseBackupError as e:
+        messages.error(request, str(e))
+        return redirect(redirect_url)
+    except Exception:
+        logger.exception("settings_database_import failed")
+        messages.error(request, "حدث خطأ أثناء الاستيراد. راجع سجلات الخادم.")
+        return redirect(redirect_url)
+
+    backup_note = ""
+    if result.get("backup_created"):
+        backup_note = f" تم حفظ نسخة من الملف السابق باسم: {result.get('backup_filename', '')}."
+    messages.success(
+        request,
+        "تم استبدال قاعدة البيانات. أعد تحميل الصفحة أو سجّل الدخول من جديد إن لزم."
+        + backup_note,
+    )
+    logger.warning(
+        "sqlite database import user_id=%s backup=%s",
+        getattr(request.user, "pk", None),
+        result.get("backup_filename"),
     )
     return redirect(redirect_url)

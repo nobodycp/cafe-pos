@@ -69,4 +69,8 @@ def resolve_settings_request(
     from apps.core.database_wipe import PRESERVE_LABELS_AR
 
     ctx["wipe_preserve_options"] = sorted(PRESERVE_LABELS_AR.items(), key=lambda x: x[0])
+    from apps.core.database_backup import database_vendor_label, sqlite_backend_enabled
+
+    ctx["database_backup_sqlite"] = sqlite_backend_enabled()
+    ctx["database_backup_vendor"] = database_vendor_label()
     return ctx

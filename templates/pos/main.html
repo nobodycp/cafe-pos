@@ -1349,6 +1349,16 @@
     if (isNaN(n) || n < 0) return '0.00';
     return (Math.round(n * 100) / 100).toFixed(2);
   }
+  function coTodayIsoDate() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function coResetCheckoutOrderDate() {
+    var el = document.getElementById('pos-co-order-date');
+    if (el) el.value = coTodayIsoDate();
+  }
   function coPmMeta(code) {
     var c = (code || '').trim().toLowerCase();
     var rows = typeof CHECKOUT_PM_ROWS !== 'undefined' ? CHECKOUT_PM_ROWS : [];
@@ -1456,6 +1466,7 @@
     var ph = document.getElementById('pos-co-payer-phone');
     if (pn) pn.value = '';
     if (ph) ph.value = '';
+    coResetCheckoutOrderDate();
     syncCheckoutPayerPanel();
     ov.style.display = 'flex';
     ov.setAttribute('aria-hidden', 'false');
@@ -1469,6 +1480,18 @@
   function validateCheckoutOverlay() {
     var cf = document.getElementById('checkout-form');
     if (!cf) return false;
+    var dateEl = document.getElementById('pos-co-order-date');
+    if (dateEl) {
+      var dv = String(dateEl.value || '').trim();
+      if (!dv || !/^\d{4}-\d{2}-\d{2}$/.test(dv)) {
+        showToast('تاريخ المعاملة غير صالح', 'error');
+        return false;
+      }
+      if (dv > coTodayIsoDate()) {
+        showToast('لا يمكن اختيار تاريخ بعد اليوم', 'error');
+        return false;
+      }
+    }
     var bal = coMoneyParse(cf.getAttribute('data-balance'));
     if (isNaN(bal) || bal < 0) bal = 0;
     var amt = coMoneyParse(document.getElementById('pos-co-pay-amt') && document.getElementById('pos-co-pay-amt').value);
@@ -1530,6 +1553,9 @@
     var hidPh = cf.querySelector('#checkout-hid-payer-phone');
     var hidSp = cf.querySelector('#checkout-use-splits');
     var hidSj = cf.querySelector('#checkout-splits-json');
+    var hidOd = cf.querySelector('#checkout-hid-order-date');
+    var coDate = document.getElementById('pos-co-order-date');
+    if (hidOd) hidOd.value = coDate ? String(coDate.value || '').trim() : '';
     if (hidCust) hidCust.value = coId ? String(coId.value || '') : '';
     if (hidDraft) hidDraft.value = coSearch ? String(coSearch.value || '').trim() : '';
     if (hidPn) hidPn.value = document.getElementById('pos-co-payer-name') ? String(document.getElementById('pos-co-payer-name').value || '').trim() : '';

@@ -62,6 +62,17 @@ def parse_invoice_date_from_post(post, *, fallback=None) -> Optional[datetime]:
     return parsed
 
 
+def parse_order_date_from_post(post, *, fallback=None) -> Optional[datetime]:
+    """يحلّل ``order_date`` أو ``transaction_date`` من نموذج إتمام الدفع (نفس تنسيق ``invoice_date``)."""
+    if post is None:
+        return None
+    for key in ("order_date", "transaction_date"):
+        raw = (post.get(key) or "").strip()
+        if raw:
+            return parse_invoice_date_from_post({"invoice_date": raw}, fallback=fallback)
+    return None
+
+
 def parse_discount_from_post(post, *, subtotal) -> Tuple[Decimal, Decimal, Decimal]:
     """يحلّل حقل ``discount`` بنفس آلية سلة الكاشير.
 

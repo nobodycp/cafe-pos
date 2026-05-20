@@ -13,6 +13,14 @@
         <div class="text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-300" dir="ltr"><span id="pos-co-hero-amt">0.00</span> <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">{{ POS_SETTINGS.currency_symbol }}</span></div>
       </div>
 
+      <div class="mb-2 flex flex-wrap items-end gap-2">
+        <div class="min-w-0 flex-1">
+          <label class="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-0.5" for="pos-co-order-date">تاريخ المعاملة</label>
+          <input type="date" id="pos-co-order-date" name="order_date"
+            class="w-full max-w-[11rem] rounded-md border border-gray-300 bg-white px-2 py-1 text-xs tabular-nums dark:border-gray-600 dark:bg-gray-800">
+        </div>
+      </div>
+
       <label class="block text-[11px] font-bold text-gray-600 dark:text-gray-400 mb-0.5" for="pos-co-pay-amt">مبلغ هذه الدفعة</label>
       <input type="number" id="pos-co-pay-amt" step="0.01" min="0" inputmode="decimal" lang="en"
         class="mb-2 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm font-bold tabular-nums dark:border-gray-600 dark:bg-gray-800">

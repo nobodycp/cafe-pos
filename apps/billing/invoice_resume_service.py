@@ -222,6 +222,7 @@ def update_sale_invoice_from_order(
     customer: Optional[Customer],
     pay_by_method: Dict[str, Decimal],
     payment_rows: List[Dict[str, Any]],
+    transaction_at=None,
 ) -> SaleInvoice:
     """يحدّث فاتورة موجودة من الطلب المفتوح (بعد استئناف التعديل)."""
     from apps.billing import tab_service as tabs
@@ -407,7 +408,11 @@ def update_sale_invoice_from_order(
 
     from apps.accounting.services import post_sale_invoice_journal
 
-    post_sale_invoice_journal(invoice=inv, pay_by_method=pay_by_method, user=user)
+    tabs.apply_pos_transaction_datetime(order=order, at=transaction_at, invoice=inv)
+    entry_date = tabs.entry_date_from_transaction_at(transaction_at)
+    post_sale_invoice_journal(
+        invoice=inv, pay_by_method=pay_by_method, user=user, entry_date=entry_date
+    )
 
     tabs._record_commission_vendor_payables(inv)
 
