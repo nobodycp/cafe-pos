@@ -93,35 +93,52 @@
 </div>
 
 {# ── Per-channel expected (cash + bank rails) ── #}
+<style>
+  /* أقوى من .pos-shell-content th { text-align: start !important; } في app.css */
+  #session-reconcile-table.session-reconcile-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+  #session-reconcile-table.session-reconcile-table th,
+  #session-reconcile-table.session-reconcile-table td {
+    padding: 0.5rem 0.625rem;
+    vertical-align: middle;
+  }
+  #session-reconcile-table.session-reconcile-table th.col-label,
+  #session-reconcile-table.session-reconcile-table td.col-label {
+    text-align: start !important;
+    min-width: 7rem;
+  }
+  #session-reconcile-table.session-reconcile-table th.col-num,
+  #session-reconcile-table.session-reconcile-table td.col-num {
+    text-align: end !important;
+    white-space: nowrap;
+    min-width: 5.5rem;
+  }
+</style>
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-5">
   <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-2">مطابقة الصناديق (افتتاح + مبيعات − مصروفات)</h3>
   <p class="text-xs text-muted mb-4">لكل طريقة دفع نقدية أو بنكية: الرصيد الذي أدخلته عند فتح الوردية + تحصيل الفواتير − مصروفات نفس الطريقة.</p>
   <div class="overflow-x-auto">
-    <table class="w-full text-sm table-fixed tabular-nums" dir="rtl">
-      <colgroup>
-        <col style="width:26%">
-        <col style="width:18.5%">
-        <col style="width:18.5%">
-        <col style="width:18.5%">
-        <col style="width:18.5%">
-      </colgroup>
+    <table id="session-reconcile-table" class="session-reconcile-table w-full text-sm tabular-nums">
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-700">
-          <th class="!text-start py-2 px-2 font-bold text-muted text-xs uppercase">طريقة الدفع</th>
-          <th class="!text-end py-2 px-2 font-bold text-muted text-xs uppercase">افتتاحي</th>
-          <th class="!text-end py-2 px-2 font-bold text-muted text-xs uppercase">مبيعات</th>
-          <th class="!text-end py-2 px-2 font-bold text-muted text-xs uppercase">مصروفات</th>
-          <th class="!text-end py-2 px-2 font-bold text-muted text-xs uppercase">المتوقع</th>
+          <th class="col-label font-bold text-muted text-xs uppercase">طريقة الدفع</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">افتتاحي</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">مبيعات</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">مصروفات</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">المتوقع</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
         {% for row in desk_reconcile_rows %}
         <tr>
-          <td class="py-2.5 px-2 !text-start font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
-          <td class="py-2.5 px-2 !text-end text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
-          <td class="py-2.5 px-2 !text-end font-semibold text-success">{{ row.sales|floatformat:2|intcomma }}</td>
-          <td class="py-2.5 px-2 !text-end font-semibold text-danger">{{ row.expenses|floatformat:2|intcomma }}</td>
-          <td class="py-2.5 px-2 !text-end font-extrabold text-primary">{{ row.expected|floatformat:2|intcomma }}</td>
+          <td class="col-label font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
+          <td class="col-num text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
+          <td class="col-num font-semibold text-success">{{ row.sales|floatformat:2|intcomma }}</td>
+          <td class="col-num font-semibold text-danger">{{ row.expenses|floatformat:2|intcomma }}</td>
+          <td class="col-num font-extrabold text-primary">{{ row.expected|floatformat:2|intcomma }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="py-3 text-center text-muted text-sm">لا توجد طرق دفع نقدية/بنكية في الإعدادات.</td></tr>

@@ -1,3 +1,4 @@
+import re
 from datetime import date
 from decimal import Decimal
 
@@ -147,3 +148,20 @@ class SessionSummarySupplierPaymentTests(TestCase):
         row = next(r for r in resp.context["desk_reconcile_rows"] if r["code"] == "bank_ps")
         self.assertEqual(row["expenses"], Decimal("1686.00"))
         self.assertEqual(row["expected"], Decimal("-1686.00"))
+
+    def test_desk_reconcile_table_column_alignment_markup(self):
+        """عناوين وأرقام الجدول يجب أن تشترك في col-num/col-label لتجاوز محاذاة th في app.css."""
+        self.client.login(username="shift_close", password="pass-12345")
+        html = self.client.get(reverse("core:session_summary")).content.decode()
+        self.assertIn('id="session-reconcile-table"', html)
+        self.assertIn("#session-reconcile-table.session-reconcile-table th.col-num", html)
+        table_html = html.split('id="session-reconcile-table"', 1)[1].split("</table>", 1)[0]
+        th_classes = re.findall(r"<th class=\"([^\"]+)\"", table_html)
+        self.assertGreaterEqual(len(th_classes), 5)
+        self.assertTrue(th_classes[0].startswith("col-label"))
+        self.assertTrue(all(c.startswith("col-num") for c in th_classes[1:5]))
+        tbody_html = table_html.split("<tbody", 1)[1]
+        td_classes = re.findall(r"<td class=\"([^\"]+)\"", tbody_html)
+        self.assertGreaterEqual(len(td_classes), 5)
+        self.assertTrue(td_classes[0].startswith("col-label"))
+        self.assertTrue(all(c.startswith("col-num") for c in td_classes[1:5]))
