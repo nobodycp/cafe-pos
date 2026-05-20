@@ -170,6 +170,7 @@ urlpatterns = [
         reports_views.payment_channel_ledger,
         name="payment_channel_ledger",
     ),
+    path("reports/payment-boxes/", reports_views.payment_boxes_report, name="payment_boxes"),
     path("reports/treasury-vouchers/", reports_views.treasury_vouchers_report, name="treasury_vouchers_report"),
     path("billing/invoices/", billing_views.sale_invoice_list, name="invoice_list"),
     path("billing/invoices/<int:pk>/delete/", billing_views.sale_invoice_delete, name="sale_invoice_delete"),

@@ -643,6 +643,78 @@ def payment_channel_ledger(request):
 
 
 @login_required
+def payment_boxes_report(request):
+    """تقرير الصناديق: وارد/صادر لكل طريقة دفع عبر فترة."""
+    from apps.reports.payment_boxes import build_payment_boxes_report
+
+    today = date.today()
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    except ValueError:
+        d_from = today.replace(day=1)
+    try:
+        d_to = date.fromisoformat(date_to) if date_to else today
+    except ValueError:
+        d_to = today
+
+    q = (request.GET.get("q") or "").strip()
+    pay_method = (request.GET.get("pay_method") or "").strip()
+    valid_pm = {r["code"] for r in load_payment_method_rows()}
+    if pay_method and pay_method not in valid_pm:
+        pay_method = ""
+
+    report = build_payment_boxes_report(
+        date_from=d_from,
+        date_to=d_to,
+        payment_method=pay_method or None,
+        q=q,
+    )
+
+    pay_method_options = [
+        {"code": r["code"], "label": r.get("label_ar") or r.get("label") or r["code"]}
+        for r in load_payment_method_rows()
+        if r["ledger"] in ("cash", "bank")
+    ]
+
+    def _ledger_url(code: str, flow: str) -> str:
+        base = reverse("shell:payment_channel_ledger")
+        params = (
+            f"method={code}&date_from={d_from.isoformat()}&date_to={d_to.isoformat()}"
+            f"&flow={flow}&from=payment_boxes"
+        )
+        return f"{base}?{params}"
+
+    rows_with_urls = []
+    for row in report["rows"]:
+        rows_with_urls.append(
+            {
+                **row,
+                "inflow_url": _ledger_url(row["code"], "in"),
+                "outflow_url": _ledger_url(row["code"], "out"),
+            }
+        )
+
+    return render(
+        request,
+        "reports/payment_boxes.html",
+        {
+            "date_from": d_from.isoformat(),
+            "date_to": d_to.isoformat(),
+            "q": q,
+            "pay_method": pay_method,
+            "pay_method_options": pay_method_options,
+            "rows": rows_with_urls,
+            "totals": report["totals"],
+            "opening_note": report["opening_note"],
+            "has_opening_session": report["has_opening_session"],
+            "filters_open": bool(q or pay_method),
+        },
+    )
+
+
+@login_required
 def treasury_vouchers_report(request):
     """سندات الخزينة الموحّدة من سجل التدقيق — مع فلترة حسب النوع والفترة."""
     today = date.today()

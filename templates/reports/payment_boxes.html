@@ -1,0 +1,119 @@
+{% extends "shell/base.html" %}
+{% load humanize core_extras %}
+{% block title %}الصناديق{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
+{% block cashier_body %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="الصناديق" toolbar_hint="وارد وصادر لكل طريقة دفع" %}
+
+<div class="shell-list-filters mb-2 rounded-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-2.5">
+  <form method="get" class="shell-list-filters__form m-0">
+    <div class="flex flex-wrap gap-2 items-end">
+      <div>
+        <label class="block text-[11px] font-bold text-muted mb-0.5">من</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-muted mb-0.5">إلى</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 max-w-[11rem]">
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-muted mb-0.5">طريقة الدفع</label>
+        <select name="pay_method" class="h-8 rounded-sm border border-gray-300 dark:border-gray-600 px-2 text-xs bg-white dark:bg-gray-700 min-w-[9rem]">
+          <option value="">كل الطرق</option>
+          {% for opt in pay_method_options %}
+          <option value="{{ opt.code }}"{% if pay_method == opt.code %} selected{% endif %}>{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex-1 min-w-[12rem] max-w-xl">
+        <label class="block text-[11px] font-bold text-muted mb-0.5">بحث (اسم طريقة الدفع)</label>
+        <input type="search" name="q" value="{{ q }}" placeholder="مثال: كاش، بنك…" class="ds-input w-full h-8 text-xs">
+      </div>
+      <div class="shell-list-filters__actions flex flex-wrap items-center gap-1.5 shrink-0 pb-0.5">
+        <button type="submit" class="ds-btn ds-btn-primary h-8 text-xs font-bold shrink-0">تطبيق</button>
+        <a href="{% url 'shell:payment_boxes' %}" class="ds-btn h-8 text-xs font-bold shrink-0">مسح</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<p class="text-xs text-muted mb-3">{{ opening_note }}</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي افتتاحي</div>
+    <div class="text-sm font-extrabold text-gray-700 dark:text-gray-200 tabular-nums">{{ totals.opening|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي وارد</div>
+    <div class="text-sm font-extrabold text-success tabular-nums">{{ totals.inflow|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي صادر</div>
+    <div class="text-sm font-extrabold text-danger tabular-nums">{{ totals.outflow|floatformat:2|intcomma }}</div>
+  </div>
+  <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-2 text-center">
+    <div class="text-[10px] text-muted font-bold">إجمالي متبقي</div>
+    <div class="text-sm font-extrabold text-primary tabular-nums">{{ totals.balance|floatformat:2|intcomma }}</div>
+  </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+  <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-2">مطابقة الصناديق للفترة</h3>
+  <p class="text-xs text-muted mb-4">
+    لكل طريقة دفع نقدية أو بنكية:
+    {% if has_opening_session %}افتتاحي (أول وردية في الفترة) +{% endif %}
+    وارد (تحصيل فواتير + سندات قبض) − صادر (مصروفات + سداد موردين) = المتبقي.
+  </p>
+  <div class="overflow-x-auto">
+    <table id="session-reconcile-table" class="session-reconcile-table w-full text-sm tabular-nums">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-700">
+          <th class="col-label font-bold text-muted text-xs uppercase">طريقة الدفع</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">افتتاحي</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">وارد</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">صادر</th>
+          <th class="col-num font-bold text-muted text-xs uppercase">المتبقي</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+        {% for row in rows %}
+        <tr>
+          <td class="col-label font-bold text-gray-800 dark:text-gray-200">{{ row.label }}</td>
+          <td class="col-num text-gray-600 dark:text-gray-400">{{ row.opening|floatformat:2|intcomma }}</td>
+          <td class="col-num">
+            <a href="{{ row.inflow_url }}"
+               class="block w-full text-end font-semibold text-success hover:underline tabular-nums no-underline"
+               title="كشف الوارد — {{ row.label }}">
+              {{ row.inflow|floatformat:2|intcomma }}
+            </a>
+          </td>
+          <td class="col-num">
+            <a href="{{ row.outflow_url }}"
+               class="block w-full text-end font-semibold text-danger hover:underline tabular-nums no-underline"
+               title="كشف الصادر — {{ row.label }}">
+              {{ row.outflow|floatformat:2|intcomma }}
+            </a>
+          </td>
+          <td class="col-num font-extrabold text-primary">{{ row.balance|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="py-3 text-center text-muted text-sm">لا توجد نتائج للفلاتر الحالية.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot>
+        <tr class="border-t-2 border-gray-300 dark:border-gray-600 font-extrabold">
+          <td class="col-label text-gray-800 dark:text-gray-100">الإجمالي</td>
+          <td class="col-num text-gray-700 dark:text-gray-300">{{ totals.opening|floatformat:2|intcomma }}</td>
+          <td class="col-num text-success">{{ totals.inflow|floatformat:2|intcomma }}</td>
+          <td class="col-num text-danger">{{ totals.outflow|floatformat:2|intcomma }}</td>
+          <td class="col-num text-primary">{{ totals.balance|floatformat:2|intcomma }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+{% include "reports/_reports_shell_end.html" %}
+{% endblock %}

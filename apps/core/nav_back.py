@@ -89,6 +89,7 @@ def default_back_for_route(url_name: str, kwargs: dict[str, Any]) -> tuple[str, 
         "cash_flow",
         "payroll_report",
         "payment_channels",
+        "payment_boxes",
         "treasury_vouchers_report",
     ):
         return _rev("shell:reports"), "← التقارير", "التقارير"
@@ -229,7 +230,12 @@ def toolbar_back_for_request(request) -> dict[str, str]:
         return {}
     url_name = match.url_name or ""
     kwargs = dict(match.kwargs or {})
-    default_url, default_label, default_title = default_back_for_route(url_name, kwargs)
+    if url_name == "payment_channel_ledger" and request.GET.get("from") == "payment_boxes":
+        default_url = _rev("shell:payment_boxes")
+        default_label = "← الصناديق"
+        default_title = "تقرير الصناديق"
+    else:
+        default_url, default_label, default_title = default_back_for_route(url_name, kwargs)
     return resolve_toolbar_back(
         request,
         default_url=default_url,
