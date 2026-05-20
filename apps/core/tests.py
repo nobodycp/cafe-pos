@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -5,6 +6,9 @@ from django.test import TestCase
 from django.urls import reverse
 
 from apps.core.decimalutil import as_decimal
+from apps.core.models import WorkSession
+from apps.expenses.models import Expense, ExpenseCategory
+from apps.purchasing.models import Supplier, SupplierPayment
 
 
 class AsDecimalTests(TestCase):
@@ -99,3 +103,47 @@ class NavBackTests(TestCase):
         ctx = toolbar_back_for_request(req)
         self.assertEqual(ctx["toolbar_back_url"], "/app/reports/product-movement/?period=month")
         self.assertEqual(ctx["toolbar_back_label"], "← رجوع")
+
+
+class SessionSummarySupplierPaymentTests(TestCase):
+    """سند صرف لمورد يجب أن يظهر في عمود مصروفات مطابقة الصناديق عند إغلاق الوردية."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="shift_close", password="pass-12345")
+        cls.category = ExpenseCategory.objects.create(
+            code="other",
+            name_ar="أخرى",
+            name_en="Other",
+        )
+        cls.supplier = Supplier.objects.create(name_ar="تاجر تجريبي")
+
+    def setUp(self):
+        WorkSession.objects.filter(status=WorkSession.Status.OPEN).update(status=WorkSession.Status.CLOSED)
+        self.ws = WorkSession.objects.create(
+            opened_by=self.user,
+            opening_cash=Decimal("0"),
+            opening_balances_json={"cash": "0", "bank_ps": "0"},
+        )
+
+    def test_supplier_disbursement_in_desk_reconcile_expenses(self):
+        Expense.objects.create(
+            work_session=self.ws,
+            category=self.category,
+            expense_date=date.today(),
+            amount=Decimal("86"),
+            payment_method="bank_ps",
+        )
+        SupplierPayment.objects.create(
+            supplier=self.supplier,
+            work_session=self.ws,
+            amount=Decimal("1600"),
+            method="bank_ps",
+            note="سند صرف",
+        )
+        self.client.login(username="shift_close", password="pass-12345")
+        resp = self.client.get(reverse("core:session_summary"))
+        self.assertEqual(resp.status_code, 200)
+        row = next(r for r in resp.context["desk_reconcile_rows"] if r["code"] == "bank_ps")
+        self.assertEqual(row["expenses"], Decimal("1686.00"))
+        self.assertEqual(row["expected"], Decimal("-1686.00"))

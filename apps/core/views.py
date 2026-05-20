@@ -35,7 +35,7 @@ from apps.pos.forms import DiningTableForm
 from apps.pos.models import DiningTable, TableSession
 from apps.pos.services import open_orders_with_lines_queryset
 from apps.pos.table_service import prepare_work_session_for_shift_close
-from apps.purchasing.models import Supplier
+from apps.purchasing.models import Supplier, SupplierPayment
 
 logger = logging.getLogger(__name__)
 
@@ -702,6 +702,12 @@ def session_summary(request):
     for row in expenses_qs.values("payment_method").annotate(s=Sum("amount")):
         m = row["payment_method"] or "cash"
         exp_by_method[m] = row["s"] or Decimal("0")
+    # سند صرف لمورد (سداد مورد) يُسجَّل كـ SupplierPayment وليس Expense — يُخصم من الصندوق/البنك.
+    for row in SupplierPayment.objects.filter(work_session=ws).values("method").annotate(s=Sum("amount")):
+        m = row["method"] or "cash"
+        exp_by_method[m] = (exp_by_method.get(m, Decimal("0")) + (row["s"] or Decimal("0"))).quantize(
+            Decimal("0.01")
+        )
     exp_by_method = dict(exp_by_method)
     cash_expenses = exp_by_method.get("cash", Decimal("0"))
 
