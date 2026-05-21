@@ -51,8 +51,8 @@
         <tr class="border-b border-gray-200 dark:border-gray-600">
           <th class="text-start py-2 px-2 font-bold text-muted">رقم الفاتورة</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الطاولة</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الإجمالي</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الربح</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الإجمالي</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الربح</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الدفع</th>
           <th class="text-start py-2 px-2 font-bold text-muted">العميل</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الحالة</th>
@@ -66,8 +66,8 @@
             {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=row.invoice.pk label=row.invoice.invoice_number btn_class="text-primary font-bold hover:underline bg-transparent border-0 p-0 cursor-pointer" %}
           </td>
           <td class="py-2 px-2">{{ row.table_name|default:"—" }}</td>
-          <td class="py-2 px-2 tabular-nums">{{ row.invoice.total|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2 text-success font-bold tabular-nums">{{ row.invoice.total_profit|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ row.invoice.total|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end text-success font-bold tabular-nums">{{ row.invoice.total_profit|floatformat:2|intcomma }}</td>
           <td class="py-2 px-2">{{ row.payment_methods }}</td>
           <td class="py-2 px-2">{{ row.invoice.customer|default:"—" }}</td>
           <td class="py-2 px-2">

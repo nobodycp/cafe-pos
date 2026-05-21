@@ -23,13 +23,14 @@ def open_orders_with_lines_queryset(work_session=None):
     """
     from apps.core.operation_mode import requires_work_session_for_pos
 
-    if work_session is None and requires_work_session_for_pos():
-        return Order.objects.none()
-    ws_kw = (
-        {"work_session__isnull": True}
-        if work_session is None
-        else {"work_session": work_session}
-    )
+    # في نمط المحاسبة المستمرة، أوامر الكاشير تُحفظ بدون وردية دائماً.
+    # لذلك يجب عدم تقييد النتائج بوردية مفتوحة حتى لو كانت موجودة بالقاعدة.
+    if not requires_work_session_for_pos():
+        ws_kw = {"work_session__isnull": True}
+    else:
+        if work_session is None:
+            return Order.objects.none()
+        ws_kw = {"work_session": work_session}
     return (
         Order.objects.filter(**ws_kw, status=Order.Status.OPEN)
         .annotate(

@@ -31,15 +31,15 @@
       <thead>
         <tr class="border-b border-gray-200 dark:border-gray-600">
           <th class="text-start py-2 px-2 font-bold text-muted">التصنيف</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">عدد العمليات</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الإجمالي</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">عدد العمليات</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الإجمالي</th>
         </tr>
       </thead>
       <tbody>
         {% for row in by_category %}
         <tr class="border-b border-gray-100 dark:border-gray-700/80">
           <td class="py-2 px-2 font-semibold">{{ row.category__name_ar }}</td>
-          <td class="py-2 px-2 tabular-nums">{{ row.count }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ row.count }}</td>
           <td class="py-2 px-2 text-danger font-bold tabular-nums">{{ row.total|floatformat:2|intcomma }}</td>
         </tr>
         {% endfor %}

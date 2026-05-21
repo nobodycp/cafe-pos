@@ -90,9 +90,9 @@
         <tr>
           <th class="text-start py-2 px-2 font-bold text-muted">#</th>
           <th class="text-start py-2 px-2 font-bold text-muted">الصنف</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الكمية</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الإيراد</th>
-          <th class="text-start py-2 px-2 font-bold text-muted">الربح</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الكمية</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الإيراد</th>
+          <th class="text-end py-2 px-2 font-bold text-muted">الربح</th>
         </tr>
       </thead>
       <tbody>
@@ -102,9 +102,9 @@
           <td class="py-2 px-2">
             <a href="{% shell_url 'shell:product_card' p.product__pk %}" class="font-bold text-primary hover:text-primary-dk hover:underline no-underline" title="فتح كرت الصنف">{{ p.product__name_ar }}</a>
           </td>
-          <td class="py-2 px-2 tabular-nums">{{ p.total_qty }}</td>
-          <td class="py-2 px-2 tabular-nums">{{ p.total_revenue|floatformat:2|intcomma }}</td>
-          <td class="py-2 px-2 text-success font-bold tabular-nums">{{ p.total_profit|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ p.total_qty }}</td>
+          <td class="py-2 px-2 text-end tabular-nums">{{ p.total_revenue|floatformat:2|intcomma }}</td>
+          <td class="py-2 px-2 text-end text-success font-bold tabular-nums">{{ p.total_profit|floatformat:2|intcomma }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="text-center text-muted py-8">لا توجد مبيعات مطابقة للفلتر.</td></tr>

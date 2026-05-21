@@ -15,7 +15,7 @@ from apps.billing.services import checkout_order
 from apps.catalog.models import Category, Product, Unit
 from apps.core.balance_adjustment_service import post_balance_adjustment
 from apps.core.gl_accounts import ensure_gl_account_for_payment_method, get_account_for_payment_method
-from apps.core.models import PaymentMethod, PosSettings
+from apps.core.models import PaymentMethod, PosSettings, WorkSession
 from apps.core.operation_mode import MODE_CONTINUOUS, MODE_SHIFTS
 from apps.core.payment_channel_balance import get_opening_balance
 from apps.pos.models import Order, OrderLine
@@ -82,6 +82,21 @@ class OperationModePosTests(TestCase):
         self.assertIn("balance", rows[0])
         self.assertEqual(resp.context.get("desk_balance_period"), "الرصيد الحالي")
         self.assertIn("المتبقي النهائي".encode(), resp.content)
+
+    def test_continuous_open_orders_ignore_open_shift_session(self):
+        self._set_mode(MODE_CONTINUOUS)
+        WorkSession.objects.create(opened_by=self.user, opening_cash=Decimal("0"))
+        order = create_order(user=self.user, order_type=Order.OrderType.DELIVERY)
+        OrderLine.objects.create(
+            order=order,
+            product=self.product,
+            quantity=Decimal("1"),
+            unit_price=self.product.selling_price,
+        )
+        resp = self.client.get(reverse("pos:main"))
+        self.assertEqual(resp.status_code, 200)
+        open_orders = resp.context.get("open_orders") or []
+        self.assertTrue(any(o.pk == order.pk for o in open_orders))
 
     def test_shifts_pos_main_blocks_without_shift(self):
         self._set_mode(MODE_SHIFTS)

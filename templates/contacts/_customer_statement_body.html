@@ -56,8 +56,8 @@
         <tr>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">التاريخ</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">النوع</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
-          <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرصيد</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المبلغ</th>
+          <th class="text-end p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">الرصيد</th>
           <th class="text-start p-3 bg-gray-50 dark:bg-gray-700 font-bold text-xs text-muted uppercase">المرجع</th>
         </tr>
       </thead>
@@ -65,13 +65,13 @@
         {% if page_obj.number == 1 %}
         <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold">
           <td colspan="3" class="p-3 border-b border-gray-100 dark:border-gray-700">رصيد افتتاحي</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ opening_balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end tabular-nums">{{ opening_balance|floatformat:2|intcomma }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700"></td>
         </tr>
         {% else %}
         <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold">
           <td colspan="3" class="p-3 border-b border-gray-100 dark:border-gray-700">رصيد بداية الصفحة</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700">{{ page_opening_balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end tabular-nums">{{ page_opening_balance|floatformat:2|intcomma }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700"></td>
         </tr>
         {% endif %}
@@ -81,8 +81,8 @@
           <td class="p-3 border-b border-gray-100 dark:border-gray-700">
             <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if r.entry_type == 'invoice' %}bg-danger/10 text-danger{% elif r.entry_type == 'payment' %}bg-success/10 text-success{% else %}bg-warning/10 text-yellow-700 dark:text-warning{% endif %}">{{ r.type }}</span>
           </td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ r.amount|floatformat:2|intcomma }}</td>
-          <td class="p-3 border-b border-gray-100 dark:border-gray-700 font-semibold">{{ r.running|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end font-semibold tabular-nums">{{ r.amount|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-end font-semibold tabular-nums">{{ r.running|floatformat:2|intcomma }}</td>
           <td class="p-3 border-b border-gray-100 dark:border-gray-700 text-sm text-muted">
             {% if r.reference_model == "billing.SaleInvoice" and r.reference_pk %}
             {% include "shell/_sale_invoice_view_btn.html" with invoice_pk=r.reference_pk label=r.reference %}
@@ -98,7 +98,7 @@
         {% endfor %}
         <tr class="bg-gray-50 dark:bg-gray-700/50 font-extrabold">
           <td colspan="3" class="p-3 border-t-2 border-gray-200 dark:border-gray-600">الرصيد الختامي</td>
-          <td class="p-3 border-t-2 border-gray-200 dark:border-gray-600 {% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td>
+          <td class="p-3 border-t-2 border-gray-200 dark:border-gray-600 text-end tabular-nums {% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td>
           <td class="p-3 border-t-2 border-gray-200 dark:border-gray-600"></td>
         </tr>
       </tbody>

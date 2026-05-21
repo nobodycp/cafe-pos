@@ -10,13 +10,14 @@ from django.utils import timezone
 
 from apps.accounting.chart_defaults import ensure_default_chart_accounts
 from apps.accounting.models import JournalEntry
-from apps.billing.models import SaleInvoice
+from apps.billing.models import SaleInvoice, SaleInvoiceLine
 from apps.billing.tab_service import compute_order_totals
 from apps.catalog.models import Category, Product, Unit
 from apps.core.models import PaymentMethod, WorkSession
 from apps.pos.models import Order, OrderLine
 
 from apps.billing.sale_invoice_edit import (
+    apply_sale_invoice_full_edit,
     _payments_from_sale_edit_post,
     format_discount_input_value,
     parse_discount_from_post,
@@ -258,3 +259,67 @@ class PosCheckoutOrderDateIntegrationTests(TestCase):
                 self.assertEqual(resp.status_code, 200, resp.content)
                 inv = SaleInvoice.objects.filter(order__order_type=otype).latest("pk")
                 self.assertEqual(timezone.localtime(inv.created_at).date(), self.yesterday)
+
+
+class SaleInvoiceEditContinuousModeTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(username="sale_edit_cont", password="pass-12345")
+        PaymentMethod.objects.get_or_create(
+            code="cash",
+            defaults={"label_ar": "كاش", "ledger": "cash", "sort_order": 0, "is_active": True},
+        )
+        cls.category = Category.objects.create(name_ar="تصنيف تعديل")
+        cls.unit = Unit.objects.create(code="u_edit", name_ar="وحدة")
+        cls.product = Product.objects.create(
+            name_ar="مشروب",
+            product_type=Product.ProductType.SERVICE,
+            category=cls.category,
+            unit=cls.unit,
+            selling_price=Decimal("10.00"),
+        )
+
+    def setUp(self):
+        from apps.core.models import PosSettings
+
+        PosSettings.objects.update_or_create(
+            pk=1,
+            defaults={"operation_mode": "continuous", "allow_sale_invoice_edit": True},
+        )
+
+    @patch("apps.accounting.services.post_sale_invoice_journal")
+    def test_full_edit_allows_invoice_without_session_in_continuous(self, _mock_post_journal):
+        order = Order.objects.create(
+            work_session=None,
+            order_type=Order.OrderType.TAKEAWAY,
+            status=Order.Status.CHECKED_OUT,
+        )
+        inv = SaleInvoice.objects.create(
+            invoice_number="INV-CONT-EDIT-1",
+            order=order,
+            work_session=None,
+            subtotal=Decimal("10.00"),
+            discount_total=Decimal("0.00"),
+            total=Decimal("10.00"),
+        )
+        SaleInvoiceLine.objects.create(
+            invoice=inv,
+            product=self.product,
+            quantity=Decimal("1"),
+            unit_price=Decimal("10.00"),
+            line_subtotal=Decimal("10.00"),
+        )
+        from apps.billing.models import InvoicePayment
+
+        InvoicePayment.objects.create(invoice=inv, method="cash", amount=Decimal("10.00"))
+
+        apply_sale_invoice_full_edit(
+            invoice=inv,
+            user=self.user,
+            line_rows=[(self.product, Decimal("1"), Decimal("12.00"))],
+            payment_rows=[("cash", Decimal("12.00"), "", "")],
+            post={"discount": ""},
+        )
+
+        inv.refresh_from_db()
+        self.assertEqual(inv.total, Decimal("12.00"))

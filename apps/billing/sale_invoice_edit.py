@@ -21,6 +21,7 @@ from apps.core.payment_methods import (
     load_payment_method_rows,
     method_codes_requiring_payer_details,
 )
+from apps.core.operation_mode import requires_work_session_for_pos
 from apps.inventory.services import (
     check_stock_available,
     consume_for_sale,
@@ -309,7 +310,7 @@ def apply_sale_invoice_line_edits(
         raise ValueError("ALL_LINES_REQUIRED")
 
     session = inv.work_session
-    if not session:
+    if not session and requires_work_session_for_pos():
         raise ValueError("NO_SESSION")
 
     pays = list(InvoicePayment.objects.select_for_update().filter(invoice=inv))
@@ -461,7 +462,7 @@ def apply_sale_invoice_full_edit(
         .get(pk=invoice.pk)
     )
     session = inv.work_session
-    if not session:
+    if not session and requires_work_session_for_pos():
         raise ValueError("NO_SESSION")
 
     svc = as_decimal(inv.service_charge_total)

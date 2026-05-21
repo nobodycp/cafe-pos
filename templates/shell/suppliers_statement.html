@@ -19,19 +19,19 @@
     </div>
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 overflow-x-auto">
       <table class="w-full text-sm">
-        <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الرصيد</th><th>المرجع</th></tr></thead>
+        <thead><tr><th>التاريخ</th><th>النوع</th><th class="text-end">المبلغ</th><th class="text-end">الرصيد</th><th>المرجع</th></tr></thead>
         <tbody>
           {% if page_obj.number == 1 %}
-          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد افتتاحي</td><td>{{ opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد افتتاحي</td><td class="text-end tabular-nums">{{ opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
           {% else %}
-          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد بداية الصفحة</td><td>{{ page_opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-bold"><td colspan="3">رصيد بداية الصفحة</td><td class="text-end tabular-nums">{{ page_opening_balance|floatformat:2|intcomma }}</td><td></td></tr>
           {% endif %}
           {% for r in rows %}
           <tr>
             <td>{{ r.date|date:"Y-m-d" }}</td>
             <td><span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold {% if r.entry_type == 'purchase' %}bg-info/10 text-info{% elif r.entry_type == 'payment' %}bg-success/10 text-success{% else %}bg-warning/20 text-yellow-700 dark:text-warning{% endif %}">{{ r.type }}</span></td>
-            <td class="font-semibold">{{ r.amount|floatformat:2|intcomma }}</td>
-            <td class="font-semibold">{{ r.running|floatformat:2|intcomma }}</td>
+            <td class="text-end font-semibold tabular-nums">{{ r.amount|floatformat:2|intcomma }}</td>
+            <td class="text-end font-semibold tabular-nums">{{ r.running|floatformat:2|intcomma }}</td>
             <td class="text-sm text-muted">
               {% if r.reference_model == "purchasing.PurchaseInvoice" and r.reference_pk %}
               {% include "shell/_purchase_invoice_view_btn.html" with invoice_pk=r.reference_pk label=r.reference %}
@@ -45,7 +45,7 @@
           {% empty %}
           <tr><td colspan="5" class="p-8 text-center text-muted">لا توجد حركات في الفترة المحددة</td></tr>
           {% endfor %}
-          <tr class="bg-gray-50 dark:bg-gray-700/50 font-extrabold"><td colspan="3">الرصيد الختامي</td><td class="{% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td><td></td></tr>
+          <tr class="bg-gray-50 dark:bg-gray-700/50 font-extrabold"><td colspan="3">الرصيد الختامي</td><td class="text-end tabular-nums {% if closing_balance > 0 %}text-danger{% elif closing_balance < 0 %}text-success{% endif %}">{{ closing_balance|floatformat:2|intcomma }}</td><td></td></tr>
         </tbody>
       </table>
       {% include "shell/_shell_pagination.html" %}
