@@ -8,7 +8,11 @@
       <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
     </div>
     <span class="min-w-0 flex-1"></span>
-    {% include "shell/_shell_toolbar_back.html" %}
+    <div class="shell-toolbar-actions flex flex-wrap items-center gap-2">
+      <a href="{% url 'shell:journal_create' %}" class="h-9 px-4 rounded-lg bg-primary text-white font-bold text-xs inline-flex items-center">قيد يدوي جديد</a>
+      <a href="{% url 'shell:journal_transfer' %}" class="h-9 px-4 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-xs inline-flex items-center">نقل بين حسابين</a>
+      {% include "shell/_shell_toolbar_back.html" %}
+    </div>
   </div>
   <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
     {% include "shell/_accounting_tabs.html" with accounting_tab="journal" %}
@@ -25,7 +29,7 @@
               <td>{% include "shell/_journal_entry_view_btn.html" with entry_pk=e.pk label=e.entry_number %}</td>
               <td>{{ e.date }}</td>
               <td>{{ e.description|truncatechars:80 }}</td>
-              <td class="text-xs text-muted">{% if e.reference_type == "billing.SaleInvoice" and e.reference_pk %}<button type="button" class="shell-invoice-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
+              <td class="text-xs text-muted">{% if e.reference_type == "accounting.ManualEntry" %}قيد يدوي{% elif e.reference_type == "billing.SaleInvoice" and e.reference_pk %}<button type="button" class="shell-invoice-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
                 data-detail-panel-url="{% url 'shell:sale_invoice_detail_panel' e.reference_pk %}"
                 data-detail-title="فاتورة بيع #{{ e.reference_pk }}">فاتورة بيع #{{ e.reference_pk }}</button>{% elif e.reference_type == "purchasing.PurchaseInvoice" and e.reference_pk %}<button type="button" class="shell-purchase-load-view text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
                 data-purchase-detail-panel-url="{% url 'shell:purchase_invoice_detail_panel' e.reference_pk %}"

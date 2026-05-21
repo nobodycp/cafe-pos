@@ -16,13 +16,22 @@ from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
 
 
-def open_orders_with_lines_queryset(work_session):
+def open_orders_with_lines_queryset(work_session=None):
     """
     طلبات مفتوحة تُعتبر «نشطة» فقط إذا وُجدت أسطر بكمية إجمالية > 0.
     طلب بلا أصناف لا يُحسب ضمن الطلبات المفتوحة (صالة / سفري / توصيل).
     """
+    from apps.core.operation_mode import requires_work_session_for_pos
+
+    if work_session is None and requires_work_session_for_pos():
+        return Order.objects.none()
+    ws_kw = (
+        {"work_session__isnull": True}
+        if work_session is None
+        else {"work_session": work_session}
+    )
     return (
-        Order.objects.filter(work_session=work_session, status=Order.Status.OPEN)
+        Order.objects.filter(**ws_kw, status=Order.Status.OPEN)
         .annotate(
             line_count=Count("lines", distinct=True),
             total_qty=Coalesce(

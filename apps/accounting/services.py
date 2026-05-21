@@ -14,9 +14,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.accounting.models import Account, JournalEntry, JournalLine
+from apps.core.gl_accounts import get_account_for_payment_method
 from apps.core.payment_methods import (
     get_payment_method_codes,
-    resolve_cash_bank_line_code,
     resolve_ledger_account_code,
 )
 from apps.core.decimalutil import as_decimal
@@ -127,10 +127,9 @@ def post_sale_invoice_journal(
         amt = as_decimal(amount)
         if amt <= 0:
             continue
-        sys_code = resolve_ledger_account_code(method)
-        if not sys_code:
+        if resolve_ledger_account_code(method) == "AR":
             continue
-        _add_line(entry, _get_account(sys_code), debit=amt, desc=f"تحصيل {method}")
+        _add_line(entry, get_account_for_payment_method(method), debit=amt, desc=f"تحصيل {method}")
 
     sales_rev = _get_account("SALES_REVENUE")
     commission_rev = _get_account("COMMISSION_REVENUE")
@@ -214,32 +213,27 @@ def post_purchase_invoice_journal(
         amt = as_decimal(amount)
         if amt <= 0:
             continue
-        if method == "credit":
+        if method == "credit" or resolve_ledger_account_code(method) == "AR":
             _add_line(entry, _get_account("AP"), credit=amt, desc="ذمم مورد")
-        elif method == "cash":
-            _add_line(entry, _get_account("CASH"), credit=amt, desc="دفع نقدي")
-        elif method == "bank":
-            _add_line(entry, _get_account("BANK"), credit=amt, desc="دفع بنكي")
+        else:
+            _add_line(entry, get_account_for_payment_method(method), credit=amt, desc="دفع")
 
     return entry
 
 
-def _expense_credit_system_code(method_code: str) -> str:
-    """حساب الدائن لمصروف: صندوق / بنك / ذمم دائنة (مثل فاتورة الشراء للآجل)."""
-    ledger = resolve_ledger_account_code(method_code)
-    if ledger == "AR":
-        return "AP"
-    if ledger == "CASH":
-        return "CASH"
-    return "BANK"
+def _expense_credit_account(method_code: str):
+    """حساب الدائن لمصروف: صندوق فرعي / بنك فرعي / ذمم دائنة للآجل."""
+    if resolve_ledger_account_code(method_code) == "AR":
+        return _get_account("AP")
+    return get_account_for_payment_method(method_code)
 
 
 def _expense_credit_buckets_from_model(expense) -> Dict[str, Decimal]:
-    """يجمع مبالغ الدائن حسب رمز الحساب المحاسبي (CASH / BANK / AP)."""
+    """يجمع مبالغ الدائن حسب رمز طريقة الدفع."""
     amount = as_decimal(expense.amount)
     pm = (expense.payment_method or "").strip().lower()
     raw = (getattr(expense, "payment_splits_json", None) or "").strip()
-    by_sys: Dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    by_method: Dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     codes_ok = get_payment_method_codes()
 
     if pm == "split":
@@ -265,13 +259,11 @@ def _expense_credit_buckets_from_model(expense) -> Dict[str, Decimal]:
             a = as_decimal(amt_raw)
             if a <= 0:
                 continue
-            sy = _expense_credit_system_code(code)
-            by_sys[sy] += a.quantize(Decimal("0.01"))
+            by_method[code] += a.quantize(Decimal("0.01"))
     else:
-        sy = _expense_credit_system_code(pm)
-        by_sys[sy] += amount.quantize(Decimal("0.01"))
+        by_method[pm] += amount.quantize(Decimal("0.01"))
 
-    return dict(by_sys)
+    return dict(by_method)
 
 
 @transaction.atomic
@@ -310,10 +302,10 @@ def post_expense_journal(
     total_credit = sum(as_decimal(v) for v in buckets.values()).quantize(Decimal("0.01"))
     if total_credit != amount.quantize(Decimal("0.01")):
         raise ValueError("EXPENSE_PAYMENT_MISMATCH")
-    for pay_sys, cred in sorted(buckets.items()):
+    for method_code, cred in sorted(buckets.items()):
         if cred <= 0:
             continue
-        _add_line(entry, _get_account(pay_sys), credit=cred, desc="دفع مصروف")
+        _add_line(entry, _expense_credit_account(method_code), credit=cred, desc="دفع مصروف")
 
     return entry
 
@@ -345,8 +337,7 @@ def post_customer_payment_journal(
     )
     entry.save()
 
-    pay_sys = resolve_cash_bank_line_code(method)
-    _add_line(entry, _get_account(pay_sys), debit=amt, desc="تحصيل")
+    _add_line(entry, get_account_for_payment_method(method), debit=amt, desc="تحصيل")
     _add_line(entry, _get_account("AR"), credit=amt, desc=f"خصم ذمم {customer.name_ar}")
 
     return entry
@@ -380,8 +371,7 @@ def post_supplier_payment_journal(
     entry.save()
 
     _add_line(entry, _get_account("AP"), debit=amt, desc=f"تسوية ذمم {supplier.name_ar}")
-    pay_sys = resolve_cash_bank_line_code(method)
-    _add_line(entry, _get_account(pay_sys), credit=amt, desc="سداد")
+    _add_line(entry, get_account_for_payment_method(method), credit=amt, desc="سداد")
 
     return entry
 
@@ -406,8 +396,7 @@ def post_customer_payment_journal_multi(
             continue
         if resolve_ledger_account_code(method) == "AR":
             continue
-        pay_sys = resolve_cash_bank_line_code(method)
-        debits[pay_sys] += amt
+        debits[method] += amt
         total_collected += amt
     total_collected = total_collected.quantize(Decimal("0.01"))
     if total_collected <= 0:
@@ -423,11 +412,11 @@ def post_customer_payment_journal_multi(
     )
     entry.save()
 
-    for pay_sys, sub in debits.items():
+    for method_code, sub in debits.items():
         sub = sub.quantize(Decimal("0.01"))
         if sub <= 0:
             continue
-        _add_line(entry, _get_account(pay_sys), debit=sub, desc="تحصيل")
+        _add_line(entry, get_account_for_payment_method(method_code), debit=sub, desc="تحصيل")
     _add_line(entry, _get_account("AR"), credit=total_collected, desc=f"خصم ذمم {customer.name_ar}")
 
     return entry
@@ -460,8 +449,7 @@ def post_employee_debt_repayment_journal(
     )
     entry.save()
 
-    pay_sys = resolve_cash_bank_line_code(method)
-    _add_line(entry, _get_account(pay_sys), debit=amt, desc="تحصيل من موظف")
+    _add_line(entry, get_account_for_payment_method(method), debit=amt, desc="تحصيل من موظف")
     _add_line(entry, _get_account("EXP_SALARIES"), credit=amt, desc=f"تسوية ذمة {employee.name_ar}")
 
     return entry
@@ -487,8 +475,7 @@ def post_employee_debt_repayment_journal_multi(
             continue
         if resolve_ledger_account_code(method) == "AR":
             continue
-        pay_sys = resolve_cash_bank_line_code(method)
-        debits[pay_sys] += amt
+        debits[method] += amt
         total_collected += amt
     total_collected = total_collected.quantize(Decimal("0.01"))
     if total_collected <= 0:
@@ -504,11 +491,11 @@ def post_employee_debt_repayment_journal_multi(
     )
     entry.save()
 
-    for pay_sys, sub in debits.items():
+    for method_code, sub in debits.items():
         sub = sub.quantize(Decimal("0.01"))
         if sub <= 0:
             continue
-        _add_line(entry, _get_account(pay_sys), debit=sub, desc="تحصيل من موظف")
+        _add_line(entry, get_account_for_payment_method(method_code), debit=sub, desc="تحصيل من موظف")
     _add_line(entry, _get_account("EXP_SALARIES"), credit=total_collected, desc=f"تسوية ذمة {employee.name_ar}")
 
     return entry
@@ -534,8 +521,7 @@ def post_supplier_payment_journal_multi(
             continue
         if resolve_ledger_account_code(method) == "AR":
             continue
-        pay_sys = resolve_cash_bank_line_code(method)
-        credits[pay_sys] += amt
+        credits[method] += amt
         total_paid += amt
     total_paid = total_paid.quantize(Decimal("0.01"))
     if total_paid <= 0:
@@ -552,13 +538,66 @@ def post_supplier_payment_journal_multi(
     entry.save()
 
     _add_line(entry, _get_account("AP"), debit=total_paid, desc=f"تسوية ذمم {supplier.name_ar}")
-    for pay_sys, sub in credits.items():
+    for method_code, sub in credits.items():
         sub = sub.quantize(Decimal("0.01"))
         if sub <= 0:
             continue
-        _add_line(entry, _get_account(pay_sys), credit=sub, desc="سداد")
+        _add_line(entry, get_account_for_payment_method(method_code), credit=sub, desc="سداد")
 
     return entry
+
+
+MANUAL_ENTRY_REFERENCE = "accounting.ManualEntry"
+
+
+@transaction.atomic
+def create_manual_journal_entry(
+    *,
+    date,
+    description: str,
+    lines: List[Tuple[Account, Decimal, Decimal, str]],
+    user=None,
+) -> JournalEntry:
+    """قيد يدوي متعدد الأسطر — مدين = دائن."""
+    entry = _build_entry(
+        description=description,
+        reference_type=MANUAL_ENTRY_REFERENCE,
+        user=user,
+        date=date,
+    )
+    entry.save()
+    for account, debit, credit, line_desc in lines:
+        _add_line(entry, account, debit=debit, credit=credit, desc=line_desc)
+    if not entry.is_balanced:
+        raise ValueError("UNBALANCED_ENTRY")
+    return entry
+
+
+@transaction.atomic
+def create_manual_transfer_entry(
+    *,
+    date,
+    description: str,
+    from_account: Account,
+    to_account: Account,
+    amount: Decimal,
+    user=None,
+) -> JournalEntry:
+    """نقل مبلغ بين حسابين: مدين الوجهة، دائن المصدر."""
+    amt = as_decimal(amount).quantize(Decimal("0.01"))
+    if amt <= 0:
+        raise ValueError("ZERO_AMOUNT")
+    if from_account.pk == to_account.pk:
+        raise ValueError("SAME_ACCOUNT")
+    return create_manual_journal_entry(
+        date=date,
+        description=description,
+        lines=[
+            (to_account, amt, Decimal("0"), description),
+            (from_account, Decimal("0"), amt, description),
+        ],
+        user=user,
+    )
 
 
 @transaction.atomic

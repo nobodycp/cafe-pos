@@ -109,14 +109,13 @@ def customize_product(request, order_id, product_id):
         {"order": order, "product": product, "groups": groups},
     )
 def kitchen_ticket(request, order_id, batch_no):
-    session = SessionService.get_open_session()
-    if not session:
-        messages.error(request, "افتح وردية عمل أولاً.")
+    if not SessionService.pos_is_ready():
+        messages.error(request, "الكاشير غير جاهز.")
         return redirect("pos:main")
     order = get_object_or_404(
         Order.objects.select_related("table", "work_session"),
         pk=order_id,
-        work_session=session,
+        **SessionService.pos_session_filter_kwargs(),
     )
     full = (request.GET.get("full") or "").strip() == "1"
     autoprint = (request.GET.get("autoprint") or "1").strip() != "0"
@@ -139,11 +138,10 @@ def kitchen_ticket(request, order_id, batch_no):
     )
 def kitchen_receipt_embed(request, order_id):
     """إيصال حراري للمطبخ بنفس قالب الدفع والطباعة (iframe داخل الكاشير)، بدون قسم طرق الدفع."""
-    session = SessionService.get_open_session()
-    if not session:
+    if not SessionService.pos_is_ready():
         return HttpResponse(
             '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8">'
-            "<body style=\"font:12px Tahoma;padding:12px;text-align:center\">افتح وردية عمل أولاً.</body></html>",
+            "<body style=\"font:12px Tahoma;padding:12px;text-align:center\">الكاشير غير جاهز.</body></html>",
             status=403,
             content_type="text/html; charset=utf-8",
         )
@@ -158,7 +156,7 @@ def kitchen_receipt_embed(request, order_id):
             Prefetch("lines", queryset=OrderLine.objects.select_related("product").order_by("pk")),
         ),
         pk=order_id,
-        work_session=session,
+        **SessionService.pos_session_filter_kwargs(),
         status=Order.Status.OPEN,
     )
     full = (request.GET.get("full") or "").strip() == "1"
@@ -217,11 +215,15 @@ def kitchen_receipt_embed(request, order_id):
     }
     return render(request, "pos/receipt_embed.html", ctx)
 def order_resume(request, order_id):
-    session = SessionService.get_open_session()
-    if not session:
-        messages.error(request, "افتح وردية عمل أولاً.")
+    if not SessionService.pos_is_ready():
+        messages.error(request, "الكاشير غير جاهز.")
         return redirect("pos:main")
-    order = get_object_or_404(Order, pk=order_id, work_session=session, status=Order.Status.OPEN)
+    order = get_object_or_404(
+        Order,
+        pk=order_id,
+        **SessionService.pos_session_filter_kwargs(),
+        status=Order.Status.OPEN,
+    )
     order.is_held = False
     order.save(update_fields=["is_held"])
     request.session["active_pos_order_id"] = order.id
@@ -230,7 +232,7 @@ def order_new(request):
     try:
         SessionService.require_open_session()
     except ValueError:
-        messages.error(request, "افتح وردية عمل قبل إنشاء طلب.")
+        messages.error(request, "افتح وردية عمل قبل إنشاء طلب (نمط الورديات).")
         return redirect("pos:main")
     otype = request.POST.get("order_type", Order.OrderType.DINE_IN)
     tid = request.POST.get("table_id")

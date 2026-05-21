@@ -2,7 +2,11 @@
 {% load humanize %}
 {% block title %}التقارير{% if CAFE_NAME_AR %} — {{ CAFE_NAME_AR }}{% endif %}{% endblock %}
 {% block cashier_body %}
+{% if uses_shifts_mode %}
 {% include "reports/_reports_shell_start.html" with toolbar_title="التقارير" toolbar_hint="مؤشرات اليوم والورديات" %}
+{% else %}
+{% include "reports/_reports_shell_start.html" with toolbar_title="التقارير" toolbar_hint="مؤشرات اليوم والصناديق" %}
+{% endif %}
 
 {# صف واحد مضغوط: مؤشرات اليوم + تقييم المخزون #}
 <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-1.5 mb-1.5">
@@ -84,6 +88,7 @@
   {% endif %}
 </div>
 
+{% if uses_shifts_mode %}
 <h2 class="text-[10px] font-extrabold mb-1 text-muted m-0">الورديات</h2>
 <div class="space-y-1.5">
 {% for b in session_blocks %}
@@ -117,6 +122,80 @@
   <div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 py-4 text-center text-[10px] text-muted">لا توجد ورديات بعد.</div>
 {% endfor %}
 </div>
+{% if open_work_session %}
+<p class="text-[10px] text-muted mt-2 mb-0">
+  <a href="{% url 'core:session_summary' %}" class="text-primary font-bold no-underline hover:underline">ملخص وإغلاق الوردية الحالية</a>
+</p>
+{% endif %}
+{% else %}
+<h2 class="text-[10px] font-extrabold mb-1 text-muted m-0">الصناديق (محاسبة مستمرة)</h2>
+<div class="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-2 mb-1.5">
+  <p class="text-[10px] text-muted mb-2 m-0 leading-relaxed">
+    الافتتاحي من <a href="{% url 'shell:settings' %}?tab=channel-balances" class="text-primary underline font-semibold">أرصدة الصناديق</a> في الإعدادات.
+    المطابقة التفصيلية في <a href="{% url 'shell:payment_boxes' %}" class="text-primary underline font-semibold">تقرير الصناديق</a>.
+  </p>
+  {% if payment_boxes_today and payment_boxes_today.rows %}
+  <div class="overflow-x-auto mb-2">
+    <table class="w-full text-[10px] tabular-nums">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-600 text-muted">
+          <th class="text-start py-1 px-1 font-bold">طريقة الدفع</th>
+          <th class="text-end py-1 px-1 font-bold">افتتاحي</th>
+          <th class="text-end py-1 px-1 font-bold">وارد</th>
+          <th class="text-end py-1 px-1 font-bold">صادر</th>
+          <th class="text-end py-1 px-1 font-bold">متبقي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in payment_boxes_today.rows %}
+        <tr class="border-b border-gray-50 dark:border-gray-700/60">
+          <td class="py-1 px-1 font-semibold">{{ row.label }}</td>
+          <td class="py-1 px-1 text-end">{{ row.opening|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end text-success">{{ row.inflow|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end text-danger">{{ row.outflow|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end font-bold text-primary">{{ row.balance|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="border-t border-gray-300 dark:border-gray-600 font-extrabold">
+          <td class="py-1 px-1">اليوم — إجمالي</td>
+          <td class="py-1 px-1 text-end">{{ payment_boxes_today.totals.opening|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end text-success">{{ payment_boxes_today.totals.inflow|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end text-danger">{{ payment_boxes_today.totals.outflow|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end text-primary">{{ payment_boxes_today.totals.balance|floatformat:2|intcomma }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% elif channel_balance_rows %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-[10px] tabular-nums">
+      <thead>
+        <tr class="border-b border-gray-200 dark:border-gray-600 text-muted">
+          <th class="text-start py-1 px-1 font-bold">طريقة الدفع</th>
+          <th class="text-end py-1 px-1 font-bold">رصيد افتتاحي</th>
+          <th class="text-end py-1 px-1 font-bold">تسويات</th>
+          <th class="text-end py-1 px-1 font-bold">حتى اليوم</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in channel_balance_rows %}
+        <tr class="border-b border-gray-50 dark:border-gray-700/60">
+          <td class="py-1 px-1 font-semibold">{{ row.label }}</td>
+          <td class="py-1 px-1 text-end">{{ row.opening|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end">{{ row.adjustments_sum|floatformat:2|intcomma }}</td>
+          <td class="py-1 px-1 text-end font-bold">{{ row.balance_as_of_today|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-[10px] text-muted text-center py-3 m-0">لم تُعرَّف أرصدة افتتاحية بعد — راجع الإعدادات.</p>
+  {% endif %}
+</div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>

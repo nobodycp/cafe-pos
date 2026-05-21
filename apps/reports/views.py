@@ -709,6 +709,7 @@ def payment_boxes_report(request):
             "totals": report["totals"],
             "opening_note": report["opening_note"],
             "has_opening_session": report["has_opening_session"],
+            "uses_shifts_mode": report["uses_shifts_mode"],
             "filters_open": bool(q or pay_method),
         },
     )

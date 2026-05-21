@@ -7,12 +7,12 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.billing.models import InvoicePayment, SaleInvoice
-from apps.core.models import PaymentMethod, WorkSession
+from apps.billing.models import InvoicePayment, OrderPayment, SaleInvoice
+from apps.core.models import PaymentMethod, PosSettings, WorkSession
 from apps.expenses.models import Expense, ExpenseCategory
 from apps.pos.models import Order
 from apps.purchasing.models import Supplier, SupplierPayment
-from apps.reports.payment_boxes import build_payment_boxes_report
+from apps.reports.payment_boxes import build_payment_boxes_report, pos_cashier_balance_snapshot
 
 User = get_user_model()
 
@@ -37,6 +37,9 @@ class PaymentBoxesReportTests(TestCase):
         cls.supplier = Supplier.objects.create(name_ar="مورد تجريبي")
 
     def setUp(self):
+        from apps.core.models import PosSettings
+
+        PosSettings.objects.update_or_create(pk=1, defaults={"operation_mode": "shifts"})
         WorkSession.objects.filter(status=WorkSession.Status.OPEN).update(status=WorkSession.Status.CLOSED)
         self.today = date.today()
         self.ws = WorkSession.objects.create(
@@ -107,6 +110,22 @@ class PaymentBoxesReportTests(TestCase):
         row = next(r for r in report["rows"] if r["code"] == "bank_ps")
         self.assertEqual(row["outflow"], Decimal("150.00"))
         self.assertEqual(row["opening"], Decimal("50.00"))
+
+    def test_tab_payment_counts_as_inflow_before_invoice(self):
+        PosSettings.objects.update_or_create(pk=1, defaults={"operation_mode": "continuous"})
+        order = Order.objects.create(
+            order_type=Order.OrderType.DINE_IN,
+            work_session=None,
+            status=Order.Status.OPEN,
+        )
+        OrderPayment.objects.create(order=order, method="cash", amount=Decimal("25.00"))
+        report = build_payment_boxes_report(self.today, self.today)
+        row = next(r for r in report["rows"] if r["code"] == "cash")
+        self.assertEqual(row["inflow"], Decimal("25.00"))
+        self.assertEqual(row["balance"], Decimal("25.00"))
+        snap = pos_cashier_balance_snapshot(work_session=None)
+        cash_snap = next(r for r in snap["rows"] if r["code"] == "cash")
+        self.assertGreaterEqual(cash_snap["balance"], Decimal("25.00"))
 
     def test_payment_boxes_page_renders(self):
         self.client.login(username="boxes_report", password="pass-12345")

@@ -96,3 +96,60 @@ def make_journal_line_formset():
         can_delete=True,
         min_num=0,
     )
+
+
+class ManualJournalLineForm(JournalLineEditForm):
+    class Meta(JournalLineEditForm.Meta):
+        widgets = {
+            **JournalLineEditForm.Meta.widgets,
+            "account": forms.HiddenInput(),
+        }
+
+
+def make_manual_journal_line_formset():
+    return modelformset_factory(
+        JournalLine,
+        form=ManualJournalLineForm,
+        formset=BaseJournalLineFormSet,
+        extra=4,
+        can_delete=True,
+        min_num=0,
+    )
+
+
+class ManualJournalTransferForm(forms.Form):
+    date = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date", "class": "form-input"}),
+        label="التاريخ",
+    )
+    description = forms.CharField(
+        label="الوصف",
+        widget=forms.Textarea(attrs={"class": "form-input", "rows": 2}),
+    )
+    from_account = forms.ModelChoiceField(
+        label="من حساب",
+        queryset=Account.objects.filter(is_active=True).order_by("code"),
+        widget=forms.HiddenInput(),
+    )
+    to_account = forms.ModelChoiceField(
+        label="إلى حساب",
+        queryset=Account.objects.filter(is_active=True).order_by("code"),
+        widget=forms.HiddenInput(),
+    )
+    amount = forms.DecimalField(
+        label="المبلغ",
+        min_value=Decimal("0.01"),
+        max_digits=14,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-input tabular-nums", "step": "0.01", "min": "0.01"}),
+    )
+
+    def clean(self):
+        cd = super().clean()
+        if not cd:
+            return cd
+        src = cd.get("from_account")
+        dst = cd.get("to_account")
+        if src and dst and src.pk == dst.pk:
+            raise ValidationError("اختر حسابين مختلفين.")
+        return cd

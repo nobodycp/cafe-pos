@@ -91,8 +91,8 @@
 }
 </style>
 
-{% if not work_session %}
-{# ─── No session ─── #}
+{% if uses_shifts and not work_session %}
+{# ─── No session (ورديات) ─── #}
 <div class="pos-start-shell flex items-center justify-center flex-1 p-2">
   <div class="bg-white dark:bg-gray-800 rounded-sm border border-gray-300 dark:border-gray-600 p-5 w-full max-w-md mx-2 max-h-[min(92vh,36rem)] overflow-y-auto">
     <h2 class="text-base font-bold text-center mb-1">{{ LBL.session_none|default:"افتح وردية عمل" }}</h2>
@@ -248,7 +248,11 @@
     <button type="button" class="shrink-0 h-7 rounded-sm border border-dashed border-gray-400 dark:border-gray-500 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:border-[#1e3a5f] hover:text-[#1e3a5f]" id="strip-add-table">+ طاولة</button>
   </div>
   <div id="pos-tables-lower-slot" class="pos-split-half min-h-0 flex flex-col overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+    {% if pos_ready and desk_balance_rows %}
+    {% include "pos/_desk_balance_panel.html" %}
+    {% else %}
     <div class="flex-1 min-h-0 rounded-md bg-gray-50/40 dark:bg-gray-900/30" aria-hidden="true"></div>
+    {% endif %}
   </div>
 </div>
 
@@ -375,8 +379,8 @@
   var TABLE_OPEN_URL='{% url "pos:table_open" %}';
   var CUR='{{ POS_SETTINGS.currency_symbol }}';
   var POS_MAIN_URL='{% url "pos:main" %}';
-  {% if work_session and POS_SETTINGS.allow_sale_invoice_edit %}var RESUME_LAST_INVOICE_URL='{% url "pos:last_invoice_resume" %}';{% else %}var RESUME_LAST_INVOICE_URL='';{% endif %}
-  {% if work_session %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
+  {% if pos_ready and POS_SETTINGS.allow_sale_invoice_edit %}var RESUME_LAST_INVOICE_URL='{% url "pos:last_invoice_resume" %}';{% else %}var RESUME_LAST_INVOICE_URL='';{% endif %}
+  {% if pos_ready %}var LAST_INVOICE_URL='{% url "pos:last_invoice" %}';{% else %}var LAST_INVOICE_URL='';{% endif %}
   var selectedLineId=null;
   var POS_PRODUCT_NAME_ID='{{ pos_product_name_input_id|default:""|escapejs }}';
   var POS_CUSTOMER_NAME_ID='{{ pos_customer_first_field_id|default:""|escapejs }}';

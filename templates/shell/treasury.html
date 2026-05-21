@@ -27,9 +27,9 @@
         <a href="{% url 'shell:accounting_treasury' %}?cancel_edit=1" class="shrink-0 font-bold text-[#1e3a5f] dark:text-sky-400 hover:underline">إلغاء التعديل</a>
       </div>
       {% endif %}
-      {% if not work_session %}
+      {% if uses_shifts_mode and not work_session %}
       <div class="mb-3 p-2 rounded-sm bg-warning/15 border border-warning text-xs font-semibold text-gray-800 dark:text-gray-200">
-        لا توجد وردية مفتوحة — يمكنك التسجيل على أي حال، وسيُربط القيد بالوردية إن وُجدت حيث ينطبق ذلك.
+        لا توجد وردية مفتوحة — يمكنك التسجيل على أي حال، وسيُربط السند بالوردية عند الإغلاق.
       </div>
       {% endif %}
         {% include "core/_treasury_voucher_form.html" with voucher_form=voucher_form voucher_layout="shell" treasury_replace_audit_pk=treasury_replace_audit_pk treasury_edit_party_label=treasury_edit_party_label %}

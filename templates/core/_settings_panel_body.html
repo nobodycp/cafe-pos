@@ -1,6 +1,10 @@
 {# عنوان الصفحة في شريط الغلاف — التبويبات بنفس نمط المصروفات/المحاسبة #}
 {% load core_extras %}
 <nav class="ds-shell-subtabs settings-nav-tabs" id="settingsTabs" role="tablist" aria-label="أقسام الإعدادات">
+  <a href="#operation-mode" data-tab="operation-mode" class="ds-shell-subtab{% if active_tab == 'operation-mode' %} is-active{% endif %}">نمط العمل</a>
+  {% if uses_continuous_mode %}
+  <a href="#channel-balances" data-tab="channel-balances" class="ds-shell-subtab{% if active_tab == 'channel-balances' %} is-active{% endif %}">أرصدة الصناديق</a>
+  {% endif %}
   <a href="#cafe" data-tab="cafe" class="ds-shell-subtab{% if active_tab == 'cafe' %} is-active{% endif %}">معلومات المقهى</a>
   <a href="#currency" data-tab="currency" class="ds-shell-subtab{% if active_tab == 'currency' %} is-active{% endif %}">العملة</a>
   <a href="#tax" data-tab="tax" class="ds-shell-subtab{% if active_tab == 'tax' %} is-active{% endif %}">الضريبة والخدمة</a>
@@ -11,6 +15,97 @@
   <a href="#database-backup" data-tab="database-backup" class="ds-shell-subtab{% if active_tab == 'database-backup' %} is-active{% endif %}">نسخ قاعدة البيانات</a>
   <a href="#test-data" data-tab="test-data" class="ds-shell-subtab{% if active_tab == 'test-data' %} is-active{% endif %} text-amber-200">اختبار — تفريغ البيانات</a>
 </nav>
+
+{# ── نمط العمل ── #}
+<div class="settings-section {% if active_tab == 'operation-mode' %}active{% endif %}" id="tab-operation-mode">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-3">نمط العمل</h2>
+    <p class="text-xs text-muted mb-4 max-w-3xl leading-relaxed">
+      <strong>ورديات:</strong> فتح وإغلاق وردية، مطابقة صناديق عند الإغلاق، والكاشير يتطلب وردية مفتوحة.
+      <strong class="mx-1">محاسبة مستمرة:</strong> بيع مباشر بدون وردية، والاعتماد على <a href="{% url 'shell:payment_boxes' %}" class="text-primary underline">تقرير الصناديق</a> بالفترة.
+      تبديل النمط بعد بدء التشغيل قد يؤثر على تجميع التقارير — راجع الأرصدة يدوياً.
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="operation-mode">
+      <div class="space-y-2 mb-4">
+        {% for radio in operation_mode_form.operation_mode %}
+        <label class="flex items-start gap-2 cursor-pointer text-sm">
+          {{ radio.tag }}
+          <span>{{ radio.choice_label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="ds-btn ds-btn-primary">حفظ نمط العمل</button>
+    </form>
+  </div>
+</div>
+
+{# ── أرصدة الصناديق (محاسبة مستمرة فقط) ── #}
+{% if uses_continuous_mode %}
+<div class="settings-section {% if active_tab == 'channel-balances' %}active{% endif %}" id="tab-channel-balances">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+    <h2 class="text-lg font-extrabold text-gray-800 dark:text-gray-100 mb-3">أرصدة الصناديق</h2>
+    <p class="text-xs text-muted mb-4 max-w-3xl">
+      الرصيد الافتتاحي لكل طريقة دفع (كاش/بنك) يُستخدم في <a href="{% url 'shell:payment_boxes' %}" class="text-primary underline">تقرير الصناديق</a>.
+      التسوية تتطلب صلاحية مدير النظام وتُسجَّل في القيود.
+    </p>
+    {% if channel_balance_rows %}
+    {% include "includes/_reconcile_table_styles.html" %}
+    <div class="overflow-x-auto mb-4">
+      <table class="reconcile-table w-full text-sm border border-gray-200 dark:border-gray-600 tabular-nums">
+        <thead class="bg-gray-50 dark:bg-gray-900">
+          <tr>
+            <th class="col-label">طريقة الدفع</th>
+            <th class="col-num">رصيد افتتاحي</th>
+            <th class="col-num">مجموع تسويات</th>
+            <th class="col-num">الرصيد حتى اليوم</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in channel_balance_rows %}
+          <tr class="border-t border-gray-100 dark:border-gray-700">
+            <td class="col-label">{{ row.label }}</td>
+            <td class="col-num">{{ row.opening|floatformat:2 }}</td>
+            <td class="col-num">{{ row.adjustments_sum|floatformat:2 }}</td>
+            <td class="col-num font-semibold">{{ row.balance_as_of_today|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if user.is_superuser %}
+    <h3 class="text-sm font-bold mb-2">سند تسوية رصيد</h3>
+    <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end max-w-4xl">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="channel-balance-adjust">
+      <div>
+        <label class="block text-xs text-muted mb-1">طريقة الدفع</label>
+        {{ balance_adjust_form.method }}
+      </div>
+      <div>
+        <label class="block text-xs text-muted mb-1">المبلغ (+ / −)</label>
+        {{ balance_adjust_form.amount_delta }}
+      </div>
+      <div>
+        <label class="block text-xs text-muted mb-1">التاريخ</label>
+        {{ balance_adjust_form.effective_date }}
+      </div>
+      <div class="md:col-span-1">
+        <button type="submit" class="ds-btn ds-btn-primary w-full">تسجيل تسوية</button>
+      </div>
+      <div class="md:col-span-4">
+        <label class="block text-xs text-muted mb-1">السبب</label>
+        {{ balance_adjust_form.reason }}
+      </div>
+    </form>
+    {% else %}
+    <p class="text-xs text-muted">تسجيل التسوية متاح لمدير النظام (superuser) فقط.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 
 {# ── معلومات المقهى ── #}
 <div class="settings-section {% if active_tab == 'cafe' %}active{% endif %}" id="tab-cafe">
@@ -206,10 +301,14 @@
         </div>
       </div>
       <div class="flex flex-wrap gap-x-6 gap-y-2 mb-5 pb-4 border-b border-gray-200 dark:border-gray-600">
+        {% if uses_shifts_mode %}
         <label class="flex items-center gap-2 cursor-pointer">
           {{ receipt.receipt_show_work_session }}
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.receipt_show_work_session.label }}</span>
         </label>
+        {% else %}
+        <p class="text-xs text-muted m-0 w-full">في المحاسبة المستمرة لا يُعرض سطر الوردية على الإيصال.</p>
+        {% endif %}
         <label class="flex items-center gap-2 cursor-pointer">
           {{ receipt.allow_sale_invoice_edit }}
           <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ receipt.allow_sale_invoice_edit.label }}</span>

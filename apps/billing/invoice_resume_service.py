@@ -153,23 +153,23 @@ def resume_last_sale_invoice_into_cart(*, user) -> Order:
     if not get_pos_settings().allow_sale_invoice_edit:
         raise ValueError("تعديل فواتير البيع غير مفعّل في الإعدادات (تبويب الإيصال).")
 
-    session = SessionService.require_open_session()
+    SessionService.require_open_session()
 
     inv = (
-        SaleInvoice.objects.filter(is_cancelled=False, work_session=session)
+        SaleInvoice.objects.filter(is_cancelled=False, **SessionService.pos_session_filter_kwargs())
         .select_related("order", "order__table_session")
         .order_by("-created_at", "-pk")
         .first()
     )
     if inv is None:
-        raise ValueError("لا توجد فاتورة بيع في هذه الوردية.")
+        raise ValueError("لا توجد فاتورة بيع في هذا السياق.")
 
     ok, msg = can_edit_sale_invoice(inv)
     if not ok:
         raise ValueError(msg or "لا يمكن استئناف هذه الفاتورة.")
 
     order = Order.objects.select_for_update().select_related("table_session").get(pk=inv.order_id)
-    if order.work_session_id != session.id:
+    if not SessionService.order_belongs_to_pos_context(order):
         raise ValueError("ORDER_SESSION_MISMATCH")
 
     if order.status == Order.Status.OPEN:
@@ -198,10 +198,15 @@ def resume_last_sale_invoice_into_cart(*, user) -> Order:
 def hold_current_pos_order_if_needed(*, user, session, current_order_id: Optional[int], target_order_id: int) -> None:
     if not current_order_id or int(current_order_id) == int(target_order_id):
         return
+    ws_kw = (
+        {"work_session": session}
+        if session is not None
+        else SessionService.pos_session_filter_kwargs()
+    )
     cur = (
         Order.objects.filter(
             pk=current_order_id,
-            work_session=session,
+            **ws_kw,
             status=Order.Status.OPEN,
             is_held=False,
         ).first()
@@ -228,7 +233,7 @@ def update_sale_invoice_from_order(
     from apps.billing import tab_service as tabs
 
     session = SessionService.require_open_session()
-    if order.work_session_id != session.id:
+    if not SessionService.order_belongs_to_pos_context(order):
         raise ValueError("ORDER_SESSION_MISMATCH")
     if order.status != Order.Status.OPEN:
         raise ValueError("ORDER_NOT_OPEN")

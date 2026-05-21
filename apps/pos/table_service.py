@@ -15,6 +15,12 @@ from apps.core.services import SessionService
 from apps.pos.models import DiningTable, Order, TableSession
 
 
+def _ws_filter(work_session):
+    if work_session is None:
+        return {"work_session__isnull": True}
+    return {"work_session": work_session}
+
+
 @transaction.atomic
 def open_or_resume_table_session(
     *,
@@ -28,7 +34,7 @@ def open_or_resume_table_session(
     ts = (
         TableSession.objects.select_for_update()
         .filter(
-            work_session=ws,
+            **_ws_filter(ws),
             dining_table=dining_table,
             status=TableSession.Status.OPEN,
         )
@@ -100,7 +106,7 @@ def auto_close_empty_dine_in_tab_orders(work_session) -> int:
 
     qs = (
         Order.objects.filter(
-            work_session=work_session,
+            **_ws_filter(work_session),
             status=Order.Status.OPEN,
             order_type=Order.OrderType.DINE_IN,
         )
@@ -125,7 +131,7 @@ def auto_close_empty_dine_in_tab_orders(work_session) -> int:
             "pos.order.auto_close_empty_tab",
             "pos.Order",
             str(order.pk),
-            {"work_session": work_session.pk},
+            {"work_session": work_session.pk if work_session else None},
         )
         closed += 1
     return closed
@@ -140,7 +146,7 @@ def close_stale_open_table_sessions_for_work_session(work_session) -> int:
     closed = 0
     candidates = list(
         TableSession.objects.select_for_update().filter(
-            work_session=work_session,
+            **_ws_filter(work_session),
             status=TableSession.Status.OPEN,
         )
     )
@@ -235,7 +241,7 @@ def floor_rows_for_session(work_session) -> List[dict]:
 
     open_sessions_list = list(
         TableSession.objects.filter(
-            work_session=work_session,
+            **_ws_filter(work_session),
             status=TableSession.Status.OPEN,
         )
         .select_related("dining_table", "customer")
@@ -283,7 +289,7 @@ def floor_rows_for_session(work_session) -> List[dict]:
 
     orphan_orders = (
         Order.objects.filter(
-            work_session=work_session,
+            **_ws_filter(work_session),
             status=Order.Status.OPEN,
             order_type=Order.OrderType.DINE_IN,
             table_id__isnull=False,

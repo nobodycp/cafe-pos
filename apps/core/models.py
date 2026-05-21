@@ -142,6 +142,15 @@ class PaymentMethod(models.Model):
     )
     is_active = models.BooleanField(_("نشط"), default=True)
     sort_order = models.PositiveSmallIntegerField(_("الترتيب"), default=0)
+    gl_account = models.ForeignKey(
+        "accounting.Account",
+        verbose_name=_("حساب محاسبي"),
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="payment_methods",
+        help_text=_("حساب فرعي للصندوق/البنك — يُنشأ تلقائياً لطرق cash/bank."),
+    )
 
     class Meta:
         verbose_name = _("طريقة دفع")
@@ -156,6 +165,21 @@ class PosSettings(models.Model):
     """Singleton row pk=1 — all system settings."""
 
     id = models.PositiveSmallIntegerField(primary_key=True, default=1)
+
+    class OperationMode(models.TextChoices):
+        SHIFTS = "shifts", _("ورديات عمل")
+        CONTINUOUS = "continuous", _("محاسبة مستمرة")
+
+    operation_mode = models.CharField(
+        _("نمط العمل"),
+        max_length=16,
+        choices=OperationMode.choices,
+        default=OperationMode.CONTINUOUS,
+        help_text=_(
+            "ورديات: فتح/إغلاق وردية ومطابقة صناديق. "
+            "مستمر: بيع بدون وردية وتقرير الصناديق بالفترة."
+        ),
+    )
 
     # ── معلومات المقهى ──
     cafe_name_ar = models.CharField(_("اسم المقهى (عربي)"), max_length=200, blank=True)
@@ -273,6 +297,83 @@ def log_audit(user, action: str, model_label: str = "", object_pk: str = "", pay
         object_pk=str(object_pk) if object_pk is not None else "",
         payload=payload or {},
     )
+
+
+class PaymentChannelBalance(models.Model):
+    """رصيد افتتاحي تشغيلي لطريقة دفع (وضع المحاسبة المستمرة)."""
+
+    method = models.OneToOneField(
+        PaymentMethod,
+        verbose_name=_("طريقة الدفع"),
+        on_delete=models.CASCADE,
+        related_name="channel_balance",
+    )
+    opening_balance = models.DecimalField(
+        _("رصيد افتتاحي"),
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+    )
+    updated_at = models.DateTimeField(_("آخر تحديث"), auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("آخر مُحدِّث"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payment_channel_balance_updates",
+    )
+
+    class Meta:
+        verbose_name = _("رصيد صندوق")
+        verbose_name_plural = _("أرصدة الصناديق")
+
+    def __str__(self):
+        return f"{self.method.label_ar}: {self.opening_balance}"
+
+
+class BalanceAdjustment(models.Model):
+    """سند تسوية رصيد صندوق — superuser فقط."""
+
+    method = models.ForeignKey(
+        PaymentMethod,
+        verbose_name=_("طريقة الدفع"),
+        on_delete=models.PROTECT,
+        related_name="balance_adjustments",
+    )
+    amount_delta = models.DecimalField(
+        _("مبلغ التسوية"),
+        max_digits=14,
+        decimal_places=2,
+        help_text=_("موجب يزيد الرصيد، سالب ينقصه."),
+    )
+    reason = models.TextField(_("السبب"))
+    effective_date = models.DateField(_("تاريخ التسوية"))
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("أنشأه"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="balance_adjustments_created",
+    )
+    journal_entry = models.ForeignKey(
+        "accounting.JournalEntry",
+        verbose_name=_("قيد يومي"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="balance_adjustments",
+    )
+
+    class Meta:
+        verbose_name = _("تسوية رصيد صندوق")
+        verbose_name_plural = _("تسويات أرصدة الصناديق")
+        ordering = ("-effective_date", "-pk")
+
+    def __str__(self):
+        return f"{self.method.label_ar} {self.amount_delta} ({self.effective_date})"
 
 
 def get_pos_settings() -> "PosSettings":

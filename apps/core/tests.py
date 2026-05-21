@@ -122,6 +122,9 @@ class SessionSummarySupplierPaymentTests(TestCase):
         cls.supplier = Supplier.objects.create(name_ar="تاجر تجريبي")
 
     def setUp(self):
+        from apps.core.models import PosSettings
+
+        PosSettings.objects.update_or_create(pk=1, defaults={"operation_mode": "shifts"})
         WorkSession.objects.filter(status=WorkSession.Status.OPEN).update(status=WorkSession.Status.CLOSED)
         self.ws = WorkSession.objects.create(
             opened_by=self.user,

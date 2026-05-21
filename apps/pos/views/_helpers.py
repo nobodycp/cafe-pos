@@ -61,12 +61,17 @@ from apps.pos.table_service import (
 POS_CUSTOMER_FORM_PREFIX = "poscc"
 
 def _get_order_for_session(order_id, **extra_filters):
-    """Get an open order that belongs to the current work session."""
-    session = SessionService.get_open_session()
-    if not session:
+    """طلب مفتوح ضمن سياق الكاشير الحالي (وردية أو مستمر)."""
+    if not SessionService.pos_is_ready():
         from django.http import Http404
+
         raise Http404
-    return get_object_or_404(Order, pk=order_id, work_session=session, **extra_filters)
+    return get_object_or_404(
+        Order,
+        pk=order_id,
+        **SessionService.pos_session_filter_kwargs(),
+        **extra_filters,
+    )
 def _post_redirect_after_cancel(request):
     """مسموح فقط لقيم محدّدة بعد إلغاء الطلب (نماذج POST من الواجهة)."""
     if (request.POST.get("next") or "").strip() == "session_summary":

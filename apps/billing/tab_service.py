@@ -223,7 +223,7 @@ def create_sale_invoice_core(
     if SaleInvoice.objects.filter(order=order).exists():
         raise ValueError("INVOICE_ALREADY_EXISTS")
     session = SessionService.require_open_session()
-    if order.work_session_id != session.id:
+    if not SessionService.order_belongs_to_pos_context(order):
         raise ValueError("ORDER_SESSION_MISMATCH")
     if order.status != Order.Status.OPEN:
         raise ValueError("ORDER_NOT_OPEN")

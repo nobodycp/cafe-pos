@@ -1,0 +1,34 @@
+{% load humanize %}
+<div class="flex min-h-0 flex-1 flex-col overflow-hidden" dir="rtl">
+  <div class="shrink-0 border-b border-gray-200 px-1 py-1 text-center text-[10px] font-bold text-gray-500 dark:border-gray-700">
+    المتبقي النهائي
+    {% if desk_balance_period %}
+    <span class="block text-[8px] font-normal text-gray-400 dark:text-gray-500">{{ desk_balance_period }}</span>
+    {% endif %}
+  </div>
+  <div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-0.5">
+    <table class="w-full text-[10px] tabular-nums leading-tight">
+      <thead>
+        <tr class="border-b border-gray-200 text-gray-400 dark:border-gray-700">
+          <th class="py-0.5 text-start font-bold">طريقة الدفع</th>
+          <th class="py-0.5 text-end font-bold">المتبقي النهائي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in desk_balance_rows %}
+        <tr class="border-b border-gray-100 dark:border-gray-800/80">
+          <td class="py-0.5 pe-1 font-semibold text-gray-700 dark:text-gray-200 truncate max-w-[5.5rem]" title="{{ row.label }}">{{ row.label }}</td>
+          <td class="py-0.5 text-end font-bold text-[#1e3a5f] dark:text-sky-300 whitespace-nowrap">{{ row.balance|floatformat:2|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="py-2 text-center text-[9px] text-gray-400">لا توجد طرق كاش/بنك</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="shrink-0 border-t border-gray-100 py-0.5 text-center text-[8px] text-gray-400 dark:border-gray-800">
+    <a href="{% url 'shell:payment_boxes' %}" class="font-bold text-[#1e3a5f] hover:underline dark:text-sky-400">تقرير الصناديق</a>
+  </p>
+</div>

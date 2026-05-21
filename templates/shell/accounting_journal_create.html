@@ -1,0 +1,103 @@
+{% extends "shell/base.html" %}
+{% load static %}
+{% block title %}قيد يدوي جديد{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">قيد يدوي جديد</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">القيود اليومية</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <div class="shell-toolbar-actions flex items-center gap-2">
+      <a href="{% url 'shell:journal_transfer' %}" class="shell-toolbar-link text-[11px] font-bold">نقل بين حسابين</a>
+      {% include "shell/_shell_toolbar_back.html" %}
+    </div>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+    {% include "shell/_accounting_tabs.html" with accounting_tab="journal_create" %}
+    <div class="mb-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 p-3 text-sm text-gray-800 dark:text-gray-100">
+      <p class="mb-1">قيد محاسبي يدوي — أدخل سطرين أو أكثر بحيث يتساوى مجموع المدين مع مجموع الدائن.</p>
+      <p class="text-xs text-muted">مثال ضيافة عبر زبون: إن كان المبلغ مُسجَّلاً على حساب ذمم أو صندوق، انقله إلى حساب مصروف (مثل 6008 مصروفات أخرى أو حساب «مصاريف ضيافة» إن أضفته في الدليل) عبر <a href="{% url 'shell:journal_transfer' %}" class="text-primary font-bold hover:underline">نقل بين حسابين</a>.</p>
+    </div>
+    <form method="post" class="space-y-4" id="manual-journal-form">
+      {% csrf_token %}
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="{{ entry_form.date.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">التاريخ</label>
+            {{ entry_form.date }}
+            {% for e in entry_form.date.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+          </div>
+        </div>
+        <div>
+          <label for="{{ entry_form.description.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">وصف القيد</label>
+          {{ entry_form.description }}
+          {% for e in entry_form.description.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+        </div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+        <h2 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">أسطر القيد</h2>
+        <p class="text-xs text-muted mb-3">ابحث عن الحساب بالرمز أو الاسم. كل سطر إما مدين أو دائن (ليس الاثنين).</p>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+        <div class="mb-2 text-danger text-sm font-semibold">{% for e in formset.non_form_errors %}<p>{{ e }}</p>{% endfor %}</div>
+        {% endif %}
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200 dark:border-gray-600">
+                <th class="text-right py-2 px-1 font-bold min-w-[14rem]">الحساب</th>
+                <th class="text-right py-2 px-1 font-bold">البيان</th>
+                <th class="text-right py-2 px-1 font-bold w-28">مدين</th>
+                <th class="text-right py-2 px-1 font-bold w-28">دائن</th>
+                <th class="text-center py-2 px-1 font-bold w-16">حذف</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in formset %}
+              <tr class="border-b border-gray-100 dark:border-gray-700 align-top journal-line-row">
+                <td class="py-2 px-1 relative">
+                  {{ f.id }}
+                  <input type="text" class="form-input js-account-search-input w-full" autocomplete="off" placeholder="رمز أو اسم الحساب" aria-label="بحث حساب">
+                  {{ f.account }}
+                  <div class="js-account-search-hits absolute z-50 mt-0.5 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg" style="display:none"></div>
+                  {% for e in f.account.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}
+                </td>
+                <td class="py-2 px-1">{{ f.description }}{% for e in f.description.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1">{{ f.debit }}{% for e in f.debit.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1">{{ f.credit }}{% for e in f.credit.errors %}<p class="text-danger text-[10px]">{{ e }}</p>{% endfor %}</td>
+                <td class="py-2 px-1 text-center">{% if f.DELETE %}{{ f.DELETE }}{% endif %}</td>
+              </tr>
+              {% if f.non_field_errors %}
+              <tr><td colspan="5" class="pb-2 text-danger text-xs">{% for e in f.non_field_errors %}{{ e }}{% endfor %}</td></tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" class="h-11 px-6 rounded-lg bg-primary text-white font-bold text-sm">حفظ القيد</button>
+        <a href="{% url 'shell:journal_list' %}" class="h-11 px-6 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm inline-flex items-center">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block cashier_scripts %}
+<script src="{% static 'js/account_search_autocomplete.js' %}"></script>
+<script>
+(function () {
+  var searchUrl = "{{ accounts_search_url|escapejs }}";
+  function bindRow(row) {
+    var inp = row.querySelector('.js-account-search-input');
+    var hits = row.querySelector('.js-account-search-hits');
+    var hidden = row.querySelector('input[type="hidden"][name$="-account"]');
+    if (!inp || !hits || !hidden || !window.AccountSearchAutocomplete) return;
+    AccountSearchAutocomplete.bind({ searchUrl: searchUrl, input: inp, hits: hits, hidden: hidden });
+  }
+  document.querySelectorAll('.journal-line-row').forEach(bindRow);
+})();
+</script>
+{% endblock %}

@@ -51,23 +51,31 @@ def session_block(ws: WorkSession) -> dict:
 
 def build_dashboard_context() -> dict:
     from apps.contacts.models import Customer
+    from apps.core.operation_mode import uses_continuous, uses_shifts
+    from apps.core.payment_channel_balance import channel_balance_rows_for_settings
     from apps.inventory.services import low_stock_alert_queryset
+    from apps.reports.payment_boxes import build_payment_boxes_report
 
-    open_s = SessionService.get_open_session()
-    closed = WorkSession.objects.filter(status=WorkSession.Status.CLOSED).order_by("-closed_at")[:14]
+    today = date.today()
+    session_ctx: list = []
+    channel_balance_rows: list = []
+    payment_boxes_today = None
 
-    session_ctx = []
-    for ws in [open_s] if open_s else []:
-        session_ctx.append(session_block(ws))
-    for ws in closed:
-        session_ctx.append(session_block(ws))
+    if uses_shifts():
+        open_s = SessionService.get_open_session()
+        closed = WorkSession.objects.filter(status=WorkSession.Status.CLOSED).order_by("-closed_at")[:14]
+        for ws in [open_s] if open_s else []:
+            session_ctx.append(session_block(ws))
+        for ws in closed:
+            session_ctx.append(session_block(ws))
+    elif uses_continuous():
+        channel_balance_rows = channel_balance_rows_for_settings()
+        payment_boxes_today = build_payment_boxes_report(date_from=today, date_to=today)
 
     inv_val = sum(
         (b.quantity_on_hand * b.average_cost for b in StockBalance.objects.select_related("product")),
         Decimal("0"),
     )
-
-    today = date.today()
     yesterday = today - timedelta(days=1)
 
     today_invs = SaleInvoice.objects.filter(is_cancelled=False, created_at__date=today)
@@ -112,6 +120,8 @@ def build_dashboard_context() -> dict:
 
     return {
         "session_blocks": session_ctx,
+        "channel_balance_rows": channel_balance_rows,
+        "payment_boxes_today": payment_boxes_today,
         "inventory_valuation": inv_val,
         "today_sales": today_sales,
         "today_profit": today_profit,

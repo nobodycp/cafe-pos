@@ -19,6 +19,8 @@ class SaleInvoice(SoftDeleteModel):
         verbose_name=_("الوردية"),
         on_delete=models.PROTECT,
         related_name="sale_invoices",
+        null=True,
+        blank=True,
     )
     order = models.OneToOneField(
         "pos.Order",

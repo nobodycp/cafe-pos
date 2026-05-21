@@ -91,6 +91,7 @@
     <div class="min-w-0 overflow-hidden flex flex-col min-h-0 ds-bg-shell-column">
       <header class="pos-topbar ds-topbar-header ds-bg-topbar no-print shrink-0 flex flex-wrap items-center justify-between gap-y-1 gap-x-2 min-h-10 px-2 sm:px-3 py-1.5" aria-label="الشريط العلوي">
         {% if user.is_authenticated %}
+          {% if uses_shifts_mode %}
           {% if open_work_session and request.resolver_match and request.resolver_match.url_name == 'session_summary' %}
           {% elif open_work_session or not request.resolver_match or request.resolver_match.namespace != 'pos' %}
         <div class="flex items-center gap-2 shrink-0 border-e border-white/20 pe-3">
@@ -99,6 +100,12 @@
           {% else %}
           <a href="{% url 'pos:main' %}" class="text-[11px] font-bold text-amber-200 no-underline hover:text-white tracking-wide whitespace-nowrap" title="فتح وردية جديدة من الكاشير">{{ LBL.session_open }}</a>
           {% endif %}
+        </div>
+          {% endif %}
+          {% elif uses_continuous_mode and request.resolver_match and request.resolver_match.namespace != 'pos' %}
+        <div class="flex items-center gap-2 shrink-0 border-e border-white/20 pe-3">
+          <a href="{% url 'shell:payment_boxes' %}" class="text-[11px] font-bold text-white no-underline hover:text-amber-200 tracking-wide whitespace-nowrap" title="تقرير الصناديق">الصناديق</a>
+          <a href="{% url 'shell:settings' %}?tab=channel-balances" class="text-[11px] font-bold text-amber-200 no-underline hover:text-white tracking-wide whitespace-nowrap" title="أرصدة الصناديق">أرصدة</a>
         </div>
           {% endif %}
         {% endif %}

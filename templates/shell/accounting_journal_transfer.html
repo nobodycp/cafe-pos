@@ -1,0 +1,85 @@
+{% extends "shell/base.html" %}
+{% load static %}
+{% block title %}نقل بين حسابين{% endblock %}
+{% block cashier_body %}
+<div class="pos-shell-page flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div class="pos-shell-toolbar shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+    <div class="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3">
+      <span class="pos-shell-toolbar-title shrink-0">نقل بين حسابين</span>
+      <span class="pos-shell-toolbar-hint hidden lg:inline">قيد يدوي</span>
+    </div>
+    <span class="min-w-0 flex-1"></span>
+    <div class="shell-toolbar-actions flex items-center gap-2">
+      <a href="{% url 'shell:journal_create' %}" class="shell-toolbar-link text-[11px] font-bold">قيد يدوي متعدد الأسطر</a>
+      {% include "shell/_shell_toolbar_back.html" %}
+    </div>
+  </div>
+  <div class="pos-shell-content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 max-w-2xl">
+    {% include "shell/_accounting_tabs.html" with accounting_tab="journal_transfer" %}
+    <div class="mb-3 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm text-gray-800 dark:text-gray-100">
+      <p class="font-bold mb-1">كيف يُسجَّل النقل؟</p>
+      <p class="text-xs leading-relaxed">يُنشئ قيداً بسطرين: <strong>مدين</strong> حساب الوجهة (إلى)، و<strong>دائن</strong> حساب المصدر (من). مثال ضيافة مُرحَّلة على زبون/ذمم: من حساب الذمم المدينة (1003) أو الصندوق إلى حساب مصروف ضيافة (مثل 6008 أو حساب مخصص في الدليل).</p>
+    </div>
+    <form method="post" class="space-y-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      {% csrf_token %}
+      <div>
+        <label for="{{ form.date.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">{{ form.date.label }}</label>
+        {{ form.date }}
+        {% for e in form.date.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="relative">
+        <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">{{ form.from_account.label }}</label>
+        <input type="text" id="transfer-from-search" class="form-input w-full js-account-search-input" autocomplete="off" placeholder="رمز أو اسم الحساب المصدر">
+        {{ form.from_account }}
+        <div id="transfer-from-hits" class="absolute z-50 mt-0.5 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg" style="display:none"></div>
+        {% for e in form.from_account.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div class="relative">
+        <label class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">{{ form.to_account.label }}</label>
+        <input type="text" id="transfer-to-search" class="form-input w-full js-account-search-input" autocomplete="off" placeholder="رمز أو اسم حساب الوجهة (مصروف)">
+        {{ form.to_account }}
+        <div id="transfer-to-hits" class="absolute z-50 mt-0.5 w-full max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg" style="display:none"></div>
+        {% for e in form.to_account.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label for="{{ form.amount.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">{{ form.amount.label }}</label>
+        {{ form.amount }}
+        {% for e in form.amount.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      <div>
+        <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1">{{ form.description.label }}</label>
+        {{ form.description }}
+        {% for e in form.description.errors %}<p class="text-danger text-xs mt-1">{{ e }}</p>{% endfor %}
+      </div>
+      {% if form.non_field_errors %}
+      <div class="text-danger text-sm font-semibold">{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div>
+      {% endif %}
+      <div class="flex flex-wrap gap-2 pt-2">
+        <button type="submit" class="h-11 px-6 rounded-lg bg-primary text-white font-bold text-sm">حفظ النقل</button>
+        <a href="{% url 'shell:journal_list' %}" class="h-11 px-6 rounded-lg border border-gray-300 dark:border-gray-600 font-bold text-sm inline-flex items-center">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block cashier_scripts %}
+<script src="{% static 'js/account_search_autocomplete.js' %}"></script>
+<script>
+(function () {
+  var searchUrl = "{{ accounts_search_url|escapejs }}";
+  if (!window.AccountSearchAutocomplete) return;
+  AccountSearchAutocomplete.bind({
+    searchUrl: searchUrl,
+    input: document.getElementById('transfer-from-search'),
+    hits: document.getElementById('transfer-from-hits'),
+    hidden: document.getElementById('{{ form.from_account.id_for_label }}'),
+  });
+  AccountSearchAutocomplete.bind({
+    searchUrl: searchUrl,
+    input: document.getElementById('transfer-to-search'),
+    hits: document.getElementById('transfer-to-hits'),
+    hidden: document.getElementById('{{ form.to_account.id_for_label }}'),
+  });
+})();
+</script>
+{% endblock %}

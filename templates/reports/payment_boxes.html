@@ -61,7 +61,11 @@
   <h3 class="text-base font-extrabold text-gray-800 dark:text-gray-100 mb-2">مطابقة الصناديق للفترة</h3>
   <p class="text-xs text-muted mb-4">
     لكل طريقة دفع نقدية أو بنكية:
+    {% if uses_shifts_mode %}
     {% if has_opening_session %}افتتاحي (أول وردية في الفترة) +{% endif %}
+    {% else %}
+    افتتاحي (أرصدة الصناديق + تسويات) +
+    {% endif %}
     وارد (تحصيل فواتير + سندات قبض) − صادر (مصروفات + سداد موردين) = المتبقي.
   </p>
   {% include "includes/_reconcile_table_styles.html" %}

@@ -42,6 +42,39 @@ from apps.payroll.models import Employee
 from apps.purchasing.models import Supplier
 
 
+class BalanceAdjustmentForm(forms.Form):
+    method = forms.ModelChoiceField(
+        queryset=PaymentMethod.objects.filter(is_active=True, ledger__in=["cash", "bank"]).order_by(
+            "sort_order", "pk"
+        ),
+        label="طريقة الدفع",
+        widget=forms.Select(attrs={"class": "form-input"}),
+    )
+    amount_delta = forms.DecimalField(
+        label="مبلغ التسوية",
+        max_digits=14,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-input", "step": "0.01", "dir": "ltr"}),
+    )
+    effective_date = forms.DateField(
+        label="تاريخ التسوية",
+        widget=forms.DateInput(attrs={"class": "form-input", "type": "date"}),
+    )
+    reason = forms.CharField(
+        label="السبب",
+        widget=forms.Textarea(attrs={"class": "form-input", "rows": 2}),
+    )
+
+
+class OperationModeForm(forms.ModelForm):
+    class Meta:
+        model = PosSettings
+        fields = ["operation_mode"]
+        widgets = {
+            "operation_mode": forms.RadioSelect(attrs={"class": "form-check"}),
+        }
+
+
 class CafeInfoForm(forms.ModelForm):
     class Meta:
         model = PosSettings
@@ -244,6 +277,10 @@ class PaymentMethodForm(forms.ModelForm):
             obj.code = self.instance.code
         if commit:
             obj.save()
+            from apps.core.gl_accounts import ensure_gl_account_for_payment_method
+
+            if obj.ledger in ("cash", "bank"):
+                ensure_gl_account_for_payment_method(obj)
         return obj
 
 

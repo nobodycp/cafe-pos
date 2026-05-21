@@ -8,6 +8,10 @@
      class="ds-shell-subtab{% if accounting_tab == 'pnl' %} is-active{% endif %}">الأرباح والخسائر</a>
   <a href="{% url 'shell:journal_list' %}"
      class="ds-shell-subtab{% if accounting_tab == 'journal' or accounting_tab == 'journal_detail' %} is-active{% endif %}">القيود اليومية</a>
+  <a href="{% url 'shell:journal_create' %}"
+     class="ds-shell-subtab{% if accounting_tab == 'journal_create' %} is-active{% endif %}">قيد يدوي</a>
+  <a href="{% url 'shell:journal_transfer' %}"
+     class="ds-shell-subtab{% if accounting_tab == 'journal_transfer' %} is-active{% endif %}">نقل حسابات</a>
   <a href="{% url 'shell:accounting_treasury' %}"
      class="ds-shell-subtab{% if accounting_tab == 'treasury' %} is-active{% endif %}">سندات الصندوق</a>
 </div>

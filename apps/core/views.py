@@ -517,6 +517,11 @@ def treasury_employee_quick_create(request):
 @login_required
 @require_POST
 def open_session_view(request):
+    from apps.core.operation_mode import uses_shifts
+
+    if not uses_shifts():
+        messages.info(request, "نمط المحاسبة المستمرة لا يستخدم فتح وردية.")
+        return redirect("pos:main")
     balances = _parse_opening_balances_post(request)
     try:
         opening = Decimal(balances.get("cash", "0"))
@@ -540,6 +545,10 @@ def open_session_view(request):
 @login_required
 @require_POST
 def close_session_view(request):
+    from apps.core.operation_mode import uses_shifts
+
+    if not uses_shifts():
+        return redirect("pos:main")
     raw = request.POST.get("closing_cash", "")
     closing = None
     if raw != "":
@@ -719,6 +728,10 @@ def _session_reconcile_detail_payload(ws, code: str, kind: str) -> dict:
 @login_required
 @require_GET
 def session_reconcile_detail(request):
+    from apps.core.operation_mode import uses_shifts
+
+    if not uses_shifts():
+        return redirect("shell:payment_boxes")
     ws = SessionService.get_open_session()
     if not ws:
         return render(
@@ -753,6 +766,10 @@ def session_reconcile_detail(request):
 
 @login_required
 def session_summary(request):
+    from apps.core.operation_mode import uses_shifts
+
+    if not uses_shifts():
+        return redirect("pos:main")
     ws = SessionService.get_open_session()
     if not ws:
         return redirect("pos:main")

@@ -44,6 +44,8 @@ class TableSession(TimeStampedModel):
         verbose_name=_("الوردية"),
         on_delete=models.PROTECT,
         related_name="table_sessions",
+        null=True,
+        blank=True,
     )
     dining_table = models.ForeignKey(
         DiningTable,
@@ -95,6 +97,8 @@ class Order(SoftDeleteModel):
         verbose_name=_("الوردية"),
         on_delete=models.PROTECT,
         related_name="orders",
+        null=True,
+        blank=True,
     )
     table_session = models.ForeignKey(
         TableSession,

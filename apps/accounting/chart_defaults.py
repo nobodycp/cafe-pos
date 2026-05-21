@@ -13,6 +13,7 @@ DEFAULT_SYSTEM_ACCOUNTS = (
     ("2001", "ذمم موردين", "Accounts Payable", "liability", "AP"),
     ("2002", "ضريبة مستحقة", "Tax Payable", "liability", "TAX_PAYABLE"),
     ("3001", "رأس مال المالك", "Owner Capital", "equity", "OWNER_CAPITAL"),
+    ("3002", "تسويات رصيد افتتاحي", "Opening Balance Equity", "equity", "OPENING_BALANCE_EQUITY"),
     ("4001", "إيرادات المبيعات", "Sales Revenue", "revenue", "SALES_REVENUE"),
     ("4002", "إيرادات عمولة", "Commission Revenue", "revenue", "COMMISSION_REVENUE"),
     ("4003", "إيرادات رسم خدمة", "Service Charge Revenue", "revenue", "SERVICE_REVENUE"),

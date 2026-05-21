@@ -3,7 +3,7 @@
   <span>{{ entry.entry_number }}</span>
   {% if entry.is_reversed %}<span class="text-danger font-bold">معكوس</span>{% else %}<span class="text-success font-bold">فعال</span>{% endif %}
   <span class="text-muted font-normal">{{ entry.date|date:"Y-m-d" }}</span>
-  {% if entry.work_session %}<span class="text-muted font-normal">وردية {{ entry.work_session_id }}</span>{% endif %}
+  {% if uses_shifts_mode and entry.work_session %}<span class="text-muted font-normal">وردية {{ entry.work_session_id }}</span>{% endif %}
 </div>
 
 {% if entry.description %}

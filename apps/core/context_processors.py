@@ -3,12 +3,16 @@ from django.conf import settings as django_settings
 
 def site_branding(request):
     from apps.core.models import get_pos_settings
+    from apps.core.operation_mode import show_work_session_on_receipt, uses_continuous, uses_shifts
 
     s = get_pos_settings()
     return {
         "CAFE_NAME_AR": s.cafe_name_ar or getattr(django_settings, "CAFE_NAME_AR", ""),
         "CAFE_NAME_EN": s.cafe_name_en or getattr(django_settings, "CAFE_NAME_EN", ""),
         "POS_SETTINGS": s,
+        "show_work_session_on_receipt": show_work_session_on_receipt(),
+        "uses_shifts_mode": uses_shifts(),
+        "uses_continuous_mode": uses_continuous(),
     }
 
 
@@ -61,9 +65,12 @@ def open_work_session(request):
     """وردية الكاشير المفتوحة (إن وجدت) لعرض روابط الملخص/الفتح في شريط الغلاف."""
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return {"open_work_session": None}
+    from apps.core.operation_mode import uses_shifts
     from apps.core.services import SessionService
 
-    return {"open_work_session": SessionService.get_open_session()}
+    return {
+        "open_work_session": SessionService.get_open_session() if uses_shifts() else None,
+    }
 
 
 def shell_route_namespaces(request):

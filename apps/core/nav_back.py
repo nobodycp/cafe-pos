@@ -172,7 +172,7 @@ def default_back_for_route(url_name: str, kwargs: dict[str, Any]) -> tuple[str, 
         return _rev("pos:main"), "← لوحة الطلبات", "لوحة الطلبات"
     if url_name == "account_ledger":
         return _rev("shell:accounting_chart"), "← دليل الحسابات", "دليل الحسابات"
-    if url_name in ("journal_detail", "journal_edit"):
+    if url_name in ("journal_detail", "journal_edit", "journal_create", "journal_transfer"):
         return _rev("shell:journal_list"), "← القيود اليومية", "القيود اليومية"
 
     # ——— موظفون ———

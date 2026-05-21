@@ -37,7 +37,9 @@ from apps.core.payment_methods import (
     get_payment_method_codes,
     method_codes_requiring_payer_details,
 )
+from apps.core.operation_mode import uses_shifts
 from apps.core.services import SessionService
+from apps.reports.payment_boxes import pos_cashier_balance_snapshot
 from apps.purchasing.models import Supplier
 from apps.purchasing.request_parsers import payment_rows as _payment_rows, purchase_form_state as _purchase_form_state
 from apps.pos.models import DiningTable, Order, OrderLine, TableSession
@@ -133,10 +135,16 @@ def pos_main(request):
     tab_balance = Decimal("0")
     oid = request.session.get("active_pos_order_id")
     session = SessionService.get_open_session()
+    pos_ready = SessionService.pos_is_ready()
     lines = []
-    if oid and session:
+    if oid and pos_ready:
         order = (
-            Order.objects.filter(pk=oid, work_session=session, status=Order.Status.OPEN, is_held=False)
+            Order.objects.filter(
+                pk=oid,
+                **SessionService.pos_session_filter_kwargs(),
+                status=Order.Status.OPEN,
+                is_held=False,
+            )
             .prefetch_related("lines__product")
             .first()
         )
@@ -152,10 +160,17 @@ def pos_main(request):
 
     cart_line_rows = cart_line_rows_for_template(lines, order_totals) if order and order_totals else []
 
-    floor_rows = floor_rows_for_session(session) if session else []
+    floor_rows = floor_rows_for_session(session) if pos_ready else []
+
+    desk_balance_rows: list = []
+    desk_balance_period = ""
+    if pos_ready:
+        snap = pos_cashier_balance_snapshot(work_session=session)
+        desk_balance_rows = snap["rows"]
+        desk_balance_period = snap["period_label"]
 
     open_orders = []
-    if session:
+    if pos_ready:
         open_orders = list(
             open_orders_with_lines_queryset(session)
             .select_related("customer", "table")
@@ -187,7 +202,7 @@ def pos_main(request):
     pos_customer_create_form = None
     pos_customer_overlay_open = False
     pos_customer_first_field_id = ""
-    if session:
+    if pos_ready:
         treasury_voucher_form = TreasuryVoucherForm(prefix="tv")
         treasury_next = reverse("pos:main")
         recent_treasury_rows = list(recent_treasury_voucher_logs(limit=8))
@@ -215,9 +230,13 @@ def pos_main(request):
         "pos/main.html",
         {
             "work_session": session,
+            "uses_shifts": uses_shifts(),
+            "pos_ready": pos_ready,
             "product_sections": sections,
             "featured_rows": featured_rows,
             "floor_rows": floor_rows,
+            "desk_balance_rows": desk_balance_rows,
+            "desk_balance_period": desk_balance_period,
             "current_order": order,
             "lines": lines,
             "order_totals": order_totals,
@@ -251,8 +270,8 @@ def pos_customer_create_save(request):
     if not request.user.has_perm("contacts.add_customer"):
         messages.error(request, "ليست لديك صلاحية إضافة عميل.")
         return redirect("pos:main")
-    if not SessionService.get_open_session():
-        messages.error(request, "لا توجد وردية مفتوحة.")
+    if not SessionService.pos_is_ready():
+        messages.error(request, "الكاشير غير جاهز.")
         return redirect("pos:main")
     form = CustomerForm(request.POST, prefix=POS_CUSTOMER_FORM_PREFIX)
     if form.is_valid():
@@ -272,8 +291,8 @@ def pos_product_quick_save(request):
     if not request.user.has_perm("catalog.add_product"):
         messages.error(request, "ليست لديك صلاحية إضافة منتج.")
         return redirect("pos:main")
-    if not SessionService.get_open_session():
-        messages.error(request, "لا توجد وردية مفتوحة.")
+    if not SessionService.pos_is_ready():
+        messages.error(request, "الكاشير غير جاهز.")
         return redirect("pos:main")
     form = ProductForm(request.POST, prefix=PRODUCT_QUICK_FORM_PREFIX)
     if form.is_valid():
@@ -286,14 +305,13 @@ def pos_product_quick_save(request):
     return redirect("pos:main")
 def last_sale_invoice_panel(request):
     """يرجع HTML جزئي لآخر فاتورة بيع (لعرضها داخل طبقة على شاشة الكاشير)."""
-    session = SessionService.get_open_session()
-    if not session:
+    if not SessionService.pos_is_ready():
         return HttpResponse(
-            '<div class="p-6 text-center text-sm text-muted" dir="rtl">افتح وردية لعرض الفاتورة.</div>',
+            '<div class="p-6 text-center text-sm text-muted" dir="rtl">الكاشير غير جاهز.</div>',
             content_type="text/html; charset=utf-8",
         )
     inv = (
-        SaleInvoice.objects.filter(is_cancelled=False, work_session=session)
+        SaleInvoice.objects.filter(is_cancelled=False, **SessionService.pos_session_filter_kwargs())
         .order_by("-created_at", "-pk")
         .first()
     )
@@ -326,14 +344,14 @@ def last_sale_invoice_edit_redirect(request):
 def last_invoice_resume_into_cart(request):
     """تعليق السلة الحالية إن لزم، ثم تحميل آخر فاتورة الوردية في السلة للتعديل وإعادة التسوية لاحقاً."""
     session = SessionService.get_open_session()
-    if not session:
+    if not SessionService.pos_is_ready():
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse({"ok": False, "error": "لا توجد وردية مفتوحة."}, status=400)
-        messages.error(request, "لا توجد وردية مفتوحة.")
+            return JsonResponse({"ok": False, "error": "الكاشير غير جاهز."}, status=400)
+        messages.error(request, "الكاشير غير جاهز.")
         return redirect("pos:main")
 
     inv = (
-        SaleInvoice.objects.filter(is_cancelled=False, work_session=session)
+        SaleInvoice.objects.filter(is_cancelled=False, **SessionService.pos_session_filter_kwargs())
         .order_by("-created_at", "-pk")
         .first()
     )
@@ -347,7 +365,9 @@ def last_invoice_resume_into_cart(request):
     oid = request.session.get("active_pos_order_id")
     if oid and int(oid) == inv.order_id:
         same = Order.objects.filter(
-            pk=inv.order_id, work_session=session, status=Order.Status.OPEN
+            pk=inv.order_id,
+            **SessionService.pos_session_filter_kwargs(),
+            status=Order.Status.OPEN,
         ).first()
         if same and not OrderPayment.objects.filter(sale_invoice=inv).exists():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -386,15 +406,18 @@ def last_invoice_resume_into_cart(request):
 def cart_fragment(request):
     """Return just the cart HTML fragment for AJAX updates."""
     oid = request.session.get("active_pos_order_id")
-    session = SessionService.get_open_session()
     order = None
     order_totals = None
     tab_paid = Decimal("0")
     tab_balance = Decimal("0")
     lines = []
-    if oid and session:
+    if oid and SessionService.pos_is_ready():
         order = (
-            Order.objects.filter(pk=oid, work_session=session, status=Order.Status.OPEN)
+            Order.objects.filter(
+                pk=oid,
+                **SessionService.pos_session_filter_kwargs(),
+                status=Order.Status.OPEN,
+            )
             .first()
         )
         if order:
@@ -416,7 +439,7 @@ def cart_fragment(request):
 def floor_tables_fragment(request):
     """HTML جزئي لقائمة الطاولات — تحديث بدون إعادة تحميل الصفحة بعد الدفع وإغلاق الجلسة."""
     session = SessionService.get_open_session()
-    floor_rows = floor_rows_for_session(session) if session else []
+    floor_rows = floor_rows_for_session(session) if SessionService.pos_is_ready() else []
     return render(request, "pos/_floor_tables_scroll_body.html", {"floor_rows": floor_rows})
 def receipt_print(request, invoice_id):
     inv = get_object_or_404(

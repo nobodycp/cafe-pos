@@ -8,7 +8,11 @@ from django.urls import reverse
 
 from apps.accounting.chart_defaults import DEFAULT_SYSTEM_ACCOUNTS, ensure_default_chart_accounts
 from apps.accounting.models import Account, JournalEntry, JournalLine
-from apps.accounting.services import post_purchase_invoice_journal
+from apps.accounting.services import (
+    MANUAL_ENTRY_REFERENCE,
+    create_manual_transfer_entry,
+    post_purchase_invoice_journal,
+)
 from apps.purchasing.models import PurchaseInvoice, Supplier
 
 
@@ -58,6 +62,56 @@ class PurchaseJournalSelfHealTests(TestCase):
                 reference_pk=str(inv.pk),
             ).exists()
         )
+
+
+class ManualJournalEntryTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="manual_je", password="x")
+        ensure_default_chart_accounts()
+        self.from_acc = Account.objects.get(system_code="AR")
+        self.to_acc = Account.objects.get(system_code="EXP_OTHER")
+
+    def test_manual_transfer_creates_balanced_two_line_entry(self):
+        entry = create_manual_transfer_entry(
+            date=date.today(),
+            description="ضيافة — نقل إلى مصروف",
+            from_account=self.from_acc,
+            to_account=self.to_acc,
+            amount=Decimal("150.00"),
+            user=self.user,
+        )
+        self.assertTrue(entry.is_balanced)
+        self.assertEqual(entry.reference_type, MANUAL_ENTRY_REFERENCE)
+        self.assertIsNone(entry.work_session_id)
+        self.assertEqual(entry.user_id, self.user.pk)
+
+        lines = list(entry.lines.select_related("account").order_by("debit", "pk"))
+        self.assertEqual(len(lines), 2)
+        debit_line = next(ln for ln in lines if ln.debit > 0)
+        credit_line = next(ln for ln in lines if ln.credit > 0)
+        self.assertEqual(debit_line.account_id, self.to_acc.pk)
+        self.assertEqual(debit_line.debit, Decimal("150.00"))
+        self.assertEqual(credit_line.account_id, self.from_acc.pk)
+        self.assertEqual(credit_line.credit, Decimal("150.00"))
+
+    def test_journal_transfer_view_post(self):
+        client = Client()
+        client.force_login(self.user)
+        url = reverse("shell:journal_transfer")
+        response = client.post(
+            url,
+            {
+                "date": date.today().isoformat(),
+                "description": "نقل ضيافة",
+                "from_account": self.from_acc.pk,
+                "to_account": self.to_acc.pk,
+                "amount": "75.50",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        entry = JournalEntry.objects.filter(reference_type=MANUAL_ENTRY_REFERENCE).latest("pk")
+        self.assertTrue(entry.is_balanced)
+        self.assertEqual(entry.lines.count(), 2)
 
 
 class AccountLedgerViewTests(TestCase):

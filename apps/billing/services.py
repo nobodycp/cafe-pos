@@ -30,8 +30,8 @@ def checkout_order(
     """
     دفع كامل في خطوة واحدة (سفري/بدون تاب). مجموع الدفعات = الإجمالي شامل الضريبة والخدمة.
     """
-    session = SessionService.require_open_session()
-    if order.work_session_id != session.id:
+    SessionService.require_open_session()
+    if not SessionService.order_belongs_to_pos_context(order):
         raise ValueError("ORDER_SESSION_MISMATCH")
     if order.status != Order.Status.OPEN:
         raise ValueError("ORDER_NOT_OPEN")
