@@ -5,7 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from apps.accounting.models import JournalEntry
@@ -55,19 +54,21 @@ def void_unified_treasury_voucher(*, audit_log_id: int, user) -> None:
     if vt == "receipt" and party == "customer":
         le_pk = _int_payload(payload, "ledger_entry_pk")
         cust_pk = _int_payload(payload, "customer_pk")
-        entry = get_object_or_404(CustomerLedgerEntry, pk=le_pk, customer_id=cust_pk)
-        if entry.entry_type != CustomerLedgerEntry.EntryType.PAYMENT:
+        entry = CustomerLedgerEntry.objects.select_for_update().filter(pk=le_pk, customer_id=cust_pk).first()
+        if entry and entry.entry_type != CustomerLedgerEntry.EntryType.PAYMENT:
             raise ValueError("INVALID_LEDGER_ENTRY")
         _reverse_journals(
             reference_type="contacts.CustomerLedgerEntry",
-            reference_pk=str(entry.pk),
+            reference_pk=str(le_pk),
             user=user,
             reason=reason,
         )
-        entry.delete()
-        cust = Customer.objects.get(pk=cust_pk)
-        cust.balance = cust.computed_balance
-        cust.save(update_fields=["balance", "updated_at"])
+        if entry:
+            entry.delete()
+        cust = Customer.objects.select_for_update().filter(pk=cust_pk).first()
+        if cust:
+            cust.balance = cust.computed_balance
+            cust.save(update_fields=["balance", "updated_at"])
 
     elif vt == "receipt" and party == "employee":
         rep_pk = _int_payload(payload, "debt_repayment_pk")

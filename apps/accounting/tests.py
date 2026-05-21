@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 import uuid
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -12,6 +13,7 @@ from apps.accounting.services import (
     MANUAL_ENTRY_REFERENCE,
     create_manual_transfer_entry,
     post_purchase_invoice_journal,
+    reverse_journal_entry,
 )
 from apps.purchasing.models import PurchaseInvoice, Supplier
 
@@ -138,3 +140,36 @@ class AccountLedgerViewTests(TestCase):
         response = self.client.get(url, {"per_page": 25})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "JE-LEDGER-1")
+
+
+class ReverseJournalEntryNumberCollisionTests(TestCase):
+    def test_reverse_retries_when_entry_number_collides(self):
+        account = Account.objects.create(
+            code="999901",
+            name_ar="اختبار",
+            account_type=Account.AccountType.ASSET,
+            is_active=True,
+        )
+        original = JournalEntry.objects.create(
+            entry_number="JE-ORIG-1",
+            date=date.today(),
+            description="original",
+        )
+        JournalLine.objects.create(entry=original, account=account, debit=Decimal("10.00"), credit=Decimal("0"))
+        JournalLine.objects.create(entry=original, account=account, debit=Decimal("0"), credit=Decimal("10.00"))
+
+        JournalEntry.objects.create(
+            entry_number="JE-COLLIDE",
+            date=date.today(),
+            description="existing",
+        )
+
+        with patch(
+            "apps.accounting.services._next_je_number",
+            side_effect=["JE-COLLIDE", "JE-UNIQUE-2"],
+        ):
+            rev = reverse_journal_entry(original=original, reason="test")
+
+        self.assertEqual(rev.entry_number, "JE-UNIQUE-2")
+        original.refresh_from_db()
+        self.assertTrue(original.is_reversed)

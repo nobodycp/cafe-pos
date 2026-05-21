@@ -10,7 +10,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounting.models import Account, JournalEntry, JournalLine
@@ -63,6 +63,23 @@ def _build_entry(
         work_session=work_session,
         user=user,
     )
+
+
+def _save_entry_with_unique_number(entry: JournalEntry, *, max_retries: int = 5) -> None:
+    """
+    يحفظ القيد مع إعادة توليد رقم القيد إذا صادف تعارض unique على entry_number.
+    """
+    for _ in range(max_retries):
+        try:
+            with transaction.atomic():
+                entry.save()
+            return
+        except IntegrityError as exc:
+            msg = str(exc)
+            if "accounting_journalentry.entry_number" not in msg:
+                raise
+            entry.entry_number = _next_je_number()
+    raise IntegrityError("UNIQUE_JE_NUMBER_RETRY_EXHAUSTED")
 
 
 def _add_line(entry: JournalEntry, account: Account, debit: Decimal = Decimal("0"), credit: Decimal = Decimal("0"), desc: str = ""):
@@ -613,7 +630,7 @@ def reverse_journal_entry(*, original: JournalEntry, reason: str = "", user=None
         work_session=original.work_session,
         user=user,
     )
-    rev.save()
+    _save_entry_with_unique_number(rev)
 
     for line in original.lines.all():
         JournalLine.objects.create(

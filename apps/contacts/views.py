@@ -141,10 +141,28 @@ def customer_edit(request, pk):
 @require_POST
 @transaction.atomic
 def customer_delete(request, pk):
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from apps.billing.models import SaleInvoice
+    from apps.core.models import AuditLog
+    from apps.core.treasury_services import TREASURY_VOUCHER_AUDIT_ACTION
+    from apps.payroll.models import Employee
+    from apps.pos.models import Order
     from apps.purchasing.models import Supplier
 
     customer = get_object_or_404(Customer, pk=pk)
     Supplier.objects.filter(linked_customer=customer).update(linked_customer=None)
+    Employee.objects.filter(linked_customer=customer).update(linked_customer=None)
+    # تنظيف الروابط التشغيلية قبل حذف العميل لمنع مراجع يتيمة في السندات/الطلبات.
+    Order.objects.filter(customer=customer).update(customer=None, updated_at=timezone.now())
+    SaleInvoice.objects.filter(customer=customer).update(customer=None, updated_at=timezone.now())
+    AuditLog.objects.filter(
+        action=TREASURY_VOUCHER_AUDIT_ACTION,
+    ).filter(
+        Q(payload__party_type="customer"),
+        Q(payload__customer_pk=customer.pk) | Q(payload__customer_pk=str(customer.pk)),
+    ).delete()
     CustomerLedgerEntry.objects.filter(customer=customer).delete()
     name = customer.name_ar
     customer.delete()
